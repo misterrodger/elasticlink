@@ -1,7 +1,7 @@
 {
   "name": "elastiq",
   "version": "0.1.0",
-  "description": "The Typescript-first Elasticsearch query builder with real type safety",
+  "description": "Type-safe, lightweight Elasticsearch query builder",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -14,8 +14,7 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
-    "prepublishOnly": "npm run build && npm test",
-    "commit": "npm run test && npm run lint && npm run format && git add"
+    "prepublishOnly": "npm run build && npm test"
   },
   "repository": {
     "type": "git",

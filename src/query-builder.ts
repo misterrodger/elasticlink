@@ -3,6 +3,8 @@ import { QueryState, QueryBuilder, ClauseBuilder } from './types';
 const createClauseBuilder = <T>(): ClauseBuilder<T> => ({
   matchAll: () => ({ match_all: {} }),
   match: (field, value) => ({ match: { [field]: value } }),
+  multiMatch: (fields, query) => ({ multi_match: { fields, query } }),
+  matchPhrase: (field, query) => ({ match_phrase: { [field]: query }}),
   term: (field, value) => ({ term: { [field]: value } }),
   terms: (field, value) => ({ terms: { [field]: value } }),
   range: (field, conditions) => ({ range: { [field]: conditions } }),
@@ -65,8 +67,11 @@ export const createQueryBuilder = <T>(
   matchAll: () => createQueryBuilder<T>({ ...state, query: { match_all: {} } }),
   match: (field, value) =>
     createQueryBuilder<T>({ ...state, query: { match: { [field]: value } } }),
+  multiMatch: (fields, query) => createQueryBuilder<T>({ ...state, query: { multi_match: { fields, query } } }),
   term: (field, value) =>
     createQueryBuilder<T>({ ...state, query: { term: { [field]: value } } }),
+  matchPhrase: (field, value) =>
+    createQueryBuilder<T>({ ...state, query: { match_phrase: { [field]: value } } }),
   terms: (field, value) =>
     createQueryBuilder<T>({ ...state, query: { terms: { [field]: value } } }),
   exists: (field) =>

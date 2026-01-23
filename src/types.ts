@@ -6,6 +6,8 @@ export type QueryState = {
 export type ClauseBuilder<T> = {
   matchAll: () => any;
   match: <K extends keyof T>(field: K, value: T[K]) => any;
+  multiMatch: <K extends keyof T>(fields: K[], value: string) => any;
+  matchPhrase: <K extends keyof T>(field: K, value: T[K]) => any;
   term: <K extends keyof T>(field: K, value: T[K]) => any;
   terms: <K extends keyof T>(field: K, value: T[K]) => any;
   range: <K extends keyof T>(
@@ -29,8 +31,8 @@ export type QueryBuilder<T> = {
   // Full-text queries
   matchAll: () => QueryBuilder<T>;
   match: <K extends keyof T>(field: K, value: T[K]) => QueryBuilder<T>;
-  // multiMatch TBD
-  // matchPhrase TBD
+  multiMatch: <K extends keyof T>(fields: K[], value: string) => QueryBuilder<T>;
+  matchPhrase: <K extends keyof T>(field: K, value: T[K]) => QueryBuilder<T>;
   // queryString TBD
 
   // Term-level queries
@@ -57,14 +59,4 @@ export type QueryBuilder<T> = {
   // source: (fields: (keyof T)[]) => QueryBuilder<T>;
 
   build: () => QueryState;
-};
-
-export type BoolBuilder<T> = {
-  must: (fn: (q: QueryBuilder<T>) => QueryBuilder<T>) => BoolBuilder<T>;
-  should: (fn: (q: QueryBuilder<T>) => QueryBuilder<T>) => BoolBuilder<T>;
-  mustNot: (fn: (q: QueryBuilder<T>) => QueryBuilder<T>) => BoolBuilder<T>;
-  filter: (fn: (q: QueryBuilder<T>) => QueryBuilder<T>) => BoolBuilder<T>;
-  minimumShouldMatch: (n: number) => BoolBuilder<T>;
-
-  _build: () => any;
 };

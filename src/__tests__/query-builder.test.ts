@@ -2,6 +2,7 @@ import { query } from '..';
 
 type TestIndex = {
   title: string;
+  name: string;
   price: number;
   size: number;
 };
@@ -32,6 +33,40 @@ describe('QueryBuilder', () => {
               },
             }
           `);
+    });
+
+    it('should build a multi_match query', () => {
+      const result = query<TestIndex>()
+        .multiMatch(['title', 'name'], 'test')
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "multi_match": {
+              "fields": [
+                "title",
+                "name",
+              ],
+              "query": "test",
+            },
+          },
+        }
+      `);
+    });
+
+    it('should build a match_phrase query', () => {
+      const result = query<TestIndex>().matchPhrase('title', 'test').build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "match_phrase": {
+              "title": "test",
+            },
+          },
+        }
+      `);
     });
 
     it('should build a term query', () => {
@@ -484,6 +519,56 @@ describe('QueryBuilder', () => {
                 {
                   "wildcard": {
                     "price": "pr",
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('should build a bool with multi_match', () => {
+      const result = query<TestIndex>()
+        .bool()
+        .must((q) => q.multiMatch(['name', 'title'], 'test'))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "multi_match": {
+                    "fields": [
+                      "name",
+                      "title",
+                    ],
+                    "query": "test",
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('should build a bool with match_phrase', () => {
+      const result = query<TestIndex>()
+        .bool()
+        .must((q) => q.matchPhrase('title', 'test'))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "match_phrase": {
+                    "title": "test",
                   },
                 },
               ],
