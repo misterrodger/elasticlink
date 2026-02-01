@@ -80,11 +80,7 @@ export const createAggregationBuilder = <T>(
   },
 
   // Metric aggregations
-  avg: <K extends keyof T>(
-    name: string,
-    field: K,
-    options?: AvgAggOptions
-  ) => {
+  avg: <K extends keyof T>(name: string, field: K, options?: AvgAggOptions) => {
     const aggregations: AggregationState = { ...state };
     aggregations[name] = {
       avg: {
@@ -95,11 +91,7 @@ export const createAggregationBuilder = <T>(
     return createAggregationBuilder<T>(aggregations);
   },
 
-  sum: <K extends keyof T>(
-    name: string,
-    field: K,
-    options?: SumAggOptions
-  ) => {
+  sum: <K extends keyof T>(name: string, field: K, options?: SumAggOptions) => {
     const aggregations: AggregationState = { ...state };
     aggregations[name] = {
       sum: {
@@ -110,11 +102,7 @@ export const createAggregationBuilder = <T>(
     return createAggregationBuilder<T>(aggregations);
   },
 
-  min: <K extends keyof T>(
-    name: string,
-    field: K,
-    options?: MinAggOptions
-  ) => {
+  min: <K extends keyof T>(name: string, field: K, options?: MinAggOptions) => {
     const aggregations: AggregationState = { ...state };
     aggregations[name] = {
       min: {
@@ -125,11 +113,7 @@ export const createAggregationBuilder = <T>(
     return createAggregationBuilder<T>(aggregations);
   },
 
-  max: <K extends keyof T>(
-    name: string,
-    field: K,
-    options?: MaxAggOptions
-  ) => {
+  max: <K extends keyof T>(name: string, field: K, options?: MaxAggOptions) => {
     const aggregations: AggregationState = { ...state };
     aggregations[name] = {
       max: {

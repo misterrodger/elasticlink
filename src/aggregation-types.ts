@@ -8,7 +8,15 @@ export type TermsAggOptions = {
   missing?: string;
 };
 
-export type DateHistogramInterval = 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
+export type DateHistogramInterval =
+  | 'second'
+  | 'minute'
+  | 'hour'
+  | 'day'
+  | 'week'
+  | 'month'
+  | 'quarter'
+  | 'year';
 
 export type DateHistogramAggOptions = {
   interval: string | DateHistogramInterval;
@@ -156,7 +164,9 @@ export type AggregationBuilder<T> = {
   ) => AggregationBuilder<T>;
 
   // Sub-aggregations
-  subAgg: (fn: (agg: AggregationBuilder<T>) => AggregationBuilder<T>) => AggregationBuilder<T>;
+  subAgg: (
+    fn: (agg: AggregationBuilder<T>) => AggregationBuilder<T>
+  ) => AggregationBuilder<T>;
 
   // Build
   build: () => AggregationState;

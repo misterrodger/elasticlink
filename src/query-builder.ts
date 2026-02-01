@@ -96,7 +96,10 @@ export const createQueryBuilder = <T>(
   matchAll: () => createQueryBuilder<T>({ ...state, query: { match_all: {} } }),
   match: (field, value, options) => {
     if (!options || Object.keys(options).length === 0) {
-      return createQueryBuilder<T>({ ...state, query: { match: { [field]: value } } });
+      return createQueryBuilder<T>({
+        ...state,
+        query: { match: { [field]: value } }
+      });
     }
     return createQueryBuilder<T>({
       ...state,

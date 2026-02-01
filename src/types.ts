@@ -88,7 +88,11 @@ export type QueryState<T> = {
 
 export type ClauseBuilder<T> = {
   matchAll: () => any;
-  match: <K extends keyof T>(field: K, value: T[K], options?: MatchOptions) => any;
+  match: <K extends keyof T>(
+    field: K,
+    value: T[K],
+    options?: MatchOptions
+  ) => any;
   multiMatch: <K extends keyof T>(
     fields: K[],
     value: string,
@@ -109,7 +113,11 @@ export type ClauseBuilder<T> = {
   exists: <K extends keyof T>(field: K) => any;
   prefix: <K extends keyof T>(field: K, value: string) => any;
   wildcard: <K extends keyof T>(field: K, value: string) => any;
-  fuzzy: <K extends keyof T>(field: K, value: string, options?: FuzzyOptions) => any;
+  fuzzy: <K extends keyof T>(
+    field: K,
+    value: string,
+    options?: FuzzyOptions
+  ) => any;
   ids: (values: string[]) => any;
   when: <R>(
     condition: any,
@@ -171,7 +179,9 @@ export type QueryBuilder<T> = {
     thenFn: (q: QueryBuilder<T>) => R,
     elseFn?: (q: QueryBuilder<T>) => R
   ) => R | undefined;
-  aggs: (fn: (agg: AggregationBuilder<T>) => AggregationBuilder<T>) => QueryBuilder<T>;
+  aggs: (
+    fn: (agg: AggregationBuilder<T>) => AggregationBuilder<T>
+  ) => QueryBuilder<T>;
   // Meta
   sort: <K extends keyof T>(
     field: K,

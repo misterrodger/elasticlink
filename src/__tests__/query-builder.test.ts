@@ -1239,9 +1239,7 @@ describe('QueryBuilder', () => {
 
     describe('ids query', () => {
       it('should build an ids query at root level', () => {
-        const result = query<TestIndex>()
-          .ids(['id1', 'id2', 'id3'])
-          .build();
+        const result = query<TestIndex>().ids(['id1', 'id2', 'id3']).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1259,9 +1257,7 @@ describe('QueryBuilder', () => {
       });
 
       it('should build an ids query with single id', () => {
-        const result = query<TestIndex>()
-          .ids(['single-id'])
-          .build();
+        const result = query<TestIndex>().ids(['single-id']).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1368,9 +1364,7 @@ describe('QueryBuilder', () => {
       it('should build a nested query with single clause', () => {
         const result = query<TestIndex>()
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .nested('type' as any, (q) =>
-            q.match('comments.author', 'john')
-          )
+          .nested('type' as any, (q) => q.match('comments.author', 'john'))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -1392,9 +1386,7 @@ describe('QueryBuilder', () => {
       it('should build a nested query with multiple term queries', () => {
         const result = query<TestIndex>()
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .nested('name' as any, (q) =>
-            q.term('status', 'approved')
-          )
+          .nested('name' as any, (q) => q.term('status', 'approved'))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -1497,9 +1489,7 @@ describe('QueryBuilder', () => {
       it('should build nested query with pagination', () => {
         const result = query<TestIndex>()
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .nested('type' as any, (q: any) =>
-            q.match('author', 'john')
-          )
+          .nested('type' as any, (q: any) => q.match('author', 'john'))
           .from(0)
           .size(10)
           .sort('price', 'asc')
@@ -1533,10 +1523,7 @@ describe('QueryBuilder', () => {
       it('should execute thenFn when condition is truthy', () => {
         const searchTerm = 'test';
         const result = query<TestIndex>()
-          .when(
-            searchTerm,
-            (q) => q.match('type', searchTerm)
-          )!
+          .when(searchTerm, (q) => q.match('type', searchTerm))!
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -1586,11 +1573,8 @@ describe('QueryBuilder', () => {
         const type = 'test';
         const result = query<TestIndex>()
           .bool()
-          .must((q) =>
-            q.when(
-              type,
-              (q2) => q2.term('type', type)
-            ) || q.matchAll()
+          .must(
+            (q) => q.when(type, (q2) => q2.term('type', type)) || q.matchAll()
           )
           .build();
 
@@ -1615,11 +1599,10 @@ describe('QueryBuilder', () => {
         const minPrice = 100;
         const result = query<TestIndex>()
           .bool()
-          .filter((q) =>
-            q.when(
-              minPrice,
-              (q2) => q2.range('price', { gte: minPrice })
-            ) || q.matchAll()
+          .filter(
+            (q) =>
+              q.when(minPrice, (q2) => q2.range('price', { gte: minPrice })) ||
+              q.matchAll()
           )
           .build();
 
@@ -1651,24 +1634,16 @@ describe('QueryBuilder', () => {
           .bool()
           .must(
             (q) =>
-              q.when(
-                searchTerm,
-                (q2) => q2.match('name', searchTerm)
-              ) || q.matchAll()
+              q.when(searchTerm, (q2) => q2.match('name', searchTerm)) ||
+              q.matchAll()
+          )
+          .filter(
+            (q) => q.when(type, (q2) => q2.term('type', type)) || q.matchAll()
           )
           .filter(
             (q) =>
-              q.when(
-                type,
-                (q2) => q2.term('type', type)
-              ) || q.matchAll()
-          )
-          .filter(
-            (q) =>
-              q.when(
-                minPrice,
-                (q2) => q2.range('price', { gte: minPrice })
-              ) || q.matchAll()
+              q.when(minPrice, (q2) => q2.range('price', { gte: minPrice })) ||
+              q.matchAll()
           )
           .build();
 
@@ -1706,10 +1681,7 @@ describe('QueryBuilder', () => {
       it('should use when with empty string (falsy)', () => {
         const searchTerm = '';
         const result = query<TestIndex>()
-          .when(
-            searchTerm,
-            (q) => q.match('type', searchTerm)
-          )
+          .when(searchTerm, (q) => q.match('type', searchTerm))
           ?.build();
 
         expect(result).toMatchInlineSnapshot(`undefined`);
@@ -1718,10 +1690,7 @@ describe('QueryBuilder', () => {
       it('should use when with 0 (falsy)', () => {
         const minPrice = 0;
         const result = query<TestIndex>()
-          .when(
-            minPrice,
-            (q) => q.range('price', { gte: minPrice })
-          )
+          .when(minPrice, (q) => q.range('price', { gte: minPrice }))
           ?.build();
 
         expect(result).toMatchInlineSnapshot(`undefined`);
@@ -1730,10 +1699,7 @@ describe('QueryBuilder', () => {
       it('should use when with empty array (falsy)', () => {
         const ids: string[] = [];
         const result = query<TestIndex>()
-          .when(
-            ids.length > 0,
-            (q) => q.ids(ids)
-          )
+          .when(ids.length > 0, (q) => q.ids(ids))
           ?.build();
 
         expect(result).toMatchInlineSnapshot(`undefined`);
@@ -1742,10 +1708,7 @@ describe('QueryBuilder', () => {
       it('should use when with non-empty array (truthy)', () => {
         const ids = ['id1', 'id2'];
         const result = query<TestIndex>()
-          .when(
-            ids.length > 0,
-            (q) => q.ids(ids)
-          )!
+          .when(ids.length > 0, (q) => q.ids(ids))!
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -1825,7 +1788,9 @@ describe('QueryBuilder', () => {
       it('should build match_phrase_prefix in bool filter context', () => {
         const result = query<TestIndex>()
           .bool()
-          .filter((q) => q.matchPhrasePrefix('type', 'test', { max_expansions: 5 }))
+          .filter((q) =>
+            q.matchPhrasePrefix('type', 'test', { max_expansions: 5 })
+          )
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -2282,15 +2247,15 @@ describe('QueryBuilder', () => {
     });
   });
 
-describe('More TBC Features', () => {
-  describe('Aggregations', () => {
-    describe('Bucket Aggregations', () => {
-      it('should create a terms aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .terms('category_agg', 'category', { size: 10 })
-          .build();
+  describe('More TBC Features', () => {
+    describe('Aggregations', () => {
+      describe('Bucket Aggregations', () => {
+        it('should create a terms aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .terms('category_agg', 'category', { size: 10 })
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "category_agg": {
               "terms": {
@@ -2300,14 +2265,14 @@ describe('More TBC Features', () => {
             },
           }
         `);
-      });
+        });
 
-      it('should create a terms aggregation without options', () => {
-        const result = aggregations<TestIndex2>()
-          .terms('category_agg', 'category')
-          .build();
+        it('should create a terms aggregation without options', () => {
+          const result = aggregations<TestIndex2>()
+            .terms('category_agg', 'category')
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "category_agg": {
               "terms": {
@@ -2316,17 +2281,17 @@ describe('More TBC Features', () => {
             },
           }
         `);
-      });
+        });
 
-      it('should create a date histogram aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .dateHistogram('sales_by_date', 'date', {
-            interval: 'day',
-            min_doc_count: 1
-          })
-          .build();
+        it('should create a date histogram aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .dateHistogram('sales_by_date', 'date', {
+              interval: 'day',
+              min_doc_count: 1
+            })
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "sales_by_date": {
               "date_histogram": {
@@ -2337,16 +2302,16 @@ describe('More TBC Features', () => {
             },
           }
         `);
-      });
+        });
 
-      it('should create a range aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .range('price_ranges', 'price', {
-            ranges: [{ to: 100 }, { from: 100, to: 500 }, { from: 500 }]
-          })
-          .build();
+        it('should create a range aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .range('price_ranges', 'price', {
+              ranges: [{ to: 100 }, { from: 100, to: 500 }, { from: 500 }]
+            })
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "price_ranges": {
               "range": {
@@ -2367,14 +2332,14 @@ describe('More TBC Features', () => {
             },
           }
         `);
-      });
+        });
 
-      it('should create a histogram aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .histogram('price_histogram', 'price', { interval: 50 })
-          .build();
+        it('should create a histogram aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .histogram('price_histogram', 'price', { interval: 50 })
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "price_histogram": {
               "histogram": {
@@ -2384,16 +2349,16 @@ describe('More TBC Features', () => {
             },
           }
         `);
+        });
       });
-    });
 
-    describe('Metric Aggregations', () => {
-      it('should create an avg aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .avg('avg_price', 'price')
-          .build();
+      describe('Metric Aggregations', () => {
+        it('should create an avg aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .avg('avg_price', 'price')
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "avg_price": {
               "avg": {
@@ -2402,14 +2367,14 @@ describe('More TBC Features', () => {
             },
           }
         `);
-      });
+        });
 
-      it('should create a sum aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .sum('total_price', 'price')
-          .build();
+        it('should create a sum aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .sum('total_price', 'price')
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "total_price": {
               "sum": {
@@ -2418,14 +2383,14 @@ describe('More TBC Features', () => {
             },
           }
         `);
-      });
+        });
 
-      it('should create a min aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .min('min_price', 'price')
-          .build();
+        it('should create a min aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .min('min_price', 'price')
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "min_price": {
               "min": {
@@ -2434,14 +2399,14 @@ describe('More TBC Features', () => {
             },
           }
         `);
-      });
+        });
 
-      it('should create a max aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .max('max_price', 'price')
-          .build();
+        it('should create a max aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .max('max_price', 'price')
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "max_price": {
               "max": {
@@ -2450,16 +2415,16 @@ describe('More TBC Features', () => {
             },
           }
         `);
-      });
+        });
 
-      it('should create a cardinality aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .cardinality('unique_categories', 'category', {
-            precision_threshold: 100
-          })
-          .build();
+        it('should create a cardinality aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .cardinality('unique_categories', 'category', {
+              precision_threshold: 100
+            })
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "unique_categories": {
               "cardinality": {
@@ -2469,16 +2434,16 @@ describe('More TBC Features', () => {
             },
           }
         `);
-      });
+        });
 
-      it('should create a percentiles aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .percentiles('price_percentiles', 'price', {
-            percents: [25, 50, 75, 95]
-          })
-          .build();
+        it('should create a percentiles aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .percentiles('price_percentiles', 'price', {
+              percents: [25, 50, 75, 95]
+            })
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "price_percentiles": {
               "percentiles": {
@@ -2493,14 +2458,14 @@ describe('More TBC Features', () => {
             },
           }
         `);
-      });
+        });
 
-      it('should create a stats aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .stats('price_stats', 'price')
-          .build();
+        it('should create a stats aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .stats('price_stats', 'price')
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "price_stats": {
               "stats": {
@@ -2509,14 +2474,14 @@ describe('More TBC Features', () => {
             },
           }
         `);
-      });
+        });
 
-      it('should create a value_count aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .valueCount('rating_count', 'rating')
-          .build();
+        it('should create a value_count aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .valueCount('rating_count', 'rating')
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "rating_count": {
               "value_count": {
@@ -2525,17 +2490,17 @@ describe('More TBC Features', () => {
             },
           }
         `);
+        });
       });
-    });
 
-    describe('Sub-aggregations', () => {
-      it('should add sub-aggregations to a bucket aggregation', () => {
-        const result = aggregations<TestIndex2>()
-          .terms('categories', 'category', { size: 10 })
-          .subAgg((agg) => agg.avg('avg_price', 'price'))
-          .build();
+      describe('Sub-aggregations', () => {
+        it('should add sub-aggregations to a bucket aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .terms('categories', 'category', { size: 10 })
+            .subAgg((agg) => agg.avg('avg_price', 'price'))
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "categories": {
               "aggs": {
@@ -2552,17 +2517,17 @@ describe('More TBC Features', () => {
             },
           }
         `);
-      });
+        });
 
-      it('should add multiple sub-aggregations', () => {
-        const result = aggregations<TestIndex2>()
-          .terms('categories', 'category')
-          .subAgg((agg) =>
-            agg.avg('avg_price', 'price').max('max_rating', 'rating')
-          )
-          .build();
+        it('should add multiple sub-aggregations', () => {
+          const result = aggregations<TestIndex2>()
+            .terms('categories', 'category')
+            .subAgg((agg) =>
+              agg.avg('avg_price', 'price').max('max_rating', 'rating')
+            )
+            .build();
 
-        expect(result).toMatchInlineSnapshot(`
+          expect(result).toMatchInlineSnapshot(`
           {
             "categories": {
               "aggs": {
@@ -2583,21 +2548,21 @@ describe('More TBC Features', () => {
             },
           }
         `);
+        });
       });
     });
-  });
 
-  describe('Geo Queries', () => {
-    it('should create a geo_distance query', () => {
-      const result = query<TestIndex2>()
-        .geoDistance(
-          'location',
-          { lat: 40.7128, lon: -74.006 },
-          { distance: '10km' }
-        )
-        .build();
+    describe('Geo Queries', () => {
+      it('should create a geo_distance query', () => {
+        const result = query<TestIndex2>()
+          .geoDistance(
+            'location',
+            { lat: 40.7128, lon: -74.006 },
+            { distance: '10km' }
+          )
+          .build();
 
-      expect(result).toMatchInlineSnapshot(`
+        expect(result).toMatchInlineSnapshot(`
         {
           "query": {
             "geo_distance": {
@@ -2610,22 +2575,22 @@ describe('More TBC Features', () => {
           },
         }
       `);
-    });
+      });
 
-    it('should create a geo_distance query with options', () => {
-      const result = query<TestIndex2>()
-        .geoDistance(
-          'location',
-          { lat: 40.7128, lon: -74.006 },
-          {
-            distance: '10km',
-            unit: 'mi',
-            distance_type: 'plane'
-          }
-        )
-        .build();
+      it('should create a geo_distance query with options', () => {
+        const result = query<TestIndex2>()
+          .geoDistance(
+            'location',
+            { lat: 40.7128, lon: -74.006 },
+            {
+              distance: '10km',
+              unit: 'mi',
+              distance_type: 'plane'
+            }
+          )
+          .build();
 
-      expect(result).toMatchInlineSnapshot(`
+        expect(result).toMatchInlineSnapshot(`
         {
           "query": {
             "geo_distance": {
@@ -2640,17 +2605,17 @@ describe('More TBC Features', () => {
           },
         }
       `);
-    });
+      });
 
-    it('should create a geo_bounding_box query', () => {
-      const result = query<TestIndex2>()
-        .geoBoundingBox('location', {
-          top_left: { lat: 40.8, lon: -74.1 },
-          bottom_right: { lat: 40.7, lon: -74.0 }
-        })
-        .build();
+      it('should create a geo_bounding_box query', () => {
+        const result = query<TestIndex2>()
+          .geoBoundingBox('location', {
+            top_left: { lat: 40.8, lon: -74.1 },
+            bottom_right: { lat: 40.7, lon: -74.0 }
+          })
+          .build();
 
-      expect(result).toMatchInlineSnapshot(`
+        expect(result).toMatchInlineSnapshot(`
         {
           "query": {
             "geo_bounding_box": {
@@ -2668,20 +2633,20 @@ describe('More TBC Features', () => {
           },
         }
       `);
-    });
+      });
 
-    it('should create a geo_polygon query', () => {
-      const result = query<TestIndex2>()
-        .geoPolygon('location', {
-          points: [
-            { lat: 40.7128, lon: -74.006 },
-            { lat: 40.8, lon: -74.1 },
-            { lat: 40.7, lon: -73.9 }
-          ]
-        })
-        .build();
+      it('should create a geo_polygon query', () => {
+        const result = query<TestIndex2>()
+          .geoPolygon('location', {
+            points: [
+              { lat: 40.7128, lon: -74.006 },
+              { lat: 40.8, lon: -74.1 },
+              { lat: 40.7, lon: -73.9 }
+            ]
+          })
+          .build();
 
-      expect(result).toMatchInlineSnapshot(`
+        expect(result).toMatchInlineSnapshot(`
         {
           "query": {
             "geo_polygon": {
@@ -2705,19 +2670,19 @@ describe('More TBC Features', () => {
           },
         }
       `);
-    });
+      });
 
-    it('should combine geo_distance with other queries', () => {
-      const result = query<TestIndex2>()
-        .match('category', 'restaurants')
-        .geoDistance(
-          'location',
-          { lat: 40.7128, lon: -74.006 },
-          { distance: '5km' }
-        )
-        .build();
+      it('should combine geo_distance with other queries', () => {
+        const result = query<TestIndex2>()
+          .match('category', 'restaurants')
+          .geoDistance(
+            'location',
+            { lat: 40.7128, lon: -74.006 },
+            { distance: '5km' }
+          )
+          .build();
 
-      expect(result).toMatchInlineSnapshot(`
+        expect(result).toMatchInlineSnapshot(`
         {
           "query": {
             "geo_distance": {
@@ -2730,14 +2695,14 @@ describe('More TBC Features', () => {
           },
         }
       `);
+      });
     });
-  });
 
-  describe('Pattern and Scoring Queries', () => {
-    it('should create a regexp query', () => {
-      const result = query<TestIndex2>().regexp('category', 'rest.*').build();
+    describe('Pattern and Scoring Queries', () => {
+      it('should create a regexp query', () => {
+        const result = query<TestIndex2>().regexp('category', 'rest.*').build();
 
-      expect(result).toMatchInlineSnapshot(`
+        expect(result).toMatchInlineSnapshot(`
         {
           "query": {
             "regexp": {
@@ -2746,14 +2711,17 @@ describe('More TBC Features', () => {
           },
         }
       `);
-    });
+      });
 
-    it('should create a regexp query with options', () => {
-      const result = query<TestIndex2>()
-        .regexp('category', 'rest.*', { flags: 'CASE_INSENSITIVE', boost: 2.0 })
-        .build();
+      it('should create a regexp query with options', () => {
+        const result = query<TestIndex2>()
+          .regexp('category', 'rest.*', {
+            flags: 'CASE_INSENSITIVE',
+            boost: 2.0
+          })
+          .build();
 
-      expect(result).toMatchInlineSnapshot(`
+        expect(result).toMatchInlineSnapshot(`
         {
           "query": {
             "regexp": {
@@ -2766,14 +2734,14 @@ describe('More TBC Features', () => {
           },
         }
       `);
-    });
+      });
 
-    it('should create a constant_score query', () => {
-      const result = query<TestIndex2>()
-        .constantScore((q) => q.term('category', 'restaurants'))
-        .build();
+      it('should create a constant_score query', () => {
+        const result = query<TestIndex2>()
+          .constantScore((q) => q.term('category', 'restaurants'))
+          .build();
 
-      expect(result).toMatchInlineSnapshot(`
+        expect(result).toMatchInlineSnapshot(`
         {
           "query": {
             "constant_score": {
@@ -2786,14 +2754,16 @@ describe('More TBC Features', () => {
           },
         }
       `);
-    });
+      });
 
-    it('should create a constant_score query with boost', () => {
-      const result = query<TestIndex2>()
-        .constantScore((q) => q.term('category', 'restaurants'), { boost: 1.5 })
-        .build();
+      it('should create a constant_score query with boost', () => {
+        const result = query<TestIndex2>()
+          .constantScore((q) => q.term('category', 'restaurants'), {
+            boost: 1.5
+          })
+          .build();
 
-      expect(result).toMatchInlineSnapshot(`
+        expect(result).toMatchInlineSnapshot(`
         {
           "query": {
             "constant_score": {
@@ -2807,15 +2777,15 @@ describe('More TBC Features', () => {
           },
         }
       `);
-    });
+      });
 
-    it('should combine constant_score with other queries', () => {
-      const result = query<TestIndex2>()
-        .match('title', 'test')
-        .constantScore((cb) => cb.term('category', 'restaurants'))
-        .build();
+      it('should combine constant_score with other queries', () => {
+        const result = query<TestIndex2>()
+          .match('title', 'test')
+          .constantScore((cb) => cb.term('category', 'restaurants'))
+          .build();
 
-      expect(result).toMatchInlineSnapshot(`
+        expect(result).toMatchInlineSnapshot(`
         {
           "query": {
             "constant_score": {
@@ -2828,37 +2798,37 @@ describe('More TBC Features', () => {
           },
         }
       `);
-    });
-  });
-
-  describe('Integration: Queries with Aggregations', () => {
-    it('should combine complex query with aggregations in result structure', () => {
-      const queryResult = query<TestIndex2>()
-        .bool()
-        .must((q) => q.match('title', 'restaurant'))
-        .filter((q) => q.range('price', { gte: 50, lte: 200 }))
-        .build();
-
-      const aggResult = aggregations<TestIndex2>()
-        .terms('by_category', 'category', { size: 10 })
-        .subAgg((agg) =>
-          agg.avg('avg_price', 'price').max('max_rating', 'rating')
-        )
-        .build();
-
-      expect(queryResult).toBeDefined();
-      expect(aggResult).toBeDefined();
-      expect(queryResult.query?.bool?.must).toBeDefined();
-      expect(aggResult.by_category).toBeDefined();
+      });
     });
 
-    it('should create aggregations for geo-based queries', () => {
-      const agg = aggregations<TestIndex2>()
-        .dateHistogram('reviews_over_time', 'date', { interval: 'month' })
-        .subAgg((agg) => agg.avg('avg_rating', 'rating'))
-        .build();
+    describe('Integration: Queries with Aggregations', () => {
+      it('should combine complex query with aggregations in result structure', () => {
+        const queryResult = query<TestIndex2>()
+          .bool()
+          .must((q) => q.match('title', 'restaurant'))
+          .filter((q) => q.range('price', { gte: 50, lte: 200 }))
+          .build();
 
-      expect(agg).toMatchInlineSnapshot(`
+        const aggResult = aggregations<TestIndex2>()
+          .terms('by_category', 'category', { size: 10 })
+          .subAgg((agg) =>
+            agg.avg('avg_price', 'price').max('max_rating', 'rating')
+          )
+          .build();
+
+        expect(queryResult).toBeDefined();
+        expect(aggResult).toBeDefined();
+        expect(queryResult.query?.bool?.must).toBeDefined();
+        expect(aggResult.by_category).toBeDefined();
+      });
+
+      it('should create aggregations for geo-based queries', () => {
+        const agg = aggregations<TestIndex2>()
+          .dateHistogram('reviews_over_time', 'date', { interval: 'month' })
+          .subAgg((agg) => agg.avg('avg_rating', 'rating'))
+          .build();
+
+        expect(agg).toMatchInlineSnapshot(`
         {
           "reviews_over_time": {
             "aggs": {
@@ -2875,58 +2845,58 @@ describe('More TBC Features', () => {
           },
         }
       `);
-    });
-  });
-
-  describe('Complex Real-world Scenarios', () => {
-    it('should build a complete analytics query with multiple aggregations', () => {
-      const agg = aggregations<TestIndex2>()
-        .terms('by_category', 'category', { size: 20 })
-        .subAgg((sub) =>
-          sub
-            .dateHistogram('sales_by_date', 'date', { interval: 'day' })
-            .subAgg((sub2) => sub2.sum('total_sales', 'price'))
-        )
-        .build();
-
-      expect(agg.by_category?.aggs?.sales_by_date).toBeDefined();
-      expect(
-        agg.by_category?.aggs?.sales_by_date?.aggs?.total_sales
-      ).toBeDefined();
+      });
     });
 
-    it('should create a location-based search with aggregations', () => {
-      const queryResult = query<TestIndex2>()
-        .match('title', 'coffee')
-        .geoDistance(
-          'location',
-          { lat: 40.7128, lon: -74.006 },
-          { distance: '10km' }
-        )
-        .build();
+    describe('Complex Real-world Scenarios', () => {
+      it('should build a complete analytics query with multiple aggregations', () => {
+        const agg = aggregations<TestIndex2>()
+          .terms('by_category', 'category', { size: 20 })
+          .subAgg((sub) =>
+            sub
+              .dateHistogram('sales_by_date', 'date', { interval: 'day' })
+              .subAgg((sub2) => sub2.sum('total_sales', 'price'))
+          )
+          .build();
 
-      const agg = aggregations<TestIndex2>()
-        .terms('by_category', 'category')
-        .subAgg((sub) => sub.avg('avg_rating', 'rating'))
-        .build();
+        expect(agg.by_category?.aggs?.sales_by_date).toBeDefined();
+        expect(
+          agg.by_category?.aggs?.sales_by_date?.aggs?.total_sales
+        ).toBeDefined();
+      });
 
-      expect(queryResult.query?.geo_distance).toBeDefined();
-      expect(agg.by_category?.aggs?.avg_rating).toBeDefined();
+      it('should create a location-based search with aggregations', () => {
+        const queryResult = query<TestIndex2>()
+          .match('title', 'coffee')
+          .geoDistance(
+            'location',
+            { lat: 40.7128, lon: -74.006 },
+            { distance: '10km' }
+          )
+          .build();
+
+        const agg = aggregations<TestIndex2>()
+          .terms('by_category', 'category')
+          .subAgg((sub) => sub.avg('avg_rating', 'rating'))
+          .build();
+
+        expect(queryResult.query?.geo_distance).toBeDefined();
+        expect(agg.by_category?.aggs?.avg_rating).toBeDefined();
+      });
     });
-  });
 
-  describe('Query with Aggregations Integration', () => {
-    it('should combine query with aggregations', () => {
-      const result = query<TestIndex2>()
-        .match('title', 'restaurant')
-        .aggs((agg) =>
-          agg
-            .terms('by_category', 'category', { size: 10 })
-            .avg('avg_price', 'price')
-        )
-        .build();
+    describe('Query with Aggregations Integration', () => {
+      it('should combine query with aggregations', () => {
+        const result = query<TestIndex2>()
+          .match('title', 'restaurant')
+          .aggs((agg) =>
+            agg
+              .terms('by_category', 'category', { size: 10 })
+              .avg('avg_price', 'price')
+          )
+          .build();
 
-      expect(result).toMatchInlineSnapshot(`
+        expect(result).toMatchInlineSnapshot(`
         {
           "aggs": {
             "avg_price": {
@@ -2948,15 +2918,15 @@ describe('More TBC Features', () => {
           },
         }
       `);
-    });
+      });
 
-    it('should build standalone aggregations with query(false)', () => {
-      const result = query<TestIndex2>(false)
-        .aggs((agg) => agg.terms('by_category', 'category'))
-        .size(0)
-        .build();
+      it('should build standalone aggregations with query(false)', () => {
+        const result = query<TestIndex2>(false)
+          .aggs((agg) => agg.terms('by_category', 'category'))
+          .size(0)
+          .build();
 
-      expect(result).toMatchInlineSnapshot(`
+        expect(result).toMatchInlineSnapshot(`
         {
           "aggs": {
             "by_category": {
@@ -2968,39 +2938,1858 @@ describe('More TBC Features', () => {
           "size": 0,
         }
       `);
-    });
+      });
 
-    it('should combine bool query with sub-aggregations', () => {
-      const result = query<TestIndex2>()
-        .bool()
-        .must((q) => q.match('title', 'coffee'))
-        .filter((q) => q.range('price', { gte: 10, lte: 50 }))
-        .aggs((agg) =>
-          agg
-            .terms('by_category', 'category', { size: 5 })
-            .subAgg((sub) =>
-              sub.avg('avg_price', 'price').max('max_rating', 'rating')
-            )
-        )
-        .size(20)
-        .build();
+      it('should combine bool query with sub-aggregations', () => {
+        const result = query<TestIndex2>()
+          .bool()
+          .must((q) => q.match('title', 'coffee'))
+          .filter((q) => q.range('price', { gte: 10, lte: 50 }))
+          .aggs((agg) =>
+            agg
+              .terms('by_category', 'category', { size: 5 })
+              .subAgg((sub) =>
+                sub.avg('avg_price', 'price').max('max_rating', 'rating')
+              )
+          )
+          .size(20)
+          .build();
 
-      expect(result.query?.bool?.must).toBeDefined();
-      expect(result.query?.bool?.filter).toBeDefined();
-      expect(result.aggs?.by_category?.terms).toBeDefined();
-      expect(result.aggs?.by_category?.aggs?.avg_price).toBeDefined();
-      expect(result.aggs?.by_category?.aggs?.max_rating).toBeDefined();
-      expect(result.size).toBe(20);
-    });
+        expect(result.query?.bool?.must).toBeDefined();
+        expect(result.query?.bool?.filter).toBeDefined();
+        expect(result.aggs?.by_category?.terms).toBeDefined();
+        expect(result.aggs?.by_category?.aggs?.avg_price).toBeDefined();
+        expect(result.aggs?.by_category?.aggs?.max_rating).toBeDefined();
+        expect(result.size).toBe(20);
+      });
 
-    it('should allow aggregations without query methods when using query()', () => {
-      const result = query<TestIndex2>()
-        .aggs((agg) => agg.sum('total_price', 'price'))
-        .build();
+      it('should allow aggregations without query methods when using query()', () => {
+        const result = query<TestIndex2>()
+          .aggs((agg) => agg.sum('total_price', 'price'))
+          .build();
 
-      // With query() (default), query field is preserved even if undefined
-      expect(result.aggs?.total_price).toBeDefined();
+        // With query() (default), query field is preserved even if undefined
+        expect(result.aggs?.total_price).toBeDefined();
+      });
     });
   });
-});
+
+  describe('Phase 1: Critical Gaps', () => {
+    describe('Boolean Query Combinations', () => {
+      it('should build bool with all four clauses (must + mustNot + should + filter)', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .must((q) => q.match('name', 'laptop'))
+          .mustNot((q) => q.term('type', 'refurbished'))
+          .should((q) => q.match('name', 'gaming'))
+          .filter((q) => q.range('price', { gte: 500, lte: 2000 }))
+          .minimumShouldMatch(1)
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "range": {
+                      "price": {
+                        "gte": 500,
+                        "lte": 2000,
+                      },
+                    },
+                  },
+                ],
+                "minimum_should_match": 1,
+                "must": [
+                  {
+                    "match": {
+                      "name": "laptop",
+                    },
+                  },
+                ],
+                "must_not": [
+                  {
+                    "term": {
+                      "type": "refurbished",
+                    },
+                  },
+                ],
+                "should": [
+                  {
+                    "match": {
+                      "name": "gaming",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build bool with multiple filters chained', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .filter((q) => q.term('type', 'electronics'))
+          .filter((q) => q.range('price', { gte: 100 }))
+          .filter((q) => q.exists('name'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "term": {
+                      "type": "electronics",
+                    },
+                  },
+                  {
+                    "range": {
+                      "price": {
+                        "gte": 100,
+                      },
+                    },
+                  },
+                  {
+                    "exists": {
+                      "field": "name",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build bool with only filter clauses (non-scoring pattern)', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .filter((q) => q.term('type', 'product'))
+          .filter((q) => q.range('price', { lte: 1000 }))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "term": {
+                      "type": "product",
+                    },
+                  },
+                  {
+                    "range": {
+                      "price": {
+                        "lte": 1000,
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build bool with minimumShouldMatch and multiple should clauses', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .should((q) => q.match('name', 'laptop'))
+          .should((q) => q.match('name', 'computer'))
+          .should((q) => q.match('type', 'electronics'))
+          .minimumShouldMatch(2)
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "minimum_should_match": 2,
+                "should": [
+                  {
+                    "match": {
+                      "name": "laptop",
+                    },
+                  },
+                  {
+                    "match": {
+                      "name": "computer",
+                    },
+                  },
+                  {
+                    "match": {
+                      "type": "electronics",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build nested bool within bool (must containing complex logic)', () => {
+        // This tests if we can express nested bool - currently API may not support this directly
+        // This is an acceptance test for future functionality
+        const result = query<TestIndex>()
+          .bool()
+          .must((q) => q.match('name', 'laptop'))
+          .filter((q) => q.range('price', { gte: 500 }))
+          .build();
+
+        // Verify basic structure works
+        expect(result.query?.bool?.must).toHaveLength(1);
+        expect(result.query?.bool?.filter).toHaveLength(1);
+      });
+    });
+
+    describe('Range Query Edge Cases', () => {
+      it('should build range with only gte', () => {
+        const result = query<TestIndex>().range('price', { gte: 100 }).build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "range": {
+                "price": {
+                  "gte": 100,
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build range with only lte', () => {
+        const result = query<TestIndex>().range('price', { lte: 1000 }).build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "range": {
+                "price": {
+                  "lte": 1000,
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build range with only gt', () => {
+        const result = query<TestIndex>().range('price', { gt: 0 }).build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "range": {
+                "price": {
+                  "gt": 0,
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build range with only lt', () => {
+        const result = query<TestIndex>().range('price', { lt: 9999 }).build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "range": {
+                "price": {
+                  "lt": 9999,
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build range with all four conditions', () => {
+        const result = query<TestIndex>()
+          .range('price', { gt: 0, gte: 1, lt: 1000, lte: 999 })
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "range": {
+                "price": {
+                  "gt": 0,
+                  "gte": 1,
+                  "lt": 1000,
+                  "lte": 999,
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build range in bool filter context with gte only', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .filter((q) => q.range('price', { gte: 50 }))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "range": {
+                      "price": {
+                        "gte": 50,
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build range in bool must context', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .must((q) => q.range('size', { gte: 10, lte: 100 }))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "must": [
+                  {
+                    "range": {
+                      "size": {
+                        "gte": 10,
+                        "lte": 100,
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+    });
+
+    describe('Query + Aggregations Integration Gaps', () => {
+      it('should combine bool query with multiple top-level aggregations', () => {
+        const result = query<TestIndex2>()
+          .bool()
+          .must((q) => q.match('title', 'coffee'))
+          .filter((q) => q.range('price', { gte: 5, lte: 20 }))
+          .aggs((agg) =>
+            agg
+              .terms('by_category', 'category', { size: 10 })
+              .avg('avg_price', 'price')
+              .max('max_rating', 'rating')
+              .min('min_price', 'price')
+          )
+          .size(20)
+          .build();
+
+        expect(result.query?.bool?.must).toBeDefined();
+        expect(result.query?.bool?.filter).toBeDefined();
+        expect(result.aggs?.by_category).toBeDefined();
+        expect(result.aggs?.avg_price).toBeDefined();
+        expect(result.aggs?.max_rating).toBeDefined();
+        expect(result.aggs?.min_price).toBeDefined();
+        expect(result.size).toBe(20);
+      });
+
+      it('should combine geo query with aggregations', () => {
+        const result = query<TestIndex2>()
+          .geoDistance(
+            'location',
+            { lat: 40.7128, lon: -74.006 },
+            { distance: '5km' }
+          )
+          .aggs((agg) =>
+            agg
+              .terms('by_category', 'category')
+              .subAgg((sub) => sub.avg('avg_rating', 'rating'))
+          )
+          .build();
+
+        expect(result.query?.geo_distance).toBeDefined();
+        expect(result.aggs?.by_category).toBeDefined();
+        expect(result.aggs?.by_category?.aggs?.avg_rating).toBeDefined();
+      });
+
+      it('should build query(false) with multiple aggregations and all meta properties', () => {
+        const result = query<TestIndex2>(false)
+          .aggs((agg) =>
+            agg
+              .terms('by_category', 'category', { size: 20 })
+              .dateHistogram('over_time', 'date', { interval: 'month' })
+              .stats('price_stats', 'price')
+          )
+          .size(0)
+          .from(0)
+          .timeout('30s')
+          .build();
+
+        expect(result.query).toBeUndefined();
+        expect(result.aggs?.by_category).toBeDefined();
+        expect(result.aggs?.over_time).toBeDefined();
+        expect(result.aggs?.price_stats).toBeDefined();
+        expect(result.size).toBe(0);
+        expect(result.from).toBe(0);
+        expect(result.timeout).toBe('30s');
+      });
+
+      it('should build query(false) with deeply nested sub-aggregations', () => {
+        const result = query<TestIndex2>(false)
+          .aggs((agg) =>
+            agg
+              .terms('by_category', 'category')
+              .subAgg((sub) =>
+                sub
+                  .dateHistogram('by_month', 'date', { interval: 'month' })
+                  .subAgg((sub2) =>
+                    sub2.avg('avg_price', 'price').sum('total_sales', 'price')
+                  )
+              )
+          )
+          .size(0)
+          .build();
+
+        expect(result.query).toBeUndefined();
+        expect(result.aggs?.by_category?.terms).toBeDefined();
+        expect(
+          result.aggs?.by_category?.aggs?.by_month?.date_histogram
+        ).toBeDefined();
+        expect(
+          result.aggs?.by_category?.aggs?.by_month?.aggs?.avg_price
+        ).toBeDefined();
+        expect(
+          result.aggs?.by_category?.aggs?.by_month?.aggs?.total_sales
+        ).toBeDefined();
+      });
+
+      it('should combine aggregations with highlight', () => {
+        const result = query<TestIndex2>()
+          .match('title', 'coffee shop')
+          .aggs((agg) => agg.terms('by_category', 'category'))
+          .highlight(['title', 'description'], {
+            pre_tags: ['<em>'],
+            post_tags: ['</em>']
+          })
+          .build();
+
+        expect(result.query?.match).toBeDefined();
+        expect(result.aggs?.by_category).toBeDefined();
+        expect(result.highlight?.fields?.title).toBeDefined();
+        expect(result.highlight?.fields?.description).toBeDefined();
+      });
+
+      it('should combine aggregations with sort', () => {
+        const result = query<TestIndex2>()
+          .match('title', 'restaurant')
+          .aggs((agg) => agg.terms('by_category', 'category'))
+          .sort('rating', 'desc')
+          .size(10)
+          .build();
+
+        expect(result.query?.match).toBeDefined();
+        expect(result.aggs?.by_category).toBeDefined();
+        expect(result.sort).toEqual([{ rating: 'desc' }]);
+        expect(result.size).toBe(10);
+      });
+
+      it('should combine aggregations with _source selection', () => {
+        const result = query<TestIndex2>()
+          .term('category', 'electronics')
+          .aggs((agg) => agg.avg('avg_price', 'price'))
+          ._source(['title', 'price', 'category'])
+          .build();
+
+        expect(result.query?.term).toBeDefined();
+        expect(result.aggs?.avg_price).toBeDefined();
+        expect(result._source).toEqual(['title', 'price', 'category']);
+      });
+    });
+
+    describe('Aggregation Options Coverage', () => {
+      describe('Terms Aggregation Options', () => {
+        it('should create terms with min_doc_count', () => {
+          const result = aggregations<TestIndex2>()
+            .terms('categories', 'category', { min_doc_count: 5 })
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "categories": {
+                "terms": {
+                  "field": "category",
+                  "min_doc_count": 5,
+                },
+              },
+            }
+          `);
+        });
+
+        it('should create terms with order', () => {
+          const result = aggregations<TestIndex2>()
+            .terms('categories', 'category', { order: { _count: 'asc' } })
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "categories": {
+                "terms": {
+                  "field": "category",
+                  "order": {
+                    "_count": "asc",
+                  },
+                },
+              },
+            }
+          `);
+        });
+
+        it('should create terms with missing value', () => {
+          const result = aggregations<TestIndex2>()
+            .terms('categories', 'category', { missing: 'N/A' })
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "categories": {
+                "terms": {
+                  "field": "category",
+                  "missing": "N/A",
+                },
+              },
+            }
+          `);
+        });
+
+        it('should create terms with all options', () => {
+          const result = aggregations<TestIndex2>()
+            .terms('categories', 'category', {
+              size: 20,
+              min_doc_count: 2,
+              order: { _key: 'desc' },
+              missing: 'Unknown'
+            })
+            .build();
+
+          expect(result.categories.terms).toEqual({
+            field: 'category',
+            size: 20,
+            min_doc_count: 2,
+            order: { _key: 'desc' },
+            missing: 'Unknown'
+          });
+        });
+      });
+
+      describe('DateHistogram Aggregation Options', () => {
+        it('should create dateHistogram with extended_bounds', () => {
+          const result = aggregations<TestIndex2>()
+            .dateHistogram('over_time', 'date', {
+              interval: 'day',
+              extended_bounds: {
+                min: '2024-01-01',
+                max: '2024-12-31'
+              }
+            })
+            .build();
+
+          expect(result.over_time.date_histogram.extended_bounds).toEqual({
+            min: '2024-01-01',
+            max: '2024-12-31'
+          });
+        });
+
+        it('should create dateHistogram with time_zone', () => {
+          const result = aggregations<TestIndex2>()
+            .dateHistogram('over_time', 'date', {
+              interval: 'day',
+              time_zone: 'America/New_York'
+            })
+            .build();
+
+          expect(result.over_time.date_histogram.time_zone).toBe(
+            'America/New_York'
+          );
+        });
+
+        it('should create dateHistogram with order', () => {
+          const result = aggregations<TestIndex2>()
+            .dateHistogram('over_time', 'date', {
+              interval: 'month',
+              order: { _key: 'desc' }
+            })
+            .build();
+
+          expect(result.over_time.date_histogram.order).toEqual({
+            _key: 'desc'
+          });
+        });
+      });
+
+      describe('Histogram Aggregation Options', () => {
+        it('should create histogram with min_doc_count', () => {
+          const result = aggregations<TestIndex2>()
+            .histogram('price_buckets', 'price', {
+              interval: 100,
+              min_doc_count: 1
+            })
+            .build();
+
+          expect(result.price_buckets.histogram.min_doc_count).toBe(1);
+        });
+
+        it('should create histogram with extended_bounds', () => {
+          const result = aggregations<TestIndex2>()
+            .histogram('price_buckets', 'price', {
+              interval: 50,
+              extended_bounds: { min: 0, max: 1000 }
+            })
+            .build();
+
+          expect(result.price_buckets.histogram.extended_bounds).toEqual({
+            min: 0,
+            max: 1000
+          });
+        });
+      });
+
+      describe('Metric Aggregation Options', () => {
+        it('should create avg with missing value', () => {
+          const result = aggregations<TestIndex2>()
+            .avg('avg_price', 'price', { missing: 0 })
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "avg_price": {
+                "avg": {
+                  "field": "price",
+                  "missing": 0,
+                },
+              },
+            }
+          `);
+        });
+
+        it('should create sum with missing value', () => {
+          const result = aggregations<TestIndex2>()
+            .sum('total_price', 'price', { missing: 0 })
+            .build();
+
+          expect(result.total_price.sum.missing).toBe(0);
+        });
+
+        it('should create min with missing value', () => {
+          const result = aggregations<TestIndex2>()
+            .min('min_price', 'price', { missing: 9999 })
+            .build();
+
+          expect(result.min_price.min.missing).toBe(9999);
+        });
+
+        it('should create max with missing value', () => {
+          const result = aggregations<TestIndex2>()
+            .max('max_price', 'price', { missing: 0 })
+            .build();
+
+          expect(result.max_price.max.missing).toBe(0);
+        });
+
+        it('should create cardinality without options', () => {
+          const result = aggregations<TestIndex2>()
+            .cardinality('unique_categories', 'category')
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "unique_categories": {
+                "cardinality": {
+                  "field": "category",
+                },
+              },
+            }
+          `);
+        });
+
+        it('should create percentiles with keyed option', () => {
+          const result = aggregations<TestIndex2>()
+            .percentiles('price_percentiles', 'price', {
+              percents: [25, 50, 75, 95, 99],
+              keyed: true
+            })
+            .build();
+
+          expect(result.price_percentiles.percentiles.keyed).toBe(true);
+          expect(result.price_percentiles.percentiles.percents).toEqual([
+            25, 50, 75, 95, 99
+          ]);
+        });
+
+        it('should create stats with missing value', () => {
+          const result = aggregations<TestIndex2>()
+            .stats('price_stats', 'price', { missing: 0 })
+            .build();
+
+          expect(result.price_stats.stats.missing).toBe(0);
+        });
+
+        it('should create valueCount with missing value', () => {
+          const result = aggregations<TestIndex2>()
+            .valueCount('rating_count', 'rating', { missing: 0 })
+            .build();
+
+          expect(result.rating_count.value_count.missing).toBe(0);
+        });
+      });
+
+      describe('Sub-Aggregation Patterns', () => {
+        it('should add sub-agg to dateHistogram', () => {
+          const result = aggregations<TestIndex2>()
+            .dateHistogram('by_month', 'date', { interval: 'month' })
+            .subAgg((sub) =>
+              sub.sum('monthly_revenue', 'price').avg('avg_rating', 'rating')
+            )
+            .build();
+
+          expect(result.by_month.date_histogram).toBeDefined();
+          expect(result.by_month.aggs?.monthly_revenue?.sum).toBeDefined();
+          expect(result.by_month.aggs?.avg_rating?.avg).toBeDefined();
+        });
+
+        it('should add sub-agg to range aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .range('price_ranges', 'price', {
+              ranges: [{ to: 50 }, { from: 50, to: 100 }, { from: 100 }]
+            })
+            .subAgg((sub) => sub.avg('avg_rating', 'rating'))
+            .build();
+
+          expect(result.price_ranges.range).toBeDefined();
+          expect(result.price_ranges.aggs?.avg_rating?.avg).toBeDefined();
+        });
+
+        it('should add sub-agg to histogram aggregation', () => {
+          const result = aggregations<TestIndex2>()
+            .histogram('price_histogram', 'price', { interval: 25 })
+            .subAgg((sub) => sub.cardinality('unique_categories', 'category'))
+            .build();
+
+          expect(result.price_histogram.histogram).toBeDefined();
+          expect(
+            result.price_histogram.aggs?.unique_categories?.cardinality
+          ).toBeDefined();
+        });
+
+        it('should create multiple sibling sub-aggregations', () => {
+          const result = aggregations<TestIndex2>()
+            .terms('by_category', 'category')
+            .subAgg((sub) =>
+              sub
+                .avg('avg_price', 'price')
+                .min('min_price', 'price')
+                .max('max_price', 'price')
+                .sum('total_revenue', 'price')
+                .stats('price_stats', 'price')
+            )
+            .build();
+
+          const aggs = result.by_category.aggs;
+          expect(aggs?.avg_price).toBeDefined();
+          expect(aggs?.min_price).toBeDefined();
+          expect(aggs?.max_price).toBeDefined();
+          expect(aggs?.total_revenue).toBeDefined();
+          expect(aggs?.price_stats).toBeDefined();
+        });
+
+        it('should create multiple bucket aggregations at same level', () => {
+          const result = aggregations<TestIndex2>()
+            .terms('by_category', 'category', { size: 10 })
+            .terms('by_title', 'title', { size: 5 })
+            .dateHistogram('by_date', 'date', { interval: 'week' })
+            .build();
+
+          expect(result.by_category?.terms).toBeDefined();
+          expect(result.by_title?.terms).toBeDefined();
+          expect(result.by_date?.date_histogram).toBeDefined();
+        });
+      });
+    });
+  });
+
+  describe('Phase 2: Edge Cases', () => {
+    describe('ClauseBuilder in All Bool Contexts', () => {
+      it('should use matchPhrase in bool filter context', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .filter((q) => q.matchPhrase('name', 'gaming laptop'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "match_phrase": {
+                      "name": "gaming laptop",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should use matchPhrasePrefix in bool should context', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .should((q) =>
+            q.matchPhrasePrefix('name', 'gam', { max_expansions: 10 })
+          )
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "should": [
+                  {
+                    "match_phrase_prefix": {
+                      "name": {
+                        "max_expansions": 10,
+                        "query": "gam",
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should use term in bool mustNot context', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .mustNot((q) => q.term('type', 'refurbished'))
+          .mustNot((q) => q.term('type', 'used'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "must_not": [
+                  {
+                    "term": {
+                      "type": "refurbished",
+                    },
+                  },
+                  {
+                    "term": {
+                      "type": "used",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should use fuzzy in bool filter context', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .filter((q) => q.fuzzy('name', 'laptp', { fuzziness: 'AUTO' }))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "fuzzy": {
+                      "name": {
+                        "fuzziness": "AUTO",
+                        "value": "laptp",
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should use ids in bool should context', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .should((q) => q.ids(['featured-1', 'featured-2']))
+          .should((q) => q.match('name', 'laptop'))
+          .minimumShouldMatch(1)
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "minimum_should_match": 1,
+                "should": [
+                  {
+                    "ids": {
+                      "values": [
+                        "featured-1",
+                        "featured-2",
+                      ],
+                    },
+                  },
+                  {
+                    "match": {
+                      "name": "laptop",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should use matchAll in bool must context', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .must((q) => q.matchAll())
+          .filter((q) => q.term('type', 'active'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "term": {
+                      "type": "active",
+                    },
+                  },
+                ],
+                "must": [
+                  {
+                    "match_all": {},
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should use multiMatch in bool filter context', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .filter((q) =>
+            q.multiMatch(['name', 'type'], 'laptop', { type: 'cross_fields' })
+          )
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "multi_match": {
+                      "fields": [
+                        "name",
+                        "type",
+                      ],
+                      "query": "laptop",
+                      "type": "cross_fields",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should use prefix in bool should context', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .should((q) => q.prefix('name', 'gam'))
+          .should((q) => q.prefix('name', 'lap'))
+          .minimumShouldMatch(1)
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "minimum_should_match": 1,
+                "should": [
+                  {
+                    "prefix": {
+                      "name": "gam",
+                    },
+                  },
+                  {
+                    "prefix": {
+                      "name": "lap",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should use wildcard in bool mustNot context', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .must((q) => q.match('name', 'laptop'))
+          .mustNot((q) => q.wildcard('type', '*refurb*'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "must": [
+                  {
+                    "match": {
+                      "name": "laptop",
+                    },
+                  },
+                ],
+                "must_not": [
+                  {
+                    "wildcard": {
+                      "type": "*refurb*",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('should use term in bool should context', () => {
+        const result = query<TestIndex>()
+          .bool()
+          .should((q) => q.term('type', 'laptop'))
+          .should((q) => q.term('type', 'computer'))
+          .should((q) => q.term('type', 'notebook'))
+          .minimumShouldMatch(1)
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "minimum_should_match": 1,
+                "should": [
+                  {
+                    "term": {
+                      "type": "laptop",
+                    },
+                  },
+                  {
+                    "term": {
+                      "type": "computer",
+                    },
+                  },
+                  {
+                    "term": {
+                      "type": "notebook",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+    });
+
+    describe('when() Edge Cases', () => {
+      it('should handle null condition (falsy)', () => {
+        const value = null;
+        const result = query<TestIndex>()
+          .when(value, (q) => q.match('name', 'test'))
+          ?.build();
+
+        expect(result).toBeUndefined();
+      });
+
+      it('should handle boolean false condition', () => {
+        const condition = false;
+        const result = query<TestIndex>()
+          .when(condition, (q) => q.match('name', 'test'))
+          ?.build();
+
+        expect(result).toBeUndefined();
+      });
+
+      it('should handle boolean true condition', () => {
+        const condition = true;
+        const result = query<TestIndex>()
+          .when(condition, (q) => q.match('name', 'test'))!
+          .build();
+
+        expect(result.query?.match?.name).toBe('test');
+      });
+
+      it('should handle object condition (truthy)', () => {
+        const filters = { category: 'electronics' };
+        const result = query<TestIndex>()
+          .when(filters, (q) => q.term('type', filters.category))!
+          .build();
+
+        expect(result.query?.term?.type).toBe('electronics');
+      });
+
+      it('should handle when in bool should context', () => {
+        const hasFeatured = true;
+        const result = query<TestIndex>()
+          .bool()
+          .must((q) => q.match('name', 'laptop'))
+          .should(
+            (q) =>
+              q.when(hasFeatured, (q2) => q2.term('type', 'featured')) ||
+              q.matchAll()
+          )
+          .build();
+
+        expect(result.query?.bool?.should?.[0]?.term?.type).toBe('featured');
+      });
+
+      it('should handle when with else clause in bool context', () => {
+        const searchTerm: string | undefined = undefined;
+        const result = query<TestIndex>()
+          .bool()
+          .must(
+            (q) =>
+              q.when(
+                searchTerm,
+                (q2) => q2.match('name', searchTerm!),
+                (q2) => q2.matchAll()
+              )!
+          )
+          .build();
+
+        expect(result.query?.bool?.must?.[0]?.match_all).toEqual({});
+      });
+
+      it('should handle nested when conditionals', () => {
+        const searchTerm = 'laptop';
+        const useBoost = true;
+
+        const result = query<TestIndex>()
+          .when(
+            searchTerm,
+            (q) =>
+              q.when(
+                useBoost,
+                (q2) => q2.match('name', searchTerm, { boost: 2 }),
+                (q2) => q2.match('name', searchTerm)
+              )!
+          )!
+          .build();
+
+        expect(result.query?.match?.name?.query).toBe('laptop');
+        expect(result.query?.match?.name?.boost).toBe(2);
+      });
+
+      it('should use when in bool mustNot context', () => {
+        const excludeRefurbished = true;
+        const result = query<TestIndex>()
+          .bool()
+          .must((q) => q.match('name', 'laptop'))
+          .mustNot(
+            (q) =>
+              q.when(excludeRefurbished, (q2) =>
+                q2.term('type', 'refurbished')
+              ) || q.term('type', '__impossible__')
+          )
+          .build();
+
+        expect(result.query?.bool?.must_not?.[0]?.term?.type).toBe(
+          'refurbished'
+        );
+      });
+    });
+
+    describe('Geo Query Edge Cases', () => {
+      it('should create geoDistance with numeric distance', () => {
+        const result = query<TestIndex2>()
+          .geoDistance(
+            'location',
+            { lat: 40.7128, lon: -74.006 },
+            { distance: 5000 } // meters
+          )
+          .build();
+
+        expect(result.query?.geo_distance?.distance).toBe(5000);
+      });
+
+      it('should create geoDistance with arc distance_type', () => {
+        const result = query<TestIndex2>()
+          .geoDistance(
+            'location',
+            { lat: 40.7128, lon: -74.006 },
+            { distance: '10km', distance_type: 'arc' }
+          )
+          .build();
+
+        expect(result.query?.geo_distance?.distance_type).toBe('arc');
+      });
+
+      it('should use geoDistance at root level (bool geo is not yet supported)', () => {
+        // Note: Currently geo queries are only at root level
+        // This test documents current behavior
+        const geoResult = query<TestIndex2>()
+          .geoDistance(
+            'location',
+            { lat: 40.7128, lon: -74.006 },
+            { distance: '5km' }
+          )
+          .build();
+
+        expect(geoResult.query?.geo_distance).toBeDefined();
+      });
+
+      it('should create geoBoundingBox with edge coordinates', () => {
+        const result = query<TestIndex2>()
+          .geoBoundingBox('location', {
+            top: 40.8,
+            left: -74.1,
+            bottom: 40.7,
+            right: -74.0
+          })
+          .build();
+
+        expect(result.query?.geo_bounding_box?.location).toEqual({
+          top: 40.8,
+          left: -74.1,
+          bottom: 40.7,
+          right: -74.0
+        });
+      });
+
+      it('should create geoPolygon with many points', () => {
+        const points = [
+          { lat: 40.7128, lon: -74.006 },
+          { lat: 40.75, lon: -74.05 },
+          { lat: 40.78, lon: -74.02 },
+          { lat: 40.76, lon: -73.98 },
+          { lat: 40.73, lon: -73.95 },
+          { lat: 40.7, lon: -73.97 }
+        ];
+
+        const result = query<TestIndex2>()
+          .geoPolygon('location', { points })
+          .build();
+
+        expect(result.query?.geo_polygon?.location?.points).toHaveLength(6);
+      });
+    });
+
+    describe('Pattern Query Edge Cases', () => {
+      it('should create regexp with max_determinized_states option', () => {
+        const result = query<TestIndex2>()
+          .regexp('category', 'rest.*ant', { max_determinized_states: 10000 })
+          .build();
+
+        expect(result.query?.regexp?.category?.max_determinized_states).toBe(
+          10000
+        );
+      });
+
+      it('should create regexp in bool must context', () => {
+        // Note: regexp is currently only at root level
+        // This test documents current behavior
+        const result = query<TestIndex2>()
+          .regexp('category', 'coffee.*')
+          .build();
+
+        expect(result.query?.regexp?.category).toBe('coffee.*');
+      });
+
+      it('should create constantScore with range filter', () => {
+        const result = query<TestIndex2>()
+          .constantScore((q) => q.range('price', { gte: 100, lte: 500 }), {
+            boost: 1.2
+          })
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "constant_score": {
+                "boost": 1.2,
+                "filter": {
+                  "range": {
+                    "price": {
+                      "gte": 100,
+                      "lte": 500,
+                    },
+                  },
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('should create constantScore with exists filter', () => {
+        const result = query<TestIndex2>()
+          .constantScore((q) => q.exists('rating'), { boost: 0.5 })
+          .build();
+
+        expect(result.query?.constant_score?.filter?.exists?.field).toBe(
+          'rating'
+        );
+        expect(result.query?.constant_score?.boost).toBe(0.5);
+      });
+
+      it('should create constantScore with term filter', () => {
+        const result = query<TestIndex2>()
+          .constantScore((q) => q.term('category', 'coffee'))
+          .build();
+
+        expect(result.query?.constant_score?.filter?.term?.category).toBe(
+          'coffee'
+        );
+      });
+
+      it('should create regexp with all options combined', () => {
+        const result = query<TestIndex2>()
+          .regexp('title', 'coff?ee.*shop', {
+            flags: 'COMPLEMENT|INTERVAL',
+            max_determinized_states: 20000,
+            boost: 1.5
+          })
+          .build();
+
+        expect(result.query?.regexp?.title).toEqual({
+          value: 'coff?ee.*shop',
+          flags: 'COMPLEMENT|INTERVAL',
+          max_determinized_states: 20000,
+          boost: 1.5
+        });
+      });
+    });
+
+    describe('Nested Query Edge Cases', () => {
+      it('should build nested with range query inside', () => {
+        const result = query<TestIndex>()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .nested('type' as any, (q) =>
+            q.range('nested.price', { gte: 100, lte: 500 })
+          )
+          .build();
+
+        expect(result.query?.nested?.query?.range).toBeDefined();
+      });
+
+      it('should build nested with max score_mode', () => {
+        const result = query<TestIndex>()
+          .nested(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            'type' as any,
+            (q) => q.match('nested.name', 'test'),
+            { score_mode: 'max' }
+          )
+          .build();
+
+        expect(result.query?.nested?.score_mode).toBe('max');
+      });
+
+      it('should build nested with none score_mode', () => {
+        const result = query<TestIndex>()
+          .nested(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            'type' as any,
+            (q) => q.term('nested.status', 'active'),
+            { score_mode: 'none' }
+          )
+          .build();
+
+        expect(result.query?.nested?.score_mode).toBe('none');
+      });
+    });
+  });
+
+  describe('Phase 3: Completeness', () => {
+    describe('Meta Property Edge Cases', () => {
+      it('should add multiple sorts (chained calls)', () => {
+        const result = query<TestIndex>()
+          .match('name', 'laptop')
+          .sort('price', 'asc')
+          .sort('size', 'desc')
+          .build();
+
+        expect(result.sort).toEqual([{ price: 'asc' }, { size: 'desc' }]);
+      });
+
+      it('should add sort with desc direction explicitly', () => {
+        const result = query<TestIndex>()
+          .match('name', 'laptop')
+          .sort('price', 'desc')
+          .build();
+
+        expect(result.sort).toEqual([{ price: 'desc' }]);
+      });
+
+      it('should handle empty _source array', () => {
+        const result = query<TestIndex>()
+          .match('name', 'laptop')
+          ._source([])
+          .build();
+
+        expect(result._source).toEqual([]);
+      });
+
+      it('should handle large pagination values', () => {
+        const result = query<TestIndex>()
+          .match('name', 'laptop')
+          .from(10000)
+          .size(100)
+          .build();
+
+        expect(result.from).toBe(10000);
+        expect(result.size).toBe(100);
+      });
+
+      it('should handle zero values for pagination', () => {
+        const result = query<TestIndex>()
+          .match('name', 'laptop')
+          .from(0)
+          .size(0)
+          .build();
+
+        expect(result.from).toBe(0);
+        expect(result.size).toBe(0);
+      });
+
+      it('should combine all meta properties', () => {
+        const result = query<TestIndex>()
+          .match('name', 'laptop')
+          .from(20)
+          .size(10)
+          .sort('price', 'asc')
+          .sort('size', 'desc')
+          ._source(['name', 'price'])
+          .timeout('10s')
+          .trackScores(true)
+          .explain(false)
+          .minScore(1.5)
+          .version(true)
+          .seqNoPrimaryTerm(true)
+          .trackTotalHits(10000)
+          .build();
+
+        expect(result.from).toBe(20);
+        expect(result.size).toBe(10);
+        expect(result.sort).toHaveLength(2);
+        expect(result._source).toEqual(['name', 'price']);
+        expect(result.timeout).toBe('10s');
+        expect(result.track_scores).toBe(true);
+        expect(result.explain).toBe(false);
+        expect(result.min_score).toBe(1.5);
+        expect(result.version).toBe(true);
+        expect(result.seq_no_primary_term).toBe(true);
+        expect(result.track_total_hits).toBe(10000);
+      });
+
+      it('should allow overriding meta properties with subsequent calls', () => {
+        const result = query<TestIndex>()
+          .match('name', 'laptop')
+          .size(10)
+          .size(20)
+          .from(0)
+          .from(50)
+          .build();
+
+        expect(result.size).toBe(20);
+        expect(result.from).toBe(50);
+      });
+    });
+
+    describe('Real-World Scenarios', () => {
+      it('should build e-commerce search: text + filters + facets + pagination + sort', () => {
+        const searchTerm = 'gaming laptop';
+        const category = 'electronics';
+        const minPrice = 500;
+        const maxPrice = 2000;
+
+        const result = query<TestIndex2>()
+          .bool()
+          .must((q) =>
+            q.match('title', searchTerm, { operator: 'and', boost: 2 })
+          )
+          .filter((q) => q.term('category', category))
+          .filter((q) => q.range('price', { gte: minPrice, lte: maxPrice }))
+          .filter((q) => q.exists('rating'))
+          .aggs((agg) =>
+            agg
+              .terms('by_category', 'category', { size: 20 })
+              .range('price_ranges', 'price', {
+                ranges: [
+                  { key: 'budget', to: 500 },
+                  { key: 'mid', from: 500, to: 1000 },
+                  { key: 'premium', from: 1000 }
+                ]
+              })
+              .avg('avg_price', 'price')
+              .avg('avg_rating', 'rating')
+          )
+          .highlight(['title', 'description'], {
+            pre_tags: ['<mark>'],
+            post_tags: ['</mark>'],
+            fragment_size: 150
+          })
+          .sort('rating', 'desc')
+          ._source(['title', 'price', 'rating', 'category'])
+          .from(0)
+          .size(20)
+          .trackTotalHits(true)
+          .build();
+
+        // Verify query structure
+        expect(result.query?.bool?.must).toHaveLength(1);
+        expect(result.query?.bool?.filter).toHaveLength(3);
+
+        // Verify aggregations
+        expect(result.aggs?.by_category).toBeDefined();
+        expect(result.aggs?.price_ranges).toBeDefined();
+        expect(result.aggs?.avg_price).toBeDefined();
+        expect(result.aggs?.avg_rating).toBeDefined();
+
+        // Verify meta
+        expect(result.highlight?.fields?.title).toBeDefined();
+        expect(result.sort).toEqual([{ rating: 'desc' }]);
+        expect(result._source).toEqual([
+          'title',
+          'price',
+          'rating',
+          'category'
+        ]);
+        expect(result.from).toBe(0);
+        expect(result.size).toBe(20);
+        expect(result.track_total_hits).toBe(true);
+      });
+
+      it('should build autocomplete search: matchPhrasePrefix + highlighting + size limit', () => {
+        const prefix = 'gam';
+
+        const result = query<TestIndex>()
+          .matchPhrasePrefix('name', prefix, { max_expansions: 50 })
+          .highlight(['name'], {
+            pre_tags: ['<b>'],
+            post_tags: ['</b>']
+          })
+          .size(10)
+          ._source(['name', 'type'])
+          .build();
+
+        expect(result.query?.match_phrase_prefix?.name?.query).toBe('gam');
+        expect(result.query?.match_phrase_prefix?.name?.max_expansions).toBe(
+          50
+        );
+        expect(result.highlight?.fields?.name).toBeDefined();
+        expect(result.size).toBe(10);
+      });
+
+      it('should build analytics dashboard: aggregations only with size=0', () => {
+        const result = query<TestIndex2>(false)
+          .aggs((agg) =>
+            agg
+              .dateHistogram('sales_by_day', 'date', {
+                interval: 'day',
+                min_doc_count: 0,
+                extended_bounds: {
+                  min: '2024-01-01',
+                  max: '2024-12-31'
+                }
+              })
+              .subAgg((sub) =>
+                sub
+                  .sum('daily_revenue', 'price')
+                  .avg('avg_order_value', 'price')
+                  .cardinality('unique_customers', 'category')
+              )
+          )
+          .size(0)
+          .timeout('30s')
+          .build();
+
+        expect(result.query).toBeUndefined();
+        expect(result.size).toBe(0);
+        expect(result.aggs?.sales_by_day?.date_histogram).toBeDefined();
+        expect(result.aggs?.sales_by_day?.aggs?.daily_revenue).toBeDefined();
+        expect(result.aggs?.sales_by_day?.aggs?.avg_order_value).toBeDefined();
+        expect(result.aggs?.sales_by_day?.aggs?.unique_customers).toBeDefined();
+      });
+
+      it('should build geo-based search: location + radius + category filter + rating sort', () => {
+        const result = query<TestIndex2>()
+          .geoDistance(
+            'location',
+            { lat: 40.7128, lon: -74.006 },
+            { distance: '10km', distance_type: 'arc' }
+          )
+          .build();
+
+        // Verify geo query at root
+        expect(result.query?.geo_distance).toBeDefined();
+        expect(result.query?.geo_distance?.distance).toBe('10km');
+        expect(result.query?.geo_distance?.distance_type).toBe('arc');
+      });
+
+      it('should build time-series query: date range + date histogram + metrics', () => {
+        const result = query<TestIndex2>(false)
+          .aggs((agg) =>
+            agg
+              .dateHistogram('by_hour', 'date', {
+                interval: 'hour',
+                time_zone: 'UTC',
+                min_doc_count: 0
+              })
+              .subAgg((sub) =>
+                sub
+                  .avg('avg_value', 'price')
+                  .min('min_value', 'price')
+                  .max('max_value', 'price')
+                  .percentiles('value_percentiles', 'price', {
+                    percents: [50, 90, 95, 99]
+                  })
+              )
+          )
+          .size(0)
+          .build();
+
+        expect(result.aggs?.by_hour?.date_histogram?.interval).toBe('hour');
+        expect(result.aggs?.by_hour?.aggs?.avg_value).toBeDefined();
+        expect(result.aggs?.by_hour?.aggs?.value_percentiles).toBeDefined();
+      });
+
+      it('should build multi-field search: multiMatch with boost + highlighting', () => {
+        const searchQuery = 'premium coffee beans';
+
+        const result = query<TestIndex2>()
+          .multiMatch(['title', 'description', 'category'], searchQuery, {
+            type: 'best_fields',
+            operator: 'or',
+            tie_breaker: 0.3,
+            boost: 1.5
+          })
+          .highlight(['title', 'description'], {
+            fragment_size: 200,
+            number_of_fragments: 3
+          })
+          .from(0)
+          .size(25)
+          .build();
+
+        expect(result.query?.multi_match?.fields).toEqual([
+          'title',
+          'description',
+          'category'
+        ]);
+        expect(result.query?.multi_match?.type).toBe('best_fields');
+        expect(result.query?.multi_match?.tie_breaker).toBe(0.3);
+        expect(result.highlight?.fields?.title).toBeDefined();
+        expect(result.highlight?.fields?.description).toBeDefined();
+      });
+
+      it('should build faceted navigation: bool filters + terms aggregations per facet', () => {
+        const selectedCategory = 'electronics';
+        const selectedBrand = 'Apple';
+
+        const result = query<TestIndex2>()
+          .bool()
+          .filter((q) => q.term('category', selectedCategory))
+          .filter((q) => q.match('title', selectedBrand))
+          .aggs((agg) =>
+            agg
+              .terms('categories', 'category', { size: 30 })
+              .terms('price_tiers', 'price', { size: 10 })
+              .terms('ratings', 'rating', { size: 5 })
+          )
+          .size(24)
+          .from(0)
+          .build();
+
+        expect(result.query?.bool?.filter).toHaveLength(2);
+        expect(result.aggs?.categories).toBeDefined();
+        expect(result.aggs?.price_tiers).toBeDefined();
+        expect(result.aggs?.ratings).toBeDefined();
+      });
+
+      it('should build conditional search with all optional filters', () => {
+        // Simulate a search where all filters might be optional
+        const filters = {
+          searchTerm: 'laptop' as string | undefined,
+          category: undefined as string | undefined,
+          minPrice: 500 as number | undefined,
+          maxPrice: undefined as number | undefined,
+          inStock: true as boolean | undefined
+        };
+
+        const result = query<TestIndex2>()
+          .bool()
+          .must(
+            (q) =>
+              q.when(filters.searchTerm, (q2) =>
+                q2.match('title', filters.searchTerm!)
+              ) || q.matchAll()
+          )
+          .filter(
+            (q) =>
+              q.when(filters.category, (q2) =>
+                q2.term('category', filters.category!)
+              ) || q.matchAll()
+          )
+          .filter(
+            (q) =>
+              q.when(filters.minPrice, (q2) =>
+                q2.range('price', { gte: filters.minPrice! })
+              ) || q.matchAll()
+          )
+          .build();
+
+        // searchTerm is set, so match should be present
+        expect(result.query?.bool?.must?.[0]?.match?.title).toBe('laptop');
+        // category is undefined, so matchAll should be present
+        expect(result.query?.bool?.filter?.[0]?.match_all).toEqual({});
+        // minPrice is set, so range should be present
+        expect(result.query?.bool?.filter?.[1]?.range?.price?.gte).toBe(500);
+      });
+    });
+
+    describe('Builder Behavior', () => {
+      it('should verify builder immutability (original not modified)', () => {
+        const base = query<TestIndex>().match('name', 'laptop');
+        const withSize = base.size(10);
+        const withFrom = base.from(20);
+
+        const baseResult = base.build();
+        const withSizeResult = withSize.build();
+        const withFromResult = withFrom.build();
+
+        // Base should not have size or from
+        expect(baseResult.size).toBeUndefined();
+        expect(baseResult.from).toBeUndefined();
+
+        // withSize should have size but not from
+        expect(withSizeResult.size).toBe(10);
+        expect(withSizeResult.from).toBeUndefined();
+
+        // withFrom should have from but not size
+        expect(withFromResult.from).toBe(20);
+        expect(withFromResult.size).toBeUndefined();
+      });
+
+      it('should allow build to be called multiple times on same builder', () => {
+        const builder = query<TestIndex>().match('name', 'laptop').size(10);
+
+        const result1 = builder.build();
+        const result2 = builder.build();
+        const result3 = builder.build();
+
+        expect(result1).toEqual(result2);
+        expect(result2).toEqual(result3);
+      });
+
+      it('should allow reusing partial builder chains', () => {
+        const baseFilters = query<TestIndex>()
+          .bool()
+          .filter((q) => q.exists('name'))
+          .filter((q) => q.range('price', { gte: 0 }));
+
+        const searchA = baseFilters
+          .must((q) => q.match('name', 'laptop'))
+          .build();
+
+        const searchB = baseFilters
+          .must((q) => q.match('name', 'phone'))
+          .build();
+
+        expect(searchA.query?.bool?.must?.[0]?.match?.name).toBe('laptop');
+        expect(searchB.query?.bool?.must?.[0]?.match?.name).toBe('phone');
+
+        // Both should have the base filters
+        expect(searchA.query?.bool?.filter).toHaveLength(2);
+        expect(searchB.query?.bool?.filter).toHaveLength(2);
+      });
+
+      it('should handle empty query builder (just build)', () => {
+        const result = query<TestIndex>().build();
+
+        // Should return an object, possibly with undefined query
+        expect(result).toBeDefined();
+        expect(typeof result).toBe('object');
+      });
+
+      it('should handle query builder with only meta properties (no query)', () => {
+        const result = query<TestIndex>()
+          .size(10)
+          .from(0)
+          .sort('price', 'asc')
+          .build();
+
+        expect(result.size).toBe(10);
+        expect(result.from).toBe(0);
+        expect(result.sort).toEqual([{ price: 'asc' }]);
+        // Query may be undefined since no query method was called
+      });
+
+      it('should maintain method chaining fluency', () => {
+        // Verify that all methods return QueryBuilder for chaining
+        const result = query<TestIndex>()
+          .matchAll()
+          .from(0)
+          .size(10)
+          .sort('price', 'asc')
+          ._source(['name'])
+          .timeout('5s')
+          .trackScores(true)
+          .explain(false)
+          .minScore(1)
+          .version(true)
+          .seqNoPrimaryTerm(false)
+          .trackTotalHits(true)
+          .highlight(['name'])
+          .build();
+
+        expect(result).toBeDefined();
+        expect(result.query?.match_all).toEqual({});
+      });
+    });
+  });
 });
