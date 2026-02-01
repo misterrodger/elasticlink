@@ -9,8 +9,8 @@ import { BulkBuilder } from './bulk-types';
  * Creates a bulk operations builder
  * @returns BulkBuilder instance
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const createBulkBuilder = <T>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   operations: any[] = []
 ): BulkBuilder<T> => ({
   index: (doc, meta = {}) => {
