@@ -64,6 +64,33 @@ export type GeoPolygonOptions = {
   points: Array<{ lat: number; lon: number }>;
 };
 
+export type ScriptOptions = {
+  source: string;
+  lang?: 'painless' | 'expression' | 'mustache';
+  params?: Record<string, any>;
+};
+
+export type ScriptQueryOptions = ScriptOptions & {
+  boost?: number;
+};
+
+export type ScriptScoreOptions = {
+  min_score?: number;
+  boost?: number;
+};
+
+export type PercolateOptions = {
+  field: string;
+  document?: Record<string, any>;
+  documents?: Array<Record<string, any>>;
+  id?: string;
+  index?: string;
+  routing?: string;
+  preference?: string;
+  version?: number;
+  name?: string;
+};
+
 export type QueryState<T> = {
   _includeQuery?: boolean;
   query?: any;
@@ -134,6 +161,7 @@ export type ClauseBuilder<T> = {
     queryVector: number[],
     options: KnnOptions
   ) => any;
+  script: (options: ScriptQueryOptions) => any;
   when: <R>(
     condition: any,
     thenFn: (q: ClauseBuilder<T>) => R,
@@ -194,6 +222,14 @@ export type QueryBuilder<T> = {
     queryVector: number[],
     options: KnnOptions
   ) => QueryBuilder<T>;
+  // Script queries
+  script: (options: ScriptQueryOptions) => QueryBuilder<T>;
+  scriptScore: (
+    query: (q: ClauseBuilder<T>) => any,
+    script: ScriptOptions,
+    options?: ScriptScoreOptions
+  ) => QueryBuilder<T>;
+  percolate: (options: PercolateOptions) => QueryBuilder<T>;
   // Conditionals
   when: <R>(
     condition: any,

@@ -26,6 +26,22 @@ type ProductWithEmbedding = {
   embedding: number[];
 };
 
+type ScoredProduct = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  popularity: number;
+  quality_score: number;
+};
+
+type PercolatorDoc = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any;
+  category: string;
+};
+
 describe('QueryBuilder', () => {
   describe('Meta properties', () => {
     it('should add from', () => {
@@ -5687,6 +5703,556 @@ describe('QueryBuilder', () => {
             .build();
 
           expect(result.knn?.filter?.bool?.must_not).toBeDefined();
+        });
+      });
+    });
+
+    describe('Script Queries', () => {
+      describe('Basic script queries', () => {
+        it('should build a basic script query', () => {
+          const result = query<ScoredProduct>()
+            .script({
+              source: "doc['price'].value > 100"
+            })
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "query": {
+                "script": {
+                  "script": {
+                    "lang": "painless",
+                    "source": "doc['price'].value > 100",
+                  },
+                },
+              },
+            }
+          `);
+        });
+
+        it('should build script query with parameters', () => {
+          const result = query<ScoredProduct>()
+            .script({
+              source: "doc['price'].value > params.min_price",
+              params: { min_price: 100 }
+            })
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "query": {
+                "script": {
+                  "script": {
+                    "lang": "painless",
+                    "params": {
+                      "min_price": 100,
+                    },
+                    "source": "doc['price'].value > params.min_price",
+                  },
+                },
+              },
+            }
+          `);
+        });
+
+        it('should build script query with boost', () => {
+          const result = query<ScoredProduct>()
+            .script({
+              source: "doc['popularity'].value > 1000",
+              boost: 2.0
+            })
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "query": {
+                "script": {
+                  "boost": 2,
+                  "script": {
+                    "lang": "painless",
+                    "source": "doc['popularity'].value > 1000",
+                  },
+                },
+              },
+            }
+          `);
+        });
+
+        it('should build script query with expression language', () => {
+          const result = query<ScoredProduct>()
+            .script({
+              source: "doc['price'].value * 1.1",
+              lang: 'expression'
+            })
+            .build();
+
+          expect(result.query?.script?.script?.lang).toBe('expression');
+        });
+
+        it('should build script query with mustache template', () => {
+          const result = query<ScoredProduct>()
+            .script({
+              source: '{"term": {"name": "{{product_name}}"}}',
+              lang: 'mustache',
+              params: { product_name: 'laptop' }
+            })
+            .build();
+
+          expect(result.query?.script?.script?.lang).toBe('mustache');
+          expect(result.query?.script?.script?.params).toEqual({
+            product_name: 'laptop'
+          });
+        });
+
+        it('should build script query with complex parameters', () => {
+          const result = query<ScoredProduct>()
+            .script({
+              source: "doc['price'].value * params.multiplier + params.offset",
+              params: {
+                multiplier: 1.5,
+                offset: 10,
+                categories: ['electronics', 'computers']
+              }
+            })
+            .build();
+
+          expect(result.query?.script?.script?.params?.multiplier).toBe(1.5);
+          expect(result.query?.script?.script?.params?.offset).toBe(10);
+          expect(result.query?.script?.script?.params?.categories).toHaveLength(
+            2
+          );
+        });
+      });
+
+      describe('Script in bool query context', () => {
+        it('should support script in bool must', () => {
+          const result = query<ScoredProduct>()
+            .bool()
+            .must((q) =>
+              q.script({
+                source: "doc['price'].value > 100"
+              })
+            )
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "query": {
+                "bool": {
+                  "must": [
+                    {
+                      "script": {
+                        "script": {
+                          "lang": "painless",
+                          "source": "doc['price'].value > 100",
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            }
+          `);
+        });
+
+        it('should support script in bool filter', () => {
+          const result = query<ScoredProduct>()
+            .bool()
+            .filter((q) =>
+              q.script({
+                source: "doc['quality_score'].value >= params.min_quality",
+                params: { min_quality: 8 }
+              })
+            )
+            .build();
+
+          expect(result.query?.bool?.filter).toHaveLength(1);
+          expect(result.query?.bool?.filter[0].script).toBeDefined();
+        });
+
+        it('should combine script with other queries', () => {
+          const result = query<ScoredProduct>()
+            .bool()
+            .must((q) => q.match('name', 'laptop'))
+            .filter((q) =>
+              q.script({
+                source: "doc['price'].value > params.threshold",
+                params: { threshold: 500 }
+              })
+            )
+            .build();
+
+          expect(result.query?.bool?.must).toHaveLength(1);
+          expect(result.query?.bool?.filter).toHaveLength(1);
+        });
+      });
+
+      describe('Script score queries', () => {
+        it('should build basic script_score query', () => {
+          const result = query<ScoredProduct>()
+            .scriptScore((q) => q.matchAll(), {
+              source: "doc['popularity'].value * 0.1"
+            })
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "query": {
+                "script_score": {
+                  "query": {
+                    "match_all": {},
+                  },
+                  "script": {
+                    "lang": "painless",
+                    "source": "doc['popularity'].value * 0.1",
+                  },
+                },
+              },
+            }
+          `);
+        });
+
+        it('should build script_score with inner query', () => {
+          const result = query<ScoredProduct>()
+            .scriptScore((q) => q.match('name', 'laptop'), {
+              source: "_score * doc['popularity'].value"
+            })
+            .build();
+
+          expect(result.query?.script_score?.query?.match).toBeDefined();
+          expect(result.query?.script_score?.script?.source).toContain(
+            '_score'
+          );
+        });
+
+        it('should build script_score with parameters', () => {
+          const result = query<ScoredProduct>()
+            .scriptScore((q) => q.term('category', 'electronics'), {
+              source: '_score * params.boost_factor',
+              params: { boost_factor: 2.5 }
+            })
+            .build();
+
+          expect(result.query?.script_score?.script?.params?.boost_factor).toBe(
+            2.5
+          );
+        });
+
+        it('should build script_score with min_score', () => {
+          const result = query<ScoredProduct>()
+            .scriptScore(
+              (q) => q.matchAll(),
+              { source: "doc['quality_score'].value" },
+              { min_score: 5.0 }
+            )
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "query": {
+                "script_score": {
+                  "min_score": 5,
+                  "query": {
+                    "match_all": {},
+                  },
+                  "script": {
+                    "lang": "painless",
+                    "source": "doc['quality_score'].value",
+                  },
+                },
+              },
+            }
+          `);
+        });
+
+        it('should build script_score with boost', () => {
+          const result = query<ScoredProduct>()
+            .scriptScore(
+              (q) => q.term('name', 'premium'),
+              { source: "Math.log(2 + doc['popularity'].value)" },
+              { boost: 1.5 }
+            )
+            .build();
+
+          expect(result.query?.script_score?.boost).toBe(1.5);
+        });
+
+        it('should build script_score with min_score and boost', () => {
+          const result = query<ScoredProduct>()
+            .scriptScore(
+              (q) => q.range('price', { gte: 100 }),
+              {
+                source: "_score * doc['quality_score'].value * params.weight",
+                params: { weight: 0.5 }
+              },
+              { min_score: 10, boost: 2.0 }
+            )
+            .build();
+
+          expect(result.query?.script_score?.min_score).toBe(10);
+          expect(result.query?.script_score?.boost).toBe(2.0);
+        });
+
+        it('should build script_score with complex scoring formula', () => {
+          const result = query<ScoredProduct>()
+            .scriptScore((q) => q.match('description', 'quality'), {
+              source: `
+                  double popularity = doc['popularity'].value;
+                  double quality = doc['quality_score'].value;
+                  return _score * (popularity * 0.3 + quality * 0.7);
+                `.trim()
+            })
+            .build();
+
+          expect(result.query?.script_score?.script?.source).toContain(
+            'popularity'
+          );
+          expect(result.query?.script_score?.script?.source).toContain(
+            'quality'
+          );
+        });
+      });
+
+      describe('Script edge cases', () => {
+        it('should handle empty script source', () => {
+          const result = query<ScoredProduct>().script({ source: '' }).build();
+
+          expect(result.query?.script?.script?.source).toBe('');
+        });
+
+        it('should handle script without parameters', () => {
+          const result = query<ScoredProduct>()
+            .script({ source: 'true' })
+            .build();
+
+          expect(result.query?.script?.script?.params).toBeUndefined();
+        });
+
+        it('should handle empty params object', () => {
+          const result = query<ScoredProduct>()
+            .script({ source: "doc['price'].value > 0", params: {} })
+            .build();
+
+          expect(result.query?.script?.script?.params).toEqual({});
+        });
+      });
+    });
+
+    describe('Percolate Queries', () => {
+      describe('Basic percolate queries', () => {
+        it('should build percolate query with inline document', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              document: {
+                title: 'Breaking News',
+                content: 'Elasticsearch 9.0 released'
+              }
+            })
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "query": {
+                "percolate": {
+                  "document": {
+                    "content": "Elasticsearch 9.0 released",
+                    "title": "Breaking News",
+                  },
+                  "field": "query",
+                },
+              },
+            }
+          `);
+        });
+
+        it('should build percolate query with multiple documents', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              documents: [
+                { title: 'Article 1', content: 'Content 1' },
+                { title: 'Article 2', content: 'Content 2' }
+              ]
+            })
+            .build();
+
+          expect(result.query?.percolate?.documents).toHaveLength(2);
+        });
+
+        it('should build percolate query with stored document reference', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              index: 'articles',
+              id: 'article-123'
+            })
+            .build();
+
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "query": {
+                "percolate": {
+                  "field": "query",
+                  "id": "article-123",
+                  "index": "articles",
+                },
+              },
+            }
+          `);
+        });
+
+        it('should build percolate query with routing', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              index: 'articles',
+              id: 'article-456',
+              routing: 'user-123'
+            })
+            .build();
+
+          expect(result.query?.percolate?.routing).toBe('user-123');
+        });
+
+        it('should build percolate query with preference', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              document: { title: 'Test' },
+              preference: '_local'
+            })
+            .build();
+
+          expect(result.query?.percolate?.preference).toBe('_local');
+        });
+
+        it('should build percolate query with version', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              index: 'articles',
+              id: 'article-789',
+              version: 5
+            })
+            .build();
+
+          expect(result.query?.percolate?.version).toBe(5);
+        });
+
+        it('should build percolate query with name', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              document: { content: 'urgent news' },
+              name: 'breaking_news_alert'
+            })
+            .build();
+
+          expect(result.query?.percolate?.name).toBe('breaking_news_alert');
+        });
+      });
+
+      describe('Percolate with query parameters', () => {
+        it('should combine percolate with size and from', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              document: { title: 'News', content: 'Important update' }
+            })
+            .size(50)
+            .from(0)
+            .build();
+
+          expect(result.query?.percolate).toBeDefined();
+          expect(result.size).toBe(50);
+          expect(result.from).toBe(0);
+        });
+
+        it('should combine percolate with sort', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              document: { content: 'Breaking news' }
+            })
+            .sort('category', 'asc')
+            .build();
+
+          expect(result.sort).toEqual([{ category: 'asc' }]);
+        });
+
+        it('should combine percolate with _source', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              document: { title: 'Alert' }
+            })
+            ._source(['query', 'category'])
+            .build();
+
+          expect(result._source).toEqual(['query', 'category']);
+        });
+      });
+
+      describe('Percolate in bool context', () => {
+        it('should support percolate in bool filter', () => {
+          const result = query<PercolatorDoc>()
+            .bool()
+            .filter((q) => q.term('category', 'news'))
+            .build();
+
+          expect(result.query?.bool?.filter).toBeDefined();
+        });
+      });
+
+      describe('Real-world percolate scenarios', () => {
+        it('should build alert matching query', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              document: {
+                title: 'Security Alert',
+                severity: 'high',
+                message: 'Unauthorized access detected',
+                timestamp: '2024-01-15T10:00:00Z'
+              }
+            })
+            .size(100)
+            .build();
+
+          expect(result.query?.percolate?.document?.severity).toBe('high');
+        });
+
+        it('should build content classification query', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              documents: [
+                { content: 'Machine learning tutorial', category: 'tech' },
+                { content: 'Cooking recipe', category: 'food' },
+                { content: 'Travel guide', category: 'travel' }
+              ]
+            })
+            .size(20)
+            .build();
+
+          expect(result.query?.percolate?.documents).toHaveLength(3);
+        });
+
+        it('should build saved search matching query', () => {
+          const result = query<PercolatorDoc>()
+            .percolate({
+              field: 'query',
+              index: 'user_documents',
+              id: 'doc-12345',
+              routing: 'user-789'
+            })
+            ._source(['query', 'category'])
+            .size(50)
+            .build();
+
+          expect(result.query?.percolate?.routing).toBe('user-789');
+          expect(result._source).toContain('query');
         });
       });
     });

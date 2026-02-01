@@ -49,6 +49,19 @@ const createClauseBuilder = <T>(): ClauseBuilder<T> => ({
       }
     };
   },
+  script: (options) => {
+    const { source, lang = 'painless', params, boost } = options;
+    return {
+      script: {
+        script: {
+          source,
+          lang,
+          ...(params ? { params } : {})
+        },
+        ...(boost ? { boost } : {})
+      }
+    };
+  },
   when: (condition, thenFn, elseFn) => {
     if (condition) {
       return thenFn(createClauseBuilder());
@@ -208,6 +221,56 @@ export const createQueryBuilder = <T>(
         ...(filter ? { filter } : {}),
         ...(boost ? { boost } : {}),
         ...(similarity !== undefined ? { similarity } : {})
+      }
+    });
+  },
+
+  script: (options) => {
+    const { source, lang = 'painless', params, boost } = options;
+    return createQueryBuilder<T>({
+      ...state,
+      query: {
+        script: {
+          script: {
+            source,
+            lang,
+            ...(params ? { params } : {})
+          },
+          ...(boost ? { boost } : {})
+        }
+      }
+    });
+  },
+
+  scriptScore: (queryFn, script, options) => {
+    const innerQuery = queryFn(clauseBuilder);
+    const { source, lang = 'painless', params } = script;
+    return createQueryBuilder<T>({
+      ...state,
+      query: {
+        script_score: {
+          query: innerQuery,
+          script: {
+            source,
+            lang,
+            ...(params ? { params } : {})
+          },
+          ...(options?.min_score !== undefined
+            ? { min_score: options.min_score }
+            : {}),
+          ...(options?.boost ? { boost: options.boost } : {})
+        }
+      }
+    });
+  },
+
+  percolate: (options) => {
+    return createQueryBuilder<T>({
+      ...state,
+      query: {
+        percolate: {
+          ...options
+        }
       }
     });
   },

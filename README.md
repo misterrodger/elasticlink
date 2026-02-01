@@ -87,6 +87,9 @@ const response = await client.search({ index: 'products', ...q });
 - `nested(path, fn, options?)` - Nested object queries
 - `regexp(field, pattern, options?)` - Regular expression matching
 - `constantScore(fn, options?)` - Constant scoring for filters
+- `script(options)` - Script-based filtering
+- `scriptScore(query, script, options?)` - Custom scoring with scripts
+- `percolate(options)` - Match documents against stored queries
 
 ### Boolean Logic
 
@@ -305,6 +308,154 @@ const mapping: DenseVectorOptions = {
 };
 ```
 
+### Script Queries & Custom Scoring
+
+**Note:** Scripts must be enabled in Elasticsearch configuration. Use with caution as they can impact performance.
+
+```typescript
+import { query } from 'elastiq';
+
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+  popularity: number;
+  quality_score: number;
+};
+
+// Script-based filtering
+const filtered = query<Product>()
+  .bool()
+  .must((q) => q.match('name', 'laptop'))
+  .filter((q) =>
+    q.script({
+      source: "doc['price'].value > params.threshold",
+      params: { threshold: 500 }
+    })
+  )
+  .build();
+
+// Custom scoring with script_score
+const customScored = query<Product>()
+  .scriptScore(
+    (q) => q.match('name', 'smartphone'),
+    {
+      source: "_score * Math.log(2 + doc['popularity'].value)",
+      lang: 'painless'
+    }
+  )
+  .size(20)
+  .build();
+
+// Weighted multi-factor scoring
+const weightedScore = query<Product>()
+  .scriptScore(
+    (q) => q.multiMatch(['name', 'description'], 'premium', { type: 'best_fields' }),
+    {
+      source: `
+        double quality = doc['quality_score'].value;
+        double popularity = doc['popularity'].value;
+        return _score * (quality * 0.7 + popularity * 0.3);
+      `,
+      params: {}
+    },
+    { min_score: 5.0, boost: 1.2 }
+  )
+  .build();
+
+// Personalized scoring
+const personalizedScore = query<Product>()
+  .scriptScore(
+    (q) => q.matchAll(),
+    {
+      source: `
+        double price_score = 1.0 / (1.0 + doc['price'].value / 1000);
+        double quality = doc['quality_score'].value / 10.0;
+        return _score * (price_score * params.price_weight + quality * params.quality_weight);
+      `,
+      params: {
+        price_weight: 0.3,
+        quality_weight: 0.7
+      }
+    }
+  )
+  .build();
+```
+
+**Script Languages:**
+- **painless** (default): Elasticsearch's primary scripting language
+- **expression**: Fast, limited expression language
+- **mustache**: Template-based scripting
+
+### Percolate Queries
+
+Percolate queries enable reverse search - match documents against stored queries. Perfect for alerting, content classification, and saved searches.
+
+```typescript
+type AlertRule = {
+  query: any;
+  name: string;
+  severity: string;
+};
+
+// Match document against stored queries
+const alerts = query<AlertRule>()
+  .percolate({
+    field: 'query',
+    document: {
+      level: 'ERROR',
+      message: 'Database connection failed',
+      timestamp: '2024-01-15T10:30:00Z'
+    }
+  })
+  .size(100)
+  .build();
+
+// Classify multiple documents
+const classifications = query<AlertRule>()
+  .percolate({
+    field: 'query',
+    documents: [
+      { title: 'AI Breakthrough', content: 'Machine learning advances' },
+      { title: 'Market Update', content: 'Stock prices surge' }
+    ]
+  })
+  ._source(['name', 'category'])
+  .build();
+
+// Match against stored document
+const savedSearch = query<AlertRule>()
+  .percolate({
+    field: 'query',
+    index: 'user_content',
+    id: 'doc-123',
+    routing: 'user-456'
+  })
+  .size(20)
+  .build();
+
+// Security alert system
+const securityAlerts = query<AlertRule>()
+  .percolate({
+    field: 'query',
+    document: {
+      event_type: 'unauthorized_access',
+      severity: 'high',
+      ip_address: '192.168.1.100',
+      timestamp: '2024-01-15T14:00:00Z'
+    },
+    name: 'security_event_check'
+  })
+  .sort('severity', 'desc')
+  .build();
+```
+
+**Common Use Cases:**
+- **Alerting:** Match events against alert rules
+- **Content Classification:** Categorize documents in real-time
+- **Saved Searches:** Notify users when new content matches their searches
+- **Monitoring:** Trigger actions based on metric thresholds
+
 ## Examples
 
 More examples available in [src/__tests__/examples.test.ts](src/__tests__/examples.test.ts).
@@ -522,12 +673,12 @@ All queries are tested against the Elasticsearch DSL specification with 147+ pas
 - [x] KNN (k-nearest neighbors) queries for vector search
 - [x] Semantic search with vector embeddings
 - [x] Dense vector field support
-- [x] Full test coverage (230+ tests)
+- [x] Script queries and custom scoring
+- [x] Percolate queries for reverse search
+- [x] Full test coverage (330+ tests)
 
 ### Planned for Future Releases
 
-- [ ] Script queries
-- [ ] Percolate queries
 - [ ] Multi-search API
 - [ ] Index management utilities
 - [ ] Bulk operations

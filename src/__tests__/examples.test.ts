@@ -1346,4 +1346,259 @@ describe('Real-world Usage Examples', () => {
       expect(result.size).toBe(15);
     });
   });
+
+  describe('Script Queries & Custom Scoring', () => {
+    type ScoredProduct = {
+      id: string;
+      name: string;
+      price: number;
+      popularity: number;
+      quality_score: number;
+      rating: number;
+      views: number;
+    };
+
+    it('should build dynamic price filter with script', () => {
+      const result = query<ScoredProduct>()
+        .bool()
+        .must((q) => q.match('name', 'laptop'))
+        .filter((q) =>
+          q.script({
+            source: "doc['price'].value > params.threshold",
+            params: { threshold: 500 }
+          })
+        )
+        .build();
+
+      expect(result.query?.bool?.filter).toHaveLength(1);
+      expect(result.query?.bool?.filter[0].script).toBeDefined();
+    });
+
+    it('should build custom popularity scoring', () => {
+      const result = query<ScoredProduct>()
+        .scriptScore((q) => q.match('name', 'smartphone'), {
+          source: "_score * Math.log(2 + doc['popularity'].value)"
+        })
+        .size(20)
+        .build();
+
+      expect(result.query?.script_score?.query?.match).toBeDefined();
+      expect(result.query?.script_score?.script?.source).toContain(
+        'popularity'
+      );
+    });
+
+    it('should build weighted quality + popularity score', () => {
+      const result = query<ScoredProduct>()
+        .scriptScore(
+          (q) =>
+            q.multiMatch(['name'], 'premium headphones', {
+              type: 'best_fields'
+            }),
+          {
+            source: `
+              double quality = doc['quality_score'].value;
+              double popularity = doc['popularity'].value;
+              return _score * (quality * 0.7 + popularity * 0.3);
+            `.trim(),
+            params: {}
+          },
+          { min_score: 5.0 }
+        )
+        .size(10)
+        .build();
+
+      expect(result.query?.script_score?.min_score).toBe(5.0);
+    });
+
+    it('should build personalized recommendation scoring', () => {
+      const userPreferences = {
+        price_weight: 0.3,
+        quality_weight: 0.5,
+        popularity_weight: 0.2
+      };
+
+      const result = query<ScoredProduct>()
+        .scriptScore((q) => q.term('id', 'prod-123'), {
+          source: `
+              double price_score = 1.0 / (1.0 + doc['price'].value / 1000);
+              double quality_score = doc['quality_score'].value / 10.0;
+              double popularity_score = Math.log(1 + doc['popularity'].value) / 10.0;
+
+              return _score * (
+                price_score * params.price_weight +
+                quality_score * params.quality_weight +
+                popularity_score * params.popularity_weight
+              );
+            `.trim(),
+          params: userPreferences
+        })
+        .size(50)
+        .build();
+
+      expect(result.query?.script_score?.script?.params).toEqual(
+        userPreferences
+      );
+    });
+
+    it('should build time-decay scoring for trending products', () => {
+      const result = query<ScoredProduct>()
+        .scriptScore(
+          (q) => q.matchAll(),
+          {
+            source: `
+              double views = doc['views'].value;
+              double rating = doc['rating'].value;
+              return Math.log(1 + views) * rating;
+            `.trim()
+          },
+          { min_score: 1.0, boost: 1.5 }
+        )
+        .sort('popularity', 'desc')
+        .size(20)
+        .build();
+
+      expect(result.query?.script_score?.boost).toBe(1.5);
+      expect(result.sort).toEqual([{ popularity: 'desc' }]);
+    });
+  });
+
+  describe('Percolate Queries & Alert Matching', () => {
+    type AlertRule = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      query: any;
+      name: string;
+      severity: string;
+      category: string;
+    };
+
+    type LogEntry = {
+      level: string;
+      message: string;
+      timestamp: string;
+      source: string;
+    };
+
+    it('should match log entry against saved alert rules', () => {
+      const logEntry: LogEntry = {
+        level: 'ERROR',
+        message: 'Database connection failed',
+        timestamp: '2024-01-15T10:30:00Z',
+        source: 'api-server'
+      };
+
+      const result = query<AlertRule>()
+        .percolate({
+          field: 'query',
+          document: logEntry
+        })
+        .size(100)
+        .build();
+
+      expect(result.query?.percolate?.document).toEqual(logEntry);
+    });
+
+    it('should classify multiple documents', () => {
+      const articles = [
+        { title: 'AI Breakthrough', content: 'Machine learning advances' },
+        { title: 'Market Update', content: 'Stock prices surge' },
+        { title: 'Sports News', content: 'Team wins championship' }
+      ];
+
+      const result = query<AlertRule>()
+        .percolate({
+          field: 'query',
+          documents: articles
+        })
+        ._source(['name', 'category'])
+        .size(50)
+        .build();
+
+      expect(result.query?.percolate?.documents).toHaveLength(3);
+      expect(result._source).toContain('category');
+    });
+
+    it('should match against stored document', () => {
+      const result = query<AlertRule>()
+        .percolate({
+          field: 'query',
+          index: 'user_content',
+          id: 'content-789',
+          routing: 'user-123'
+        })
+        .size(20)
+        .build();
+
+      expect(result.query?.percolate?.index).toBe('user_content');
+      expect(result.query?.percolate?.routing).toBe('user-123');
+    });
+
+    it('should build security alert system', () => {
+      const securityEvent = {
+        event_type: 'unauthorized_access',
+        severity: 'high',
+        ip_address: '192.168.1.100',
+        user_id: 'unknown',
+        timestamp: '2024-01-15T14:00:00Z',
+        attempted_resource: '/admin/users'
+      };
+
+      const result = query<AlertRule>()
+        .percolate({
+          field: 'query',
+          document: securityEvent,
+          name: 'security_event_check'
+        })
+        ._source(['name', 'severity'])
+        .sort('severity', 'desc')
+        .size(100)
+        .build();
+
+      expect(result.query?.percolate?.name).toBe('security_event_check');
+      expect(result.query?.percolate?.document?.severity).toBe('high');
+    });
+
+    it('should build content recommendation engine', () => {
+      const userPreferences = {
+        interests: ['technology', 'science', 'programming'],
+        reading_level: 'advanced',
+        preferred_length: 'medium'
+      };
+
+      const result = query<AlertRule>()
+        .percolate({
+          field: 'query',
+          document: userPreferences
+        })
+        ._source(['name', 'category'])
+        .size(50)
+        .build();
+
+      expect(result.query?.percolate?.document?.interests).toHaveLength(3);
+    });
+
+    it('should build real-time monitoring system', () => {
+      const metrics = {
+        cpu_usage: 85,
+        memory_usage: 92,
+        disk_usage: 78,
+        response_time_ms: 1500,
+        error_rate: 0.05,
+        timestamp: '2024-01-15T15:00:00Z'
+      };
+
+      const result = query<AlertRule>()
+        .percolate({
+          field: 'query',
+          document: metrics,
+          preference: '_local'
+        })
+        .sort('severity', 'desc')
+        .size(100)
+        .build();
+
+      expect(result.query?.percolate?.document?.cpu_usage).toBe(85);
+      expect(result.query?.percolate?.preference).toBe('_local');
+    });
+  });
 });
