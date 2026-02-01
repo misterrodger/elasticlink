@@ -16,7 +16,7 @@ elastiq simplifies building Elasticsearch queries in TypeScript. Write type-chec
 - ✨ **Type-Safe**: Full TypeScript generics for field autocomplete and type checking
 - 🔗 **Fluent API**: Chainable query builder with intuitive method names
 - 🎯 **Zero Runtime Overhead**: Compiles directly to Elasticsearch DSL objects
-- 🧪 **Well-Tested**: 143+ passing tests with comprehensive coverage
+- 🧪 **Well-Tested**: 147+ passing tests with comprehensive coverage
 - 📦 **Lightweight**: ~15KB uncompressed, no external dependencies
 - 🎓 **Great DX**: Excellent IntelliSense and error messages
 - 🚀 **Ready to Use**: Core query features working and tested
@@ -139,8 +139,10 @@ query<Product>()
 
 ### Aggregations
 
+Aggregations can be combined with queries or used standalone:
+
 ```typescript
-import { aggregations } from 'elastiq';
+import { query, aggregations } from 'elastiq';
 
 type Product = {
   category: string;
@@ -148,19 +150,31 @@ type Product = {
   created_at: string;
 };
 
-// Bucket aggregations
-const agg = aggregations<Product>()
-  .terms('by_category', 'category', { size: 10 })
-  .subAgg(sub =>
-    sub
+// Combined query + aggregations
+const result = query<Product>()
+  .match('category', 'electronics')
+  .aggs(agg =>
+    agg
+      .terms('by_category', 'category', { size: 10 })
       .avg('avg_price', 'price')
-      .max('max_price', 'price')
-      .min('min_price', 'price')
   )
+  .size(20)
   .build();
 
-// Metric aggregations
-const metrics = aggregations<Product>()
+// Standalone aggregations (no query) - use query(false)
+const aggsOnly = query<Product>(false)
+  .aggs(agg =>
+    agg
+      .terms('by_category', 'category')
+      .subAgg(sub =>
+        sub.avg('avg_price', 'price').max('max_price', 'price')
+      )
+  )
+  .size(0)  // Common pattern: size=0 when only wanting agg results
+  .build();
+
+// Standalone aggregation builder (for manual composition)
+const standaloneAgg = aggregations<Product>()
   .dateHistogram('sales_timeline', 'created_at', { interval: 'day' })
   .subAgg(sub =>
     sub.sum('daily_revenue', 'price')
@@ -362,7 +376,7 @@ npm test:coverage
 npm run type-check
 ```
 
-All queries are tested against the Elasticsearch DSL specification with 143+ passing tests.
+All queries are tested against the Elasticsearch DSL specification with 147+ passing tests.
 
 ## Version Support
 
@@ -382,7 +396,8 @@ All queries are tested against the Elasticsearch DSL specification with 143+ pas
 - [x] Geo queries (distance, bounding box, polygon)
 - [x] Advanced patterns (regexp, constant_score)
 - [x] Sub-aggregation support
-- [x] Full test coverage (143+ tests)
+- [x] Query + aggregations integration
+- [x] Full test coverage (147+ tests)
 
 ### Planned for Future Releases
 

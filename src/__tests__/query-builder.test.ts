@@ -2914,5 +2914,93 @@ describe('More TBC Features', () => {
       expect(agg.by_category?.aggs?.avg_rating).toBeDefined();
     });
   });
+
+  describe('Query with Aggregations Integration', () => {
+    it('should combine query with aggregations', () => {
+      const result = query<TestIndex2>()
+        .match('title', 'restaurant')
+        .aggs((agg) =>
+          agg
+            .terms('by_category', 'category', { size: 10 })
+            .avg('avg_price', 'price')
+        )
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "aggs": {
+            "avg_price": {
+              "avg": {
+                "field": "price",
+              },
+            },
+            "by_category": {
+              "terms": {
+                "field": "category",
+                "size": 10,
+              },
+            },
+          },
+          "query": {
+            "match": {
+              "title": "restaurant",
+            },
+          },
+        }
+      `);
+    });
+
+    it('should build standalone aggregations with query(false)', () => {
+      const result = query<TestIndex2>(false)
+        .aggs((agg) => agg.terms('by_category', 'category'))
+        .size(0)
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "aggs": {
+            "by_category": {
+              "terms": {
+                "field": "category",
+              },
+            },
+          },
+          "size": 0,
+        }
+      `);
+    });
+
+    it('should combine bool query with sub-aggregations', () => {
+      const result = query<TestIndex2>()
+        .bool()
+        .must((q) => q.match('title', 'coffee'))
+        .filter((q) => q.range('price', { gte: 10, lte: 50 }))
+        .aggs((agg) =>
+          agg
+            .terms('by_category', 'category', { size: 5 })
+            .subAgg((sub) =>
+              sub.avg('avg_price', 'price').max('max_rating', 'rating')
+            )
+        )
+        .size(20)
+        .build();
+
+      expect(result.query?.bool?.must).toBeDefined();
+      expect(result.query?.bool?.filter).toBeDefined();
+      expect(result.aggs?.by_category?.terms).toBeDefined();
+      expect(result.aggs?.by_category?.aggs?.avg_price).toBeDefined();
+      expect(result.aggs?.by_category?.aggs?.max_rating).toBeDefined();
+      expect(result.size).toBe(20);
+    });
+
+    it('should allow aggregations without query methods when using query()', () => {
+      const result = query<TestIndex2>()
+        .aggs((agg) => agg.sum('total_price', 'price'))
+        .build();
+
+      // With query() (default), query field is preserved even if undefined
+      expect(result.aggs?.total_price).toBeDefined();
+    });
+  });
 });
 });

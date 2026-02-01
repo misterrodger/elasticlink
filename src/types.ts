@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { AggregationBuilder, AggregationState } from './aggregation-types';
+
 export type MatchOptions = {
   operator?: 'and' | 'or';
   fuzziness?: string | number;
@@ -62,7 +64,9 @@ export type GeoPolygonOptions = {
 };
 
 export type QueryState<T> = {
+  _includeQuery?: boolean;
   query?: any;
+  aggs?: AggregationState;
   from?: number;
   to?: number;
   size?: number;
@@ -167,7 +171,7 @@ export type QueryBuilder<T> = {
     thenFn: (q: QueryBuilder<T>) => R,
     elseFn?: (q: QueryBuilder<T>) => R
   ) => R | undefined;
-  // agg: TBD
+  aggs: (fn: (agg: AggregationBuilder<T>) => AggregationBuilder<T>) => QueryBuilder<T>;
   // Meta
   sort: <K extends keyof T>(
     field: K,

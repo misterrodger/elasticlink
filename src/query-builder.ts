@@ -1,4 +1,5 @@
 import { QueryState, QueryBuilder, ClauseBuilder } from './types';
+import { createAggregationBuilder } from './aggregation-builder';
 
 const createClauseBuilder = <T>(): ClauseBuilder<T> => ({
   matchAll: () => ({ match_all: {} }),
@@ -293,5 +294,18 @@ export const createQueryBuilder = <T>(
     });
   },
 
-  build: () => state
+  aggs: (fn) => {
+    const aggBuilder = createAggregationBuilder<T>();
+    const builtAggs = fn(aggBuilder).build();
+    return createQueryBuilder({ ...state, aggs: builtAggs });
+  },
+
+  build: () => {
+    const { _includeQuery, ...rest } = state;
+    if (_includeQuery === false) {
+      const { query: _q, ...noQuery } = rest;
+      return noQuery as QueryState<T>;
+    }
+    return rest as QueryState<T>;
+  }
 });

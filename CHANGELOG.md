@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Query + Aggregations Integration**: Combine queries with aggregations using `.aggs()` method
+  - `query<T>().match(...).aggs(agg => agg.terms(...)).build()` - query with aggregations
+  - `query<T>(false).aggs(...).build()` - standalone aggregations (no query field)
+- 4 new tests for query + aggregations integration (147 total)
+
 ## [0.1.0-beta.0] - 2026-01-30
 
 ### Added
