@@ -1,6 +1,6 @@
-# Contributing to elastiq
+# Contributing to elastiq-ts
 
-Thank you for your interest in contributing to elastiq! We welcome bug reports, feature requests, and pull requests.
+Thank you for your interest in contributing to elastiq-ts! We welcome bug reports, feature requests, and pull requests.
 
 ## Code of Conduct
 
@@ -16,8 +16,8 @@ Be respectful and constructive. We're building a welcoming community.
 
 ```bash
 # Clone the repository
-git clone https://github.com/misterrodger/elastiq.git
-cd elastiq
+git clone https://github.com/misterrodger/elastiq-ts.git
+cd elastiq-ts
 
 # Install dependencies
 npm install
@@ -190,7 +190,7 @@ How to test these changes
 ### Bug Reports
 
 Please include:
-- Version of elastiq you're using
+- Version of elastiq-ts you're using
 - Node.js version
 - Steps to reproduce
 - Expected vs actual behavior
@@ -230,7 +230,7 @@ The maintainers handle releases:
 
 ### Versioning Strategy
 
-elastiq follows [Semantic Versioning](https://semver.org/) and [Conventional Commits](https://www.conventionalcommits.org/):
+elastiq-ts follows [Semantic Versioning](https://semver.org/):
 
 - **MAJOR** (`breaking:`): Breaking API changes
 - **MINOR** (`feat:`): New features (backward compatible)
@@ -247,9 +247,9 @@ All commits should follow the conventional commit format:
 ## Questions?
 
 - 📖 Read the [README.md](README.md)
-- 🐛 Check [existing issues](https://github.com/misterrodger/elastiq/issues)
-- 💬 Start a [discussion](https://github.com/misterrodger/elastiq/discussions)
+- 🐛 Check [existing issues](https://github.com/misterrodger/elastiq-ts/issues)
+- 💬 Start a [discussion](https://github.com/misterrodger/elastiq-ts/discussions)
 
 ## Thank You!
 
-Thank you for contributing to elastiq. Your efforts help make this project better for everyone! 🙏
+Thank you for contributing to elastiq-ts. Your efforts help make this project better for everyone! 🙏

@@ -1,4 +1,4 @@
-# elastiq Beta Release Guide
+# elastiq-ts Beta Release Guide
 
 **Status**: ✅ Ready for npm beta publication
 **Version**: 0.1.0-beta
@@ -6,7 +6,7 @@
 
 ## What's Included
 
-elastiq is a **type-safe, lightweight Elasticsearch query builder** with:
+elastiq-ts is a **type-safe, lightweight Elasticsearch query builder** with:
 
 - ✅ **Many features implemented**: Core query types, vector search, scripts, percolate, multi-search, bulk, index management, suggestions and autocomplete, etc
 - ✅ **430+ tests passing** with 98%+ coverage
@@ -31,7 +31,7 @@ npm run build
 npm publish --tag beta
 
 # Verify publication
-npm view elastiq@0.1.0-beta
+npm view elastiq-ts@0.1.0-beta
 ```
 
 This publishes with the `beta` tag, so users must explicitly install the beta version.
@@ -42,16 +42,16 @@ Beta users can install:
 
 ```bash
 # Latest beta
-npm install elastiq@beta
+npm install elastiq-ts@beta
 
 # Specific version
-npm install elastiq@0.1.0-beta
+npm install elastiq-ts@0.1.0-beta
 ```
 
 ## Quick Start for Beta Testers
 
 ```typescript
-import { query } from 'elastiq';
+import { query } from 'elastiq-ts';
 
 type Product = {
   id: string;
@@ -138,8 +138,8 @@ Before publishing:
 
 ## Feedback Channels
 
-- **Issues**: https://github.com/misterrodger/elastiq/issues
-- **Discussions**: https://github.com/misterrodger/elastiq/discussions
+- **Issues**: https://github.com/misterrodger/elastiq-ts/issues
+- **Discussions**: https://github.com/misterrodger/elastiq-ts/discussions
 - **Bugs**: Create issue with version and reproduction steps
 
 ## What "Beta" Means
@@ -166,7 +166,7 @@ npm publish --tag beta
 
 ## Next Steps After Publishing
 
-1. **Verify** the package on npm: https://www.npmjs.com/package/elastiq
+1. **Verify** the package on npm: https://www.npmjs.com/package/elastiq-ts
 2. **Test** installation in a fresh project
 3. **Create** a GitHub release with changelog
 4. **Gather** feedback from users

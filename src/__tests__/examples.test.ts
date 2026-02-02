@@ -1,7 +1,7 @@
 import { query, aggregations, msearch, bulk, indexBuilder } from '..';
 
 /**
- * Real-world usage examples demonstrating elastiq's capabilities.
+ * Real-world usage examples demonstrating elastiq-ts's capabilities.
  * These tests showcase common search patterns and can serve as documentation.
  */
 

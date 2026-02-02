@@ -1,5 +1,5 @@
 {
-  "name": "elastiq",
+  "name": "elastiq-ts",
   "version": "0.1.0-beta",
   "description": "Type-safe, lightweight Elasticsearch query builder with fluent API",
   "main": "dist/index.js",
@@ -24,14 +24,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/misterrodger/elastiq.git"
+    "url": "git+https://github.com/misterrodger/elastiq-ts.git"
   },
   "author": "misterrodger",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/misterrodger/elastiq/issues"
+    "url": "https://github.com/misterrodger/elastiq-ts/issues"
   },
-  "homepage": "https://github.com/misterrodger/elastiq#readme",
+  "homepage": "https://github.com/misterrodger/elastiq-ts#readme",
   "keywords": [
     "elasticsearch",
     "query-builder",
