@@ -3,7 +3,7 @@
  * Provides query suggestions, phrase corrections, and autocomplete functionality
  */
 
-import { SuggesterBuilder, SuggesterState } from './suggester-types';
+import { SuggesterBuilder, SuggesterState } from './suggester.types.js';
 
 /**
  * Creates a suggester builder

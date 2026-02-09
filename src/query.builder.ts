@@ -3,9 +3,9 @@
  * Builds type-safe Elasticsearch queries with a fluent API
  */
 
-import { QueryState, QueryBuilder, ClauseBuilder } from './types';
-import { createAggregationBuilder } from './aggregation-builder';
-import { createSuggesterBuilder } from './suggester';
+import { QueryState, QueryBuilder, ClauseBuilder } from './query.types.js';
+import { createAggregationBuilder } from './aggregation.builder.js';
+import { createSuggesterBuilder } from './suggester.builder.js';
 
 /**
  * Creates a clause builder for constructing query clauses
@@ -323,7 +323,6 @@ export const createQueryBuilder = <T>(
 
   // Pagination and source filtering
   from: (from) => createQueryBuilder({ ...state, from }),
-  to: (to) => createQueryBuilder({ ...state, to }),
   size: (size) => createQueryBuilder({ ...state, size }),
   _source: (_source) => createQueryBuilder({ ...state, _source }),
 
@@ -342,15 +341,17 @@ export const createQueryBuilder = <T>(
   highlight: (fields, options) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const highlightFields: Record<string, any> = {};
+    const { pre_tags, post_tags, ...fieldOptions } = options || {};
     for (const field of fields) {
-      highlightFields[field as string] = options || {};
+      highlightFields[field as string] =
+        Object.keys(fieldOptions).length > 0 ? fieldOptions : {};
     }
     return createQueryBuilder({
       ...state,
       highlight: {
         fields: highlightFields,
-        ...(options?.pre_tags && { pre_tags: options.pre_tags }),
-        ...(options?.post_tags && { post_tags: options.post_tags })
+        ...(pre_tags && { pre_tags }),
+        ...(post_tags && { post_tags })
       }
     });
   },

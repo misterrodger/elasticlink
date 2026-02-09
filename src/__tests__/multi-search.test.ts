@@ -1,41 +1,68 @@
 import { query, msearch } from '..';
-
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  category: string;
-};
+import { Matter } from './fixtures/legal.js';
 
 describe('Multi-Search API', () => {
+  describe('add() method', () => {
+    it('should add a raw MSearchRequest with header and body', () => {
+      const body = query<Matter>().matchAll().build();
+      const result = msearch<Matter>()
+        .add({ header: { index: 'matters' }, body })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        "{"index":"matters"}
+        {"query":{"match_all":{}}}
+        "
+      `);
+    });
+
+    it('should add a raw MSearchRequest without header', () => {
+      const body = query<Matter>().match('title', 'acquisition').build();
+      const result = msearch<Matter>().add({ body }).buildArray();
+
+      expect(result).toMatchInlineSnapshot(`
+        [
+          {},
+          {
+            "query": {
+              "match": {
+                "title": "acquisition",
+              },
+            },
+          },
+        ]
+      `);
+    });
+  });
+
   describe('Basic multi-search', () => {
     it('should build empty multi-search', () => {
-      const result = msearch<Product>().build();
+      const result = msearch<Matter>().build();
       expect(result).toBe('\n');
     });
 
     it('should build single search', () => {
-      const q1 = query<Product>().match('name', 'laptop').build();
-      const result = msearch<Product>().addQuery(q1).build();
+      const q1 = query<Matter>().match('title', 'acquisition').build();
+      const result = msearch<Matter>().addQuery(q1).build();
 
       expect(result).toMatchInlineSnapshot(`
         "{}
-        {"query":{"match":{"name":"laptop"}}}
+        {"query":{"match":{"title":"acquisition"}}}
         "
       `);
     });
 
     it('should build multiple searches', () => {
-      const q1 = query<Product>().match('name', 'laptop').build();
-      const q2 = query<Product>().term('category', 'electronics').build();
+      const q1 = query<Matter>().match('title', 'acquisition').build();
+      const q2 = query<Matter>().term('practice_area', 'corporate').build();
 
-      const result = msearch<Product>().addQuery(q1).addQuery(q2).build();
+      const result = msearch<Matter>().addQuery(q1).addQuery(q2).build();
 
       expect(result).toMatchInlineSnapshot(`
         "{}
-        {"query":{"match":{"name":"laptop"}}}
+        {"query":{"match":{"title":"acquisition"}}}
         {}
-        {"query":{"term":{"category":"electronics"}}}
+        {"query":{"term":{"practice_area":"corporate"}}}
         "
       `);
     });
@@ -43,34 +70,34 @@ describe('Multi-Search API', () => {
 
   describe('Multi-search with headers', () => {
     it('should add index to header', () => {
-      const q1 = query<Product>().matchAll().build();
-      const result = msearch<Product>()
-        .addQuery(q1, { index: 'products' })
+      const q1 = query<Matter>().matchAll().build();
+      const result = msearch<Matter>()
+        .addQuery(q1, { index: 'matters' })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
-        "{"index":"products"}
+        "{"index":"matters"}
         {"query":{"match_all":{}}}
         "
       `);
     });
 
     it('should add multiple indices', () => {
-      const q1 = query<Product>().matchAll().build();
-      const result = msearch<Product>()
-        .addQuery(q1, { index: ['products-1', 'products-2'] })
+      const q1 = query<Matter>().matchAll().build();
+      const result = msearch<Matter>()
+        .addQuery(q1, { index: ['matters-1', 'matters-2'] })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
-        "{"index":["products-1","products-2"]}
+        "{"index":["matters-1","matters-2"]}
         {"query":{"match_all":{}}}
         "
       `);
     });
 
     it('should add routing', () => {
-      const q1 = query<Product>().matchAll().build();
-      const result = msearch<Product>()
+      const q1 = query<Matter>().matchAll().build();
+      const result = msearch<Matter>()
         .addQuery(q1, { routing: 'user-123' })
         .build();
 
@@ -82,8 +109,8 @@ describe('Multi-Search API', () => {
     });
 
     it('should add preference', () => {
-      const q1 = query<Product>().matchAll().build();
-      const result = msearch<Product>()
+      const q1 = query<Matter>().matchAll().build();
+      const result = msearch<Matter>()
         .addQuery(q1, { preference: '_local' })
         .build();
 
@@ -95,8 +122,8 @@ describe('Multi-Search API', () => {
     });
 
     it('should add search_type', () => {
-      const q1 = query<Product>().matchAll().build();
-      const result = msearch<Product>()
+      const q1 = query<Matter>().matchAll().build();
+      const result = msearch<Matter>()
         .addQuery(q1, { search_type: 'dfs_query_then_fetch' })
         .build();
 
@@ -106,23 +133,68 @@ describe('Multi-Search API', () => {
         "
       `);
     });
+
+    it('should combine index and routing in header', () => {
+      const q1 = query<Matter>().matchAll().build();
+      const result = msearch<Matter>()
+        .addQuery(q1, { index: 'matters', routing: 'tenant-1' })
+        .buildArray();
+
+      expect(result).toMatchInlineSnapshot(`
+        [
+          {
+            "index": "matters",
+            "routing": "tenant-1",
+          },
+          {
+            "query": {
+              "match_all": {},
+            },
+          },
+        ]
+      `);
+    });
+
+    it('should combine index and search_type in header', () => {
+      const q1 = query<Matter>().matchAll().build();
+      const result = msearch<Matter>()
+        .addQuery(q1, {
+          index: 'matters',
+          search_type: 'dfs_query_then_fetch'
+        })
+        .buildArray();
+
+      expect(result).toMatchInlineSnapshot(`
+        [
+          {
+            "index": "matters",
+            "search_type": "dfs_query_then_fetch",
+          },
+          {
+            "query": {
+              "match_all": {},
+            },
+          },
+        ]
+      `);
+    });
   });
 
   describe('Multi-search output formats', () => {
     it('should build as NDJSON string', () => {
-      const q1 = query<Product>().match('name', 'test').build();
-      const result = msearch<Product>().addQuery(q1).build();
+      const q1 = query<Matter>().match('title', 'test').build();
+      const result = msearch<Matter>().addQuery(q1).build();
 
       expect(result).toMatchInlineSnapshot(`
         "{}
-        {"query":{"match":{"name":"test"}}}
+        {"query":{"match":{"title":"test"}}}
         "
       `);
     });
 
     it('should build as array', () => {
-      const q1 = query<Product>().match('name', 'test').build();
-      const result = msearch<Product>().addQuery(q1).buildArray();
+      const q1 = query<Matter>().match('title', 'test').build();
+      const result = msearch<Matter>().addQuery(q1).buildArray();
 
       expect(result).toMatchInlineSnapshot(`
         [
@@ -130,7 +202,7 @@ describe('Multi-Search API', () => {
           {
             "query": {
               "match": {
-                "name": "test",
+                "title": "test",
               },
             },
           },
@@ -139,33 +211,33 @@ describe('Multi-Search API', () => {
     });
 
     it('should alternate headers and bodies in array', () => {
-      const q1 = query<Product>().match('name', 'laptop').build();
-      const q2 = query<Product>().term('category', 'electronics').build();
+      const q1 = query<Matter>().match('title', 'acquisition').build();
+      const q2 = query<Matter>().term('practice_area', 'corporate').build();
 
-      const result = msearch<Product>()
-        .addQuery(q1, { index: 'products-1' })
-        .addQuery(q2, { index: 'products-2' })
+      const result = msearch<Matter>()
+        .addQuery(q1, { index: 'matters-1' })
+        .addQuery(q2, { index: 'matters-2' })
         .buildArray();
 
       expect(result).toMatchInlineSnapshot(`
         [
           {
-            "index": "products-1",
+            "index": "matters-1",
           },
           {
             "query": {
               "match": {
-                "name": "laptop",
+                "title": "acquisition",
               },
             },
           },
           {
-            "index": "products-2",
+            "index": "matters-2",
           },
           {
             "query": {
               "term": {
-                "category": "electronics",
+                "practice_area": "corporate",
               },
             },
           },
@@ -176,59 +248,108 @@ describe('Multi-Search API', () => {
 
   describe('Multi-search method chaining', () => {
     it('should support fluent chaining', () => {
-      const q1 = query<Product>().match('name', 'laptop').build();
-      const q2 = query<Product>().term('category', 'electronics').build();
-      const q3 = query<Product>().range('price', { gte: 100 }).build();
+      const q1 = query<Matter>().match('title', 'acquisition').build();
+      const q2 = query<Matter>().term('practice_area', 'corporate').build();
+      const q3 = query<Matter>().range('billing_rate', { gte: 100 }).build();
 
-      const result = msearch<Product>()
-        .addQuery(q1, { index: 'products' })
-        .addQuery(q2, { index: 'products' })
-        .addQuery(q3, { index: 'products' })
+      const result = msearch<Matter>()
+        .addQuery(q1, { index: 'matters' })
+        .addQuery(q2, { index: 'matters' })
+        .addQuery(q3, { index: 'matters' })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
-        "{"index":"products"}
-        {"query":{"match":{"name":"laptop"}}}
-        {"index":"products"}
-        {"query":{"term":{"category":"electronics"}}}
-        {"index":"products"}
-        {"query":{"range":{"price":{"gte":100}}}}
+        "{"index":"matters"}
+        {"query":{"match":{"title":"acquisition"}}}
+        {"index":"matters"}
+        {"query":{"term":{"practice_area":"corporate"}}}
+        {"index":"matters"}
+        {"query":{"range":{"billing_rate":{"gte":100}}}}
         "
+      `);
+    });
+  });
+
+  describe('Complex query bodies', () => {
+    it('should addQuery with bool query including size and from', () => {
+      const complexQuery = query<Matter>()
+        .bool()
+        .must((q) => q.match('title', 'acquisition'))
+        .filter((q) => q.range('billing_rate', { gte: 100, lte: 2000 }))
+        .size(10)
+        .from(0)
+        .build();
+
+      const result = msearch<Matter>()
+        .addQuery(complexQuery, { index: 'matters' })
+        .buildArray();
+
+      expect(result).toMatchInlineSnapshot(`
+        [
+          {
+            "index": "matters",
+          },
+          {
+            "from": 0,
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "range": {
+                      "billing_rate": {
+                        "gte": 100,
+                        "lte": 2000,
+                      },
+                    },
+                  },
+                ],
+                "must": [
+                  {
+                    "match": {
+                      "title": "acquisition",
+                    },
+                  },
+                ],
+              },
+            },
+            "size": 10,
+          },
+        ]
       `);
     });
   });
 
   describe('Real-world multi-search scenarios', () => {
     it('should search across multiple indices', () => {
-      const laptopQuery = query<Product>()
-        .match('name', 'laptop')
-        .range('price', { gte: 500, lte: 2000 })
+      const laptopQuery = query<Matter>()
+        .match('title', 'acquisition')
+        .range('billing_rate', { gte: 500, lte: 2000 })
         .build();
 
-      const phoneQuery = query<Product>()
-        .match('name', 'smartphone')
-        .range('price', { gte: 300, lte: 1000 })
+      const phoneQuery = query<Matter>()
+        .match('title', 'compliance')
+        .range('billing_rate', { gte: 300, lte: 1000 })
         .build();
 
-      const result = msearch<Product>()
-        .addQuery(laptopQuery, { index: 'electronics' })
-        .addQuery(phoneQuery, { index: 'electronics' })
+      const result = msearch<Matter>()
+        .addQuery(laptopQuery, { index: 'matters' })
+        .addQuery(phoneQuery, { index: 'matters' })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
-        "{"index":"electronics"}
-        {"query":{"range":{"price":{"gte":500,"lte":2000}}}}
-        {"index":"electronics"}
-        {"query":{"range":{"price":{"gte":300,"lte":1000}}}}
+        "{"index":"matters"}
+        {"query":{"range":{"billing_rate":{"gte":500,"lte":2000}}}}
+        {"index":"matters"}
+        {"query":{"range":{"billing_rate":{"gte":300,"lte":1000}}}}
         "
       `);
     });
 
     it('should search with different preferences', () => {
-      const localQuery = query<Product>().matchAll().size(10).build();
-      const primaryQuery = query<Product>().matchAll().size(20).build();
+      const localQuery = query<Matter>().matchAll().size(10).build();
+      const primaryQuery = query<Matter>().matchAll().size(20).build();
 
-      const result = msearch<Product>()
+      const result = msearch<Matter>()
         .addQuery(localQuery, { preference: '_local' })
         .addQuery(primaryQuery, { preference: '_primary' })
         .buildArray();

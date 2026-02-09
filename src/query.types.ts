@@ -1,95 +1,77 @@
 /**
  * Type definitions for Query Builder
+ * Derived from official @elastic/elasticsearch types for accuracy and completeness.
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { AggregationBuilder, AggregationState } from './aggregation-types';
-import { KnnOptions } from './vector-types';
-import { SuggesterBuilder, SuggesterState } from './suggester-types';
+import type {
+  QueryDslMatchQuery,
+  QueryDslMultiMatchQuery,
+  QueryDslFuzzyQuery,
+  QueryDslRegexpQuery,
+  QueryDslConstantScoreQuery,
+  QueryDslScriptQuery,
+  QueryDslScriptScoreQuery,
+  QueryDslPercolateQuery,
+  QueryDslMatchPhrasePrefixQuery,
+  SearchHighlightBase,
+  Script
+} from '@elastic/elasticsearch/lib/api/types';
+import { AggregationBuilder, AggregationState } from './aggregation.types.js';
+import { KnnOptions } from './vector.types.js';
+import { SuggesterBuilder, SuggesterState } from './suggester.types.js';
 
 /**
- * Options for match query
+ * Options for match query (excludes 'query' which is handled by the builder)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-match-query.html
  */
-export type MatchOptions = {
-  /** Boolean operator for combining terms */
-  operator?: 'and' | 'or';
-  /** Fuzziness for typo tolerance */
-  fuzziness?: string | number;
-  /** Score multiplier */
-  boost?: number;
-  /** Text analyzer to use */
-  analyzer?: string;
-  /** Behavior when all terms are stop words */
-  zero_terms_query?: 'none' | 'all';
-};
+export type MatchOptions = Omit<QueryDslMatchQuery, 'query'>;
 
 /**
- * Options for multi_match query
+ * Options for multi_match query (excludes 'query' and 'fields' which are handled by the builder)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-multi-match-query.html
  */
-export type MultiMatchOptions = {
-  /** Multi-match query type */
-  type?:
-    | 'best_fields'
-    | 'most_fields'
-    | 'cross_fields'
-    | 'phrase'
-    | 'phrase_prefix'
-    | 'bool_prefix';
-  /** Boolean operator for combining terms */
-  operator?: 'and' | 'or';
-  /** Score adjustment for multiple fields */
-  tie_breaker?: number;
-  /** Score multiplier */
-  boost?: number;
-};
+export type MultiMatchOptions = Omit<
+  QueryDslMultiMatchQuery,
+  'query' | 'fields'
+>;
 
 /**
- * Options for fuzzy query
+ * Options for fuzzy query (excludes 'value' which is handled by the builder)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-fuzzy-query.html
  */
-export type FuzzyOptions = {
-  /** Maximum edit distance */
-  fuzziness?: string | number;
-  /** Score multiplier */
-  boost?: number;
-};
+export type FuzzyOptions = Omit<QueryDslFuzzyQuery, 'value'>;
 
 /**
- * Options for highlighting matched text
+ * Options for highlighting matched text (base options applied globally)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/highlighting.html
  */
-export type HighlightOptions = {
-  /** Size of highlighted fragments */
-  fragment_size?: number;
-  /** Number of fragments to return */
-  number_of_fragments?: number;
-  /** HTML tags to wrap matches (opening) */
-  pre_tags?: string[];
-  /** HTML tags to wrap matches (closing) */
-  post_tags?: string[];
-};
+export type HighlightOptions = SearchHighlightBase;
 
 /**
- * Options for regexp query
+ * Options for regexp query (excludes 'value' which is handled by the builder)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-regexp-query.html
  */
-export type RegexpOptions = {
-  /** Regexp flags (e.g., 'ALL') */
-  flags?: string;
-  /** Maximum automaton states */
-  max_determinized_states?: number;
-  /** Score multiplier */
-  boost?: number;
-};
+export type RegexpOptions = Omit<QueryDslRegexpQuery, 'value'>;
 
 /**
- * Options for constant_score query
+ * Options for constant_score query (excludes 'filter' which is handled by the builder callback)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-constant-score-query.html
  */
-export type ConstantScoreOptions = {
-  /** Constant score value */
-  boost?: number;
-};
+export type ConstantScoreOptions = Omit<QueryDslConstantScoreQuery, 'filter'>;
 
 /**
- * Options for geo_distance query
+ * Options for match_phrase_prefix query (excludes 'query' which is handled by the builder)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-match-phrase-prefix-query.html
+ */
+export type MatchPhrasePrefixOptions = Omit<
+  QueryDslMatchPhrasePrefixQuery,
+  'query'
+>;
+
+/**
+ * Options for geo_distance query.
+ * Uses custom type because the official type uses dynamic property patterns for the field name.
  */
 export type GeoDistanceOptions = {
   /** Distance from center point */
@@ -101,7 +83,8 @@ export type GeoDistanceOptions = {
 };
 
 /**
- * Options for geo_bounding_box query
+ * Options for geo_bounding_box query.
+ * Uses custom type because the official type uses dynamic property patterns for the field name.
  */
 export type GeoBoundingBoxOptions = {
   /** Top-left corner coordinates */
@@ -119,7 +102,8 @@ export type GeoBoundingBoxOptions = {
 };
 
 /**
- * Options for geo_polygon query
+ * Options for geo_polygon query.
+ * Uses custom type because the official type uses dynamic property patterns for the field name.
  */
 export type GeoPolygonOptions = {
   /** Polygon vertices */
@@ -127,61 +111,38 @@ export type GeoPolygonOptions = {
 };
 
 /**
- * Script configuration for Painless/Expression/Mustache
+ * Script configuration — re-exported from official @elastic/elasticsearch types
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-scripting.html
  */
-export type ScriptOptions = {
-  /** Script source code */
-  source: string;
-  /** Script language */
-  lang?: 'painless' | 'expression' | 'mustache';
-  /** Script parameters */
-  params?: Record<string, any>;
-};
+export type ScriptOptions = Script;
 
 /**
- * Options for script query
+ * Options for script query — combines script body with query-level options (boost, _name)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-script-query.html
  */
-export type ScriptQueryOptions = ScriptOptions & {
-  /** Score multiplier */
-  boost?: number;
-};
+export type ScriptQueryOptions = Script & Omit<QueryDslScriptQuery, 'script'>;
 
 /**
- * Options for script_score query
+ * Options for script_score query (excludes 'query' and 'script' which are handled by the builder)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-script-score-query.html
  */
-export type ScriptScoreOptions = {
-  /** Minimum score threshold */
-  min_score?: number;
-  /** Score multiplier */
-  boost?: number;
-};
+export type ScriptScoreOptions = Omit<
+  QueryDslScriptScoreQuery,
+  'query' | 'script'
+>;
 
 /**
- * Options for percolate query
+ * Options for percolate query — re-exported from official @elastic/elasticsearch types
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-percolate-query.html
  */
-export type PercolateOptions = {
-  /** Field containing percolate queries */
-  field: string;
-  /** Document to match against stored queries */
-  document?: Record<string, any>;
-  /** Multiple documents to match */
-  documents?: Array<Record<string, any>>;
-  /** Stored document ID */
-  id?: string;
-  /** Index containing stored document */
-  index?: string;
-  /** Routing value */
-  routing?: string;
-  /** Node preference */
-  preference?: string;
-  /** Document version */
-  version?: number;
-  /** Query name for identification */
-  name?: string;
-};
+export type PercolateOptions = QueryDslPercolateQuery;
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * Query state representing the complete Elasticsearch query DSL
+ * Query state representing the complete Elasticsearch query DSL.
+ * Input option types are derived from official @elastic/elasticsearch types.
+ * Output type alignment (QueryState → SearchSearchRequestBody) is planned for a later step.
  */
 export type QueryState<T> = {
   /** Internal: whether to include query wrapper */
@@ -192,8 +153,8 @@ export type QueryState<T> = {
   knn?: {
     field: string;
     query_vector: number[];
-    k: number;
-    num_candidates: number;
+    k?: number;
+    num_candidates?: number;
     filter?: any;
     boost?: number;
     similarity?: number;
@@ -204,8 +165,6 @@ export type QueryState<T> = {
   suggest?: SuggesterState;
   /** Pagination offset */
   from?: number;
-  /** Pagination end (deprecated, use from+size) */
-  to?: number;
   /** Number of results to return */
   size?: number;
   /** Sort order */
@@ -258,7 +217,7 @@ export type ClauseBuilder<T> = {
   matchPhrasePrefix: <K extends keyof T>(
     field: K,
     value: T[K],
-    options?: { max_expansions?: number }
+    options?: MatchPhrasePrefixOptions
   ) => any;
   /** Exact term match */
   term: <K extends keyof T>(field: K, value: T[K]) => any;
@@ -337,7 +296,7 @@ export type QueryBuilder<T> = {
   matchPhrasePrefix: <K extends keyof T>(
     field: K,
     value: T[K],
-    options?: { max_expansions?: number }
+    options?: MatchPhrasePrefixOptions
   ) => QueryBuilder<T>;
 
   // Term-level queries
@@ -419,8 +378,6 @@ export type QueryBuilder<T> = {
   ) => QueryBuilder<T>;
   /** Pagination offset */
   from: (from: number) => QueryBuilder<T>;
-  /** Pagination end (deprecated) */
-  to: (to: number) => QueryBuilder<T>;
   /** Number of results to return */
   size: (size: number) => QueryBuilder<T>;
   /** Fields to include in response */
