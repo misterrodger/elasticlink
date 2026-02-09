@@ -2,7 +2,6 @@ src/
 *.test.ts
 __tests__/
 tsconfig.json
-jest.config.js
-.eslintrc.js
+eslint.config.mjs
 .prettierrc
 coverage/

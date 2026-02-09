@@ -3,7 +3,7 @@
  * Enables batching multiple search requests in a single API call
  */
 
-import { MSearchBuilder, MSearchRequest } from './multi-search-types';
+import { MSearchBuilder, MSearchRequest } from './multi-search.types.js';
 
 /**
  * Creates a multi-search builder

@@ -1,23 +1,17 @@
 /**
  * Type definitions for Multi-Search API
+ * Derived from official @elastic/elasticsearch types for accuracy and completeness.
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-multi-search.html
  */
 
-import { QueryState } from './types';
+import type { MsearchMultisearchHeader } from '@elastic/elasticsearch/lib/api/types';
+import { QueryState } from './query.types.js';
 
 /**
- * Header options for each search in a multi-search request
+ * Header options for each search in a multi-search request — re-exported from official @elastic/elasticsearch types
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-multi-search.html
  */
-export type MSearchHeader = {
-  /** Index name(s) to search */
-  index?: string | string[];
-  /** Search preference (e.g., '_local', '_primary') */
-  preference?: string;
-  /** Routing value */
-  routing?: string;
-  /** Search type */
-  search_type?: 'query_then_fetch' | 'dfs_query_then_fetch';
-};
+export type MSearchHeader = MsearchMultisearchHeader;
 
 /**
  * A single search request in a multi-search operation

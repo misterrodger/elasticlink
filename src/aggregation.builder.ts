@@ -13,7 +13,7 @@ import {
   PercentilesAggOptions,
   StatsAggOptions,
   ValueCountAggOptions
-} from './aggregation-types';
+} from './aggregation.types.js';
 
 export const createAggregationBuilder = <T>(
   state: AggregationState = {}

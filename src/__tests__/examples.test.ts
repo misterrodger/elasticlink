@@ -1,19 +1,34 @@
-import { query, aggregations, msearch, bulk, indexBuilder } from '..';
+import {
+  query,
+  aggregations,
+  suggest,
+  msearch,
+  bulk,
+  indexBuilder,
+  text,
+  keyword,
+  integer,
+  float,
+  date,
+  scaledFloat,
+  halfFloat,
+  denseVector
+} from '..';
 
 /**
  * Real-world usage examples demonstrating elasticlink's capabilities.
  * These tests showcase common search patterns and can serve as documentation.
  */
 
-type Product = {
-  id: string;
+type Instrument = {
+  isin: string;
   name: string;
   description: string;
-  price: number;
-  category: string;
+  market_cap: number;
+  asset_class: string;
   tags: string[];
-  created_at: string;
-  rating: number;
+  listed_date: string;
+  credit_rating: number;
 };
 
 type Article = {
@@ -57,13 +72,13 @@ type Store = {
   item_count: number;
 };
 
-type ProductWithVector = {
-  id: string;
+type InstrumentWithEmbedding = {
+  isin: string;
   name: string;
   description: string;
-  price: number;
-  category: string;
-  image_url: string;
+  market_cap: number;
+  asset_class: string;
+  prospectus_url: string;
   embedding: number[];
 };
 
@@ -80,9 +95,9 @@ type ContentDocument = {
 describe('Real-world Usage Examples', () => {
   describe('E-commerce Product Search', () => {
     it('should build a basic product search query', () => {
-      const searchTerm = 'laptop';
+      const searchTerm = 'equity';
 
-      const result = query<Product>()
+      const result = query<Instrument>()
         .match('name', searchTerm, { operator: 'and', boost: 2 })
         .from(0)
         .size(20)
@@ -96,7 +111,7 @@ describe('Real-world Usage Examples', () => {
               "name": {
                 "boost": 2,
                 "operator": "and",
-                "query": "laptop",
+                "query": "equity",
               },
             },
           },
@@ -106,20 +121,20 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should build an advanced product search with filters and highlighting', () => {
-      const searchTerm = 'gaming laptop';
-      const category = 'electronics';
-      const minPrice = 800;
-      const maxPrice = 2000;
+      const searchTerm = 'large-cap tech';
+      const category = 'technology';
+      const minPrice = 1_000_000_000;
+      const maxPrice = 5_000_000_000;
 
-      const result = query<Product>()
+      const result = query<Instrument>()
         .bool()
         .must((q) => q.match('name', searchTerm, { operator: 'and', boost: 2 }))
         .should((q) =>
           q.fuzzy('description', searchTerm, { fuzziness: 'AUTO' })
         )
-        .filter((q) => q.term('category', category))
+        .filter((q) => q.term('asset_class', category))
         .filter((q) =>
-          q.range('price', {
+          q.range('market_cap', {
             gte: minPrice,
             lte: maxPrice
           })
@@ -135,7 +150,7 @@ describe('Real-world Usage Examples', () => {
         .trackScores(true)
         .from(0)
         .size(20)
-        .sort('price', 'asc')
+        .sort('market_cap', 'asc')
         .build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -146,22 +161,10 @@ describe('Real-world Usage Examples', () => {
               "description": {
                 "fragment_size": 150,
                 "number_of_fragments": 2,
-                "post_tags": [
-                  "</mark>",
-                ],
-                "pre_tags": [
-                  "<mark>",
-                ],
               },
               "name": {
                 "fragment_size": 150,
                 "number_of_fragments": 2,
-                "post_tags": [
-                  "</mark>",
-                ],
-                "pre_tags": [
-                  "<mark>",
-                ],
               },
             },
             "post_tags": [
@@ -176,14 +179,14 @@ describe('Real-world Usage Examples', () => {
               "filter": [
                 {
                   "term": {
-                    "category": "electronics",
+                    "asset_class": "technology",
                   },
                 },
                 {
                   "range": {
-                    "price": {
-                      "gte": 800,
-                      "lte": 2000,
+                    "market_cap": {
+                      "gte": 1000000000,
+                      "lte": 5000000000,
                     },
                   },
                 },
@@ -195,7 +198,7 @@ describe('Real-world Usage Examples', () => {
                     "name": {
                       "boost": 2,
                       "operator": "and",
-                      "query": "gaming laptop",
+                      "query": "large-cap tech",
                     },
                   },
                 },
@@ -205,7 +208,7 @@ describe('Real-world Usage Examples', () => {
                   "fuzzy": {
                     "description": {
                       "fuzziness": "AUTO",
-                      "value": "gaming laptop",
+                      "value": "large-cap tech",
                     },
                   },
                 },
@@ -215,7 +218,7 @@ describe('Real-world Usage Examples', () => {
           "size": 20,
           "sort": [
             {
-              "price": "asc",
+              "market_cap": "asc",
             },
           ],
           "timeout": "5s",
@@ -225,13 +228,13 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should build a dynamic product search with conditional filters', () => {
-      const searchTerm = 'laptop';
-      const selectedCategory = 'electronics';
+      const searchTerm = 'equity';
+      const selectedCategory = 'technology';
       const minPrice = undefined;
       const maxPrice = undefined;
-      const selectedTags = ['gaming', 'portable'];
+      const selectedTags = ['large-cap', 'sp500'];
 
-      const result = query<Product>()
+      const result = query<Instrument>()
         .bool()
         .must(
           (q) =>
@@ -245,13 +248,13 @@ describe('Real-world Usage Examples', () => {
         .filter(
           (q) =>
             q.when(selectedCategory, (q2) =>
-              q2.term('category', selectedCategory)
+              q2.term('asset_class', selectedCategory)
             ) || q.matchAll()
         )
         .filter(
           (q) =>
             q.when(minPrice && maxPrice, (q2) =>
-              q2.range('price', {
+              q2.range('market_cap', {
                 gte: minPrice!,
                 lte: maxPrice!
               })
@@ -276,7 +279,7 @@ describe('Real-world Usage Examples', () => {
               "filter": [
                 {
                   "term": {
-                    "category": "electronics",
+                    "asset_class": "technology",
                   },
                 },
                 {
@@ -285,8 +288,8 @@ describe('Real-world Usage Examples', () => {
                 {
                   "terms": {
                     "tags": [
-                      "gaming",
-                      "portable",
+                      "large-cap",
+                      "sp500",
                     ],
                   },
                 },
@@ -297,7 +300,7 @@ describe('Real-world Usage Examples', () => {
                     "name": {
                       "boost": 2,
                       "operator": "and",
-                      "query": "laptop",
+                      "query": "equity",
                     },
                   },
                 },
@@ -311,9 +314,9 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should build an autocomplete-style product search', () => {
-      const userInput = 'gam';
+      const userInput = 'equ';
 
-      const result = query<Product>()
+      const result = query<Instrument>()
         .bool()
         .must((q) =>
           q.matchPhrasePrefix('name', userInput, { max_expansions: 20 })
@@ -341,7 +344,7 @@ describe('Real-world Usage Examples', () => {
                   "match_phrase_prefix": {
                     "name": {
                       "max_expansions": 20,
-                      "query": "gam",
+                      "query": "equ",
                     },
                   },
                 },
@@ -399,22 +402,10 @@ describe('Real-world Usage Examples', () => {
               "content": {
                 "fragment_size": 200,
                 "number_of_fragments": 3,
-                "post_tags": [
-                  "</em>",
-                ],
-                "pre_tags": [
-                  "<em>",
-                ],
               },
               "title": {
                 "fragment_size": 200,
                 "number_of_fragments": 3,
-                "post_tags": [
-                  "</em>",
-                ],
-                "pre_tags": [
-                  "<em>",
-                ],
               },
             },
             "post_tags": [
@@ -501,12 +492,6 @@ describe('Real-world Usage Examples', () => {
             "fields": {
               "title": {
                 "fragment_size": 150,
-                "post_tags": [
-                  "</strong>",
-                ],
-                "pre_tags": [
-                  "<strong>",
-                ],
               },
             },
             "post_tags": [
@@ -700,7 +685,7 @@ describe('Real-world Usage Examples', () => {
     it('should build a search-as-you-type query', () => {
       const userTypedPrefix = 'ela';
 
-      const result = query<Product>()
+      const result = query<Instrument>()
         .matchPhrasePrefix('name', userTypedPrefix, { max_expansions: 50 })
         .highlight(['name'], {
           fragment_size: 80,
@@ -719,12 +704,6 @@ describe('Real-world Usage Examples', () => {
             "fields": {
               "name": {
                 "fragment_size": 80,
-                "post_tags": [
-                  "</em>",
-                ],
-                "pre_tags": [
-                  "<em>",
-                ],
               },
             },
             "post_tags": [
@@ -751,27 +730,29 @@ describe('Real-world Usage Examples', () => {
     it('should build a faceted search query', () => {
       const searchTerm = 'gaming';
       const facetFilters = {
-        categories: ['electronics', 'computing'],
+        categories: ['technology', 'computing'],
         priceRange: { min: 500, max: 3000 },
         minRating: 4
       };
 
-      const result = query<Product>()
+      const result = query<Instrument>()
         .bool()
         .must((q) => q.match('name', searchTerm, { boost: 2, operator: 'and' }))
-        .filter((q) => q.term('category', facetFilters.categories[0]))
+        .filter((q) => q.term('asset_class', facetFilters.categories[0]))
         .filter((q) =>
-          q.range('price', {
+          q.range('market_cap', {
             gte: facetFilters.priceRange.min,
             lte: facetFilters.priceRange.max
           })
         )
-        .filter((q) => q.range('rating', { gte: facetFilters.minRating }))
+        .filter((q) =>
+          q.range('credit_rating', { gte: facetFilters.minRating })
+        )
         .highlight(['name'], { fragment_size: 100 })
         .timeout('5s')
         .from(0)
         .size(20)
-        .sort('price', 'asc')
+        .sort('market_cap', 'asc')
         .build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -789,12 +770,12 @@ describe('Real-world Usage Examples', () => {
               "filter": [
                 {
                   "term": {
-                    "category": "electronics",
+                    "asset_class": "technology",
                   },
                 },
                 {
                   "range": {
-                    "price": {
+                    "market_cap": {
                       "gte": 500,
                       "lte": 3000,
                     },
@@ -802,7 +783,7 @@ describe('Real-world Usage Examples', () => {
                 },
                 {
                   "range": {
-                    "rating": {
+                    "credit_rating": {
                       "gte": 4,
                     },
                   },
@@ -824,7 +805,7 @@ describe('Real-world Usage Examples', () => {
           "size": 20,
           "sort": [
             {
-              "price": "asc",
+              "market_cap": "asc",
             },
           ],
           "timeout": "5s",
@@ -835,7 +816,7 @@ describe('Real-world Usage Examples', () => {
     it('should build an error-resilient search with typo tolerance', () => {
       const userQuery = 'laptpo'; // Intentional typo
 
-      const result = query<Product>()
+      const result = query<Instrument>()
         .bool()
         .must((q) =>
           q.fuzzy('name', userQuery, {
@@ -893,20 +874,15 @@ describe('Real-world Usage Examples', () => {
     });
   });
 
-  describe('Further features TBC: Aggregations & Geo Queries', () => {
+  describe('Aggregations & Geo Queries', () => {
     it('should aggregate products by category with price statistics', () => {
-      query<Product>()
-        .match('description', 'electronics')
-        .range('price', { gte: 100 })
-        .build();
-
-      const agg = aggregations<Product>()
-        .terms('by_category', 'category', { size: 10 })
+      const agg = aggregations<Instrument>()
+        .terms('by_category', 'asset_class', { size: 10 })
         .subAgg((sub) =>
           sub
-            .avg('average_price', 'price')
-            .max('highest_price', 'price')
-            .min('lowest_price', 'price')
+            .avg('average_price', 'market_cap')
+            .max('highest_price', 'market_cap')
+            .min('lowest_price', 'market_cap')
         )
         .build();
 
@@ -916,22 +892,22 @@ describe('Real-world Usage Examples', () => {
             "aggs": {
               "average_price": {
                 "avg": {
-                  "field": "price",
+                  "field": "market_cap",
                 },
               },
               "highest_price": {
                 "max": {
-                  "field": "price",
+                  "field": "market_cap",
                 },
               },
               "lowest_price": {
                 "min": {
-                  "field": "price",
+                  "field": "market_cap",
                 },
               },
             },
             "terms": {
-              "field": "category",
+              "field": "asset_class",
               "size": 10,
             },
           },
@@ -940,15 +916,15 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should analyze products sold over time with daily breakdown', () => {
-      const agg = aggregations<Product>()
-        .dateHistogram('sales_timeline', 'created_at', {
+      const agg = aggregations<Instrument>()
+        .dateHistogram('sales_timeline', 'listed_date', {
           interval: 'day',
           min_doc_count: 1
         })
         .subAgg((sub) =>
           sub
-            .sum('daily_revenue', 'price')
-            .cardinality('unique_categories', 'category', {
+            .sum('daily_revenue', 'market_cap')
+            .cardinality('unique_categories', 'asset_class', {
               precision_threshold: 100
             })
         )
@@ -960,18 +936,18 @@ describe('Real-world Usage Examples', () => {
             "aggs": {
               "daily_revenue": {
                 "sum": {
-                  "field": "price",
+                  "field": "market_cap",
                 },
               },
               "unique_categories": {
                 "cardinality": {
-                  "field": "category",
+                  "field": "asset_class",
                   "precision_threshold": 100,
                 },
               },
             },
             "date_histogram": {
-              "field": "created_at",
+              "field": "listed_date",
               "interval": "day",
               "min_doc_count": 1,
             },
@@ -1036,15 +1012,15 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should find products matching a pattern', () => {
-      const result = query<Product>()
-        .regexp('category', 'elec.*', { flags: 'CASE_INSENSITIVE' })
+      const result = query<Instrument>()
+        .regexp('asset_class', 'elec.*', { flags: 'CASE_INSENSITIVE' })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
         {
           "query": {
             "regexp": {
-              "category": {
+              "asset_class": {
                 "flags": "CASE_INSENSITIVE",
                 "value": "elec.*",
               },
@@ -1055,8 +1031,10 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should use constant_score for efficient filtering', () => {
-      const result = query<Product>()
-        .constantScore((q) => q.term('category', 'electronics'), { boost: 1.2 })
+      const result = query<Instrument>()
+        .constantScore((q) => q.term('asset_class', 'technology'), {
+          boost: 1.2
+        })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -1066,7 +1044,7 @@ describe('Real-world Usage Examples', () => {
               "boost": 1.2,
               "filter": {
                 "term": {
-                  "category": "electronics",
+                  "asset_class": "technology",
                 },
               },
             },
@@ -1104,13 +1082,13 @@ describe('Real-world Usage Examples', () => {
       // Simulated embedding vector for "wireless headphones"
       const searchEmbedding = [0.23, 0.45, 0.67, 0.12, 0.89, 0.34, 0.56, 0.78];
 
-      const result = query<ProductWithVector>()
+      const result = query<InstrumentWithEmbedding>()
         .knn('embedding', searchEmbedding, {
           k: 10,
           num_candidates: 100
         })
         .size(10)
-        ._source(['name', 'description', 'price', 'image_url'])
+        ._source(['name', 'description', 'market_cap', 'prospectus_url'])
         .build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -1118,8 +1096,8 @@ describe('Real-world Usage Examples', () => {
           "_source": [
             "name",
             "description",
-            "price",
-            "image_url",
+            "market_cap",
+            "prospectus_url",
           ],
           "knn": {
             "field": "embedding",
@@ -1144,13 +1122,13 @@ describe('Real-world Usage Examples', () => {
     it('should build semantic search with category filtering', () => {
       const queryVector = [0.1, 0.2, 0.3, 0.4, 0.5];
 
-      const result = query<ProductWithVector>()
+      const result = query<InstrumentWithEmbedding>()
         .knn('embedding', queryVector, {
           k: 20,
           num_candidates: 200,
           filter: {
             bool: {
-              must: [{ term: { category: 'electronics' } }],
+              must: [{ term: { category: 'technology' } }],
               filter: [{ range: { price: { gte: 100, lte: 1000 } } }]
             }
           }
@@ -1169,7 +1147,7 @@ describe('Real-world Usage Examples', () => {
         .fill(0)
         .map((_, i) => Math.sin(i / 100));
 
-      const result = query<ProductWithVector>()
+      const result = query<InstrumentWithEmbedding>()
         .knn('embedding', imageEmbedding, {
           k: 50,
           num_candidates: 500,
@@ -1177,7 +1155,7 @@ describe('Real-world Usage Examples', () => {
           boost: 1.2
         })
         .size(50)
-        ._source(['id', 'name', 'image_url'])
+        ._source(['isin', 'name', 'prospectus_url'])
         .build();
 
       expect(result.knn?.query_vector).toHaveLength(512);
@@ -1189,19 +1167,19 @@ describe('Real-world Usage Examples', () => {
       // Current product's embedding
       const currentProductEmbedding = [0.45, 0.23, 0.67, 0.89, 0.12];
 
-      const result = query<ProductWithVector>()
+      const result = query<InstrumentWithEmbedding>()
         .knn('embedding', currentProductEmbedding, {
           k: 10,
           num_candidates: 100,
           filter: {
             bool: {
               must_not: [{ term: { id: 'current-product-123' } }],
-              must: [{ term: { category: 'electronics' } }]
+              must: [{ term: { category: 'technology' } }]
             }
           }
         })
         .size(10)
-        ._source(['id', 'name', 'price', 'image_url'])
+        ._source(['isin', 'name', 'market_cap', 'prospectus_url'])
         .build();
 
       expect(result.knn?.filter?.bool?.must_not).toBeDefined();
@@ -1284,7 +1262,7 @@ describe('Real-world Usage Examples', () => {
     it('should build hybrid semantic + price ranking', () => {
       const productEmbedding = [0.5, 0.3, 0.8, 0.2, 0.6];
 
-      const result = query<ProductWithVector>()
+      const result = query<InstrumentWithEmbedding>()
         .knn('embedding', productEmbedding, {
           k: 100,
           num_candidates: 1000,
@@ -1292,24 +1270,30 @@ describe('Real-world Usage Examples', () => {
             bool: {
               filter: [
                 { range: { price: { gte: 50 } } },
-                { term: { category: 'electronics' } }
+                { term: { category: 'technology' } }
               ]
             }
           }
         })
         .size(20)
-        .sort('price', 'asc')
-        ._source(['id', 'name', 'price'])
+        .sort('market_cap', 'asc')
+        ._source(['isin', 'name', 'market_cap'])
         .build();
 
       expect(result.knn?.filter).toBeDefined();
-      expect(result.sort).toEqual([{ price: 'asc' }]);
+      expect(result.sort).toMatchInlineSnapshot(`
+        [
+          {
+            "market_cap": "asc",
+          },
+        ]
+      `);
     });
 
     it('should build semantic search with quality thresholding', () => {
       const queryVector = [0.7, 0.2, 0.5, 0.9, 0.1];
 
-      const result = query<ProductWithVector>()
+      const result = query<InstrumentWithEmbedding>()
         .knn('embedding', queryVector, {
           k: 20,
           num_candidates: 200,
@@ -1328,7 +1312,7 @@ describe('Real-world Usage Examples', () => {
       const referenceEmbedding = [0.33, 0.66, 0.22, 0.88, 0.44];
       const excludeIds = ['ref-item-1', 'ref-item-2', 'ref-item-3'];
 
-      const result = query<ProductWithVector>()
+      const result = query<InstrumentWithEmbedding>()
         .knn('embedding', referenceEmbedding, {
           k: 15,
           num_candidates: 150,
@@ -1339,7 +1323,7 @@ describe('Real-world Usage Examples', () => {
           }
         })
         .size(15)
-        ._source(['id', 'name', 'description', 'price', 'category'])
+        ._source(['isin', 'name', 'description', 'market_cap', 'asset_class'])
         .build();
 
       expect(result.knn?.filter?.bool?.must_not).toHaveLength(3);
@@ -1602,7 +1586,7 @@ describe('Real-world Usage Examples', () => {
     });
   });
 
-  describe('Real-World Multi-Search Examples', () => {
+  describe('Multi-Search', () => {
     it('should build dashboard with multiple product searches', () => {
       type DashboardProduct = {
         id: string;
@@ -1631,25 +1615,25 @@ describe('Real-world Usage Examples', () => {
       // Electronics deals query
       const electronicsDeals = query<DashboardProduct>()
         .bool()
-        .filter((q) => q.term('category', 'electronics'))
+        .filter((q) => q.term('category', 'technology'))
         .filter((q) => q.range('price', { lte: 500 }))
         .sort('price', 'asc')
         .size(5)
         .build();
 
       const ndjson = msearch<DashboardProduct>()
-        .addQuery(topSelling, { index: 'products' })
-        .addQuery(newArrivals, { index: 'products' })
-        .addQuery(electronicsDeals, { index: 'products' })
+        .addQuery(topSelling, { index: 'instruments' })
+        .addQuery(newArrivals, { index: 'instruments' })
+        .addQuery(electronicsDeals, { index: 'instruments' })
         .build();
 
       expect(ndjson).toMatchInlineSnapshot(`
-        "{"index":"products"}
+        "{"index":"instruments"}
         {"query":{"bool":{"filter":[{"range":{"created_at":{"gte":"now-30d"}}}]}},"sort":[{"sales_count":"desc"}],"size":10}
-        {"index":"products"}
+        {"index":"instruments"}
         {"query":{"match_all":{}},"sort":[{"created_at":"desc"}],"size":10}
-        {"index":"products"}
-        {"query":{"bool":{"filter":[{"term":{"category":"electronics"}},{"range":{"price":{"lte":500}}}]}},"sort":[{"price":"asc"}],"size":5}
+        {"index":"instruments"}
+        {"query":{"bool":{"filter":[{"term":{"category":"technology"}},{"range":{"price":{"lte":500}}}]}},"sort":[{"price":"asc"}],"size":5}
         "
       `);
     });
@@ -1712,7 +1696,7 @@ describe('Real-world Usage Examples', () => {
     });
   });
 
-  describe('Real-World Bulk Operations Examples', () => {
+  describe('Bulk Operations', () => {
     it('should build product catalog import', () => {
       type CatalogProduct = {
         sku: string;
@@ -1727,7 +1711,7 @@ describe('Real-world Usage Examples', () => {
           sku: 'LAP-001',
           name: 'Gaming Laptop',
           price: 1299,
-          category: 'electronics',
+          category: 'technology',
           stock: 15
         },
         {
@@ -1749,7 +1733,7 @@ describe('Real-world Usage Examples', () => {
       let bulkBuilder = bulk<CatalogProduct>();
       for (const product of products) {
         bulkBuilder = bulkBuilder.index(product, {
-          _index: 'products',
+          _index: 'instruments',
           _id: product.sku
         });
       }
@@ -1757,11 +1741,11 @@ describe('Real-world Usage Examples', () => {
       const ndjson = bulkBuilder.build();
 
       expect(ndjson).toMatchInlineSnapshot(`
-        "{"index":{"_index":"products","_id":"LAP-001"}}
-        {"sku":"LAP-001","name":"Gaming Laptop","price":1299,"category":"electronics","stock":15}
-        {"index":{"_index":"products","_id":"MOU-002"}}
+        "{"index":{"_index":"instruments","_id":"LAP-001"}}
+        {"sku":"LAP-001","name":"Gaming Laptop","price":1299,"category":"technology","stock":15}
+        {"index":{"_index":"instruments","_id":"MOU-002"}}
         {"sku":"MOU-002","name":"Wireless Mouse","price":29,"category":"accessories","stock":50}
-        {"index":{"_index":"products","_id":"KEY-003"}}
+        {"index":{"_index":"instruments","_id":"KEY-003"}}
         {"sku":"KEY-003","name":"Mechanical Keyboard","price":149,"category":"accessories","stock":30}
         "
       `);
@@ -1779,7 +1763,7 @@ describe('Real-world Usage Examples', () => {
       let bulkBuilder = bulk<PricedProduct>();
       for (const id of productIds) {
         bulkBuilder = bulkBuilder.update({
-          _index: 'products',
+          _index: 'instruments',
           _id: id,
           script: {
             source: 'ctx._source.price *= params.discount',
@@ -1791,15 +1775,15 @@ describe('Real-world Usage Examples', () => {
       const ndjson = bulkBuilder.build();
 
       expect(ndjson).toMatchInlineSnapshot(`
-        "{"update":{"_index":"products","_id":"prod-1"}}
+        "{"update":{"_index":"instruments","_id":"prod-1"}}
         {"script":{"source":"ctx._source.price *= params.discount","params":{"discount":0.9}}}
-        {"update":{"_index":"products","_id":"prod-2"}}
+        {"update":{"_index":"instruments","_id":"prod-2"}}
         {"script":{"source":"ctx._source.price *= params.discount","params":{"discount":0.9}}}
-        {"update":{"_index":"products","_id":"prod-3"}}
+        {"update":{"_index":"instruments","_id":"prod-3"}}
         {"script":{"source":"ctx._source.price *= params.discount","params":{"discount":0.9}}}
-        {"update":{"_index":"products","_id":"prod-4"}}
+        {"update":{"_index":"instruments","_id":"prod-4"}}
         {"script":{"source":"ctx._source.price *= params.discount","params":{"discount":0.9}}}
-        {"update":{"_index":"products","_id":"prod-5"}}
+        {"update":{"_index":"instruments","_id":"prod-5"}}
         {"script":{"source":"ctx._source.price *= params.discount","params":{"discount":0.9}}}
         "
       `);
@@ -1879,7 +1863,7 @@ describe('Real-world Usage Examples', () => {
     });
   });
 
-  describe('Real-World Index Management Examples', () => {
+  describe('Index Management', () => {
     it('should build e-commerce product index', () => {
       type EcommerceProduct = {
         sku: string;
@@ -1897,36 +1881,33 @@ describe('Real-world Usage Examples', () => {
 
       const indexConfig = indexBuilder<EcommerceProduct>()
         .mappings({
-          properties: {
-            sku: { type: 'keyword' },
-            name: {
-              type: 'text',
-              analyzer: 'standard',
-              fields: { keyword: { type: 'keyword' } }
-            },
-            description: { type: 'text', analyzer: 'english' },
-            price: { type: 'scaled_float', scaling_factor: 100 },
-            category: { type: 'keyword' },
-            brand: { type: 'keyword' },
-            tags: { type: 'keyword' },
-            rating: { type: 'half_float' },
-            reviewCount: { type: 'integer' },
-            inStock: { type: 'boolean' },
-            createdAt: { type: 'date' }
-          }
+          sku: 'keyword',
+          name: text({
+            analyzer: 'standard',
+            fields: { keyword: { type: 'keyword' } }
+          }),
+          description: text({ analyzer: 'english' }),
+          price: scaledFloat({ scaling_factor: 100 }),
+          category: 'keyword',
+          brand: 'keyword',
+          tags: 'keyword',
+          rating: halfFloat(),
+          reviewCount: 'integer',
+          inStock: 'boolean',
+          createdAt: 'date'
         })
         .settings({
           number_of_shards: 3,
           number_of_replicas: 2,
           refresh_interval: '1s'
         })
-        .alias('products')
+        .alias('instruments')
         .build();
 
       expect(indexConfig).toMatchInlineSnapshot(`
         {
           "aliases": {
-            "products": {},
+            "instruments": {},
           },
           "mappings": {
             "properties": {
@@ -1992,22 +1973,19 @@ describe('Real-world Usage Examples', () => {
 
       const indexConfig = indexBuilder<VectorDocument>()
         .mappings({
-          properties: {
-            title: { type: 'text' },
-            content: { type: 'text' },
-            embedding: {
-              type: 'dense_vector',
-              dims: 768,
-              index: true,
-              similarity: 'cosine',
-              index_options: {
-                type: 'hnsw',
-                m: 16,
-                ef_construction: 100
-              }
-            },
-            category: { type: 'keyword' }
-          }
+          title: 'text',
+          content: 'text',
+          embedding: denseVector({
+            dims: 768,
+            index: true,
+            similarity: 'cosine',
+            index_options: {
+              type: 'hnsw',
+              m: 16,
+              ef_construction: 100
+            }
+          }),
+          category: 'keyword'
         })
         .settings({
           number_of_shards: 1,
@@ -2060,13 +2038,11 @@ describe('Real-world Usage Examples', () => {
 
       const indexConfig = indexBuilder<LogEntry>()
         .mappings({
-          properties: {
-            timestamp: { type: 'date' },
-            level: { type: 'keyword' },
-            message: { type: 'text', analyzer: 'standard' },
-            service: { type: 'keyword' },
-            trace_id: { type: 'keyword' }
-          }
+          timestamp: 'date',
+          level: 'keyword',
+          message: text({ analyzer: 'standard' }),
+          service: 'keyword',
+          trace_id: 'keyword'
         })
         .settings({
           number_of_shards: 1,
@@ -2124,22 +2100,16 @@ describe('Real-world Usage Examples', () => {
 
       const indexConfig = indexBuilder<Article>()
         .mappings({
-          properties: {
-            title: {
-              type: 'text',
-              analyzer: 'english',
-              fields: {
-                exact: { type: 'keyword' },
-                raw: { type: 'text', analyzer: 'standard' }
-              }
-            },
-            author: { type: 'keyword' },
-            content: {
-              type: 'text',
-              analyzer: 'english'
-            },
-            publishedAt: { type: 'date' }
-          }
+          title: text({
+            analyzer: 'english',
+            fields: {
+              exact: { type: 'keyword' },
+              raw: { type: 'text', analyzer: 'standard' }
+            }
+          }),
+          author: 'keyword',
+          content: text({ analyzer: 'english' }),
+          publishedAt: 'date'
         })
         .settings({
           number_of_shards: 2,
@@ -2179,6 +2149,346 @@ describe('Real-world Usage Examples', () => {
           "settings": {
             "number_of_replicas": 1,
             "number_of_shards": 2,
+          },
+        }
+      `);
+    });
+
+    it('should build a professional domain index using field helpers', () => {
+      type Matter = {
+        title: string;
+        practice_area: string;
+        billing_rate: number;
+        risk_score: number;
+        opened_at: string;
+      };
+
+      const indexConfig = indexBuilder<Matter>()
+        .mappings({
+          title: text({ analyzer: 'english' }),
+          practice_area: keyword(),
+          billing_rate: integer(),
+          risk_score: float(),
+          opened_at: date()
+        })
+        .settings({
+          number_of_shards: 2,
+          number_of_replicas: 1,
+          refresh_interval: '5s'
+        })
+        .alias('matters-current', { is_write_index: true })
+        .alias('matters-all')
+        .build();
+
+      expect(indexConfig).toMatchInlineSnapshot(`
+        {
+          "aliases": {
+            "matters-all": {},
+            "matters-current": {
+              "is_write_index": true,
+            },
+          },
+          "mappings": {
+            "properties": {
+              "billing_rate": {
+                "type": "integer",
+              },
+              "opened_at": {
+                "type": "date",
+              },
+              "practice_area": {
+                "type": "keyword",
+              },
+              "risk_score": {
+                "type": "float",
+              },
+              "title": {
+                "analyzer": "english",
+                "type": "text",
+              },
+            },
+          },
+          "settings": {
+            "number_of_replicas": 1,
+            "number_of_shards": 2,
+            "refresh_interval": "5s",
+          },
+        }
+      `);
+    });
+  });
+
+  describe('Aggregations — Portfolio Analytics', () => {
+    type Instrument = {
+      name: string;
+      asset_class: string;
+      sector: string;
+      price: number;
+      yield_rate: number;
+      listed_date: string;
+    };
+
+    it('should aggregate fixed-income instruments by sector with yield metrics', () => {
+      const result = query<Instrument>()
+        .bool()
+        .filter((q) => q.term('asset_class', 'fixed-income'))
+        .filter((q) => q.range('yield_rate', { gte: 3.0 }))
+        .aggs((agg) =>
+          agg
+            .terms('by_sector', 'sector', { size: 10 })
+            .subAgg((sub) =>
+              sub.avg('avg_yield', 'yield_rate').max('max_price', 'price')
+            )
+        )
+        .size(0)
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "aggs": {
+            "by_sector": {
+              "aggs": {
+                "avg_yield": {
+                  "avg": {
+                    "field": "yield_rate",
+                  },
+                },
+                "max_price": {
+                  "max": {
+                    "field": "price",
+                  },
+                },
+              },
+              "terms": {
+                "field": "sector",
+                "size": 10,
+              },
+            },
+          },
+          "query": {
+            "bool": {
+              "filter": [
+                {
+                  "term": {
+                    "asset_class": "fixed-income",
+                  },
+                },
+                {
+                  "range": {
+                    "yield_rate": {
+                      "gte": 3,
+                    },
+                  },
+                },
+              ],
+            },
+          },
+          "size": 0,
+        }
+      `);
+    });
+
+    it('should build a date histogram with percentile sub-aggregation', () => {
+      const result = aggregations<Instrument>()
+        .dateHistogram('listings_over_time', 'listed_date', {
+          interval: 'quarter',
+          min_doc_count: 1
+        })
+        .subAgg((sub) =>
+          sub.percentiles('yield_percentiles', 'yield_rate', {
+            percents: [25, 50, 75, 95]
+          })
+        )
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "listings_over_time": {
+            "aggs": {
+              "yield_percentiles": {
+                "percentiles": {
+                  "field": "yield_rate",
+                  "percents": [
+                    25,
+                    50,
+                    75,
+                    95,
+                  ],
+                },
+              },
+            },
+            "date_histogram": {
+              "field": "listed_date",
+              "interval": "quarter",
+              "min_doc_count": 1,
+            },
+          },
+        }
+      `);
+    });
+
+    it('should build a price histogram with stats sub-aggregation', () => {
+      const result = aggregations<Instrument>()
+        .histogram('price_buckets', 'price', {
+          interval: 100,
+          min_doc_count: 1
+        })
+        .subAgg((sub) => sub.stats('yield_stats', 'yield_rate'))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "price_buckets": {
+            "aggs": {
+              "yield_stats": {
+                "stats": {
+                  "field": "yield_rate",
+                },
+              },
+            },
+            "histogram": {
+              "field": "price",
+              "interval": 100,
+              "min_doc_count": 1,
+            },
+          },
+        }
+      `);
+    });
+  });
+
+  describe('Multi-Search with Per-Query Aggregations', () => {
+    it('should batch two aggregation queries in one request', () => {
+      type Listing = {
+        address: string;
+        property_class: string;
+        list_price: number;
+      };
+
+      const condoSearch = query<Listing>()
+        .bool()
+        .filter((q) => q.term('property_class', 'condo'))
+        .filter((q) => q.range('list_price', { lte: 2_000_000 }))
+        .aggs((agg) => agg.avg('avg_price', 'list_price'))
+        .size(0)
+        .build();
+
+      const townhouseSearch = query<Listing>()
+        .bool()
+        .filter((q) => q.term('property_class', 'townhouse'))
+        .aggs((agg) =>
+          agg.avg('avg_price', 'list_price').min('min_price', 'list_price')
+        )
+        .size(0)
+        .build();
+
+      const ndjson = msearch<Listing>()
+        .addQuery(condoSearch, { index: 'listings' })
+        .addQuery(townhouseSearch, { index: 'listings' })
+        .build();
+
+      expect(ndjson).toMatchInlineSnapshot(`
+        "{"index":"listings"}
+        {"query":{"bool":{"filter":[{"term":{"property_class":"condo"}},{"range":{"list_price":{"lte":2000000}}}]}},"aggs":{"avg_price":{"avg":{"field":"list_price"}}},"size":0}
+        {"index":"listings"}
+        {"query":{"bool":{"filter":[{"term":{"property_class":"townhouse"}}]}},"aggs":{"avg_price":{"avg":{"field":"list_price"}},"min_price":{"min":{"field":"list_price"}}},"size":0}
+        "
+      `);
+    });
+  });
+
+  describe('Suggest — Standalone Builder', () => {
+    it('should build a completion autocomplete request', () => {
+      type Attorney = {
+        name: string;
+        practice_area: string;
+        name_suggest: string;
+      };
+
+      const result = suggest<Attorney>()
+        .completion('autocomplete', 'kap', {
+          field: 'name_suggest',
+          size: 5,
+          skip_duplicates: true
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "suggest": {
+            "autocomplete": {
+              "completion": {
+                "field": "name_suggest",
+                "size": 5,
+                "skip_duplicates": true,
+              },
+              "prefix": "kap",
+            },
+          },
+        }
+      `);
+    });
+
+    it('should build a term spell-check request', () => {
+      type Attorney = {
+        name: string;
+        practice_area: string;
+        name_suggest: string;
+      };
+
+      const result = suggest<Attorney>()
+        .term('spelling', 'wiliams', {
+          field: 'name',
+          size: 3,
+          suggest_mode: 'popular'
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "suggest": {
+            "spelling": {
+              "term": {
+                "field": "name",
+                "size": 3,
+                "suggest_mode": "popular",
+              },
+              "text": "wiliams",
+            },
+          },
+        }
+      `);
+    });
+
+    it('should build a combined autocomplete and spell-check request', () => {
+      type Attorney = {
+        name: string;
+        practice_area: string;
+        name_suggest: string;
+      };
+
+      const result = suggest<Attorney>()
+        .completion('autocomplete', 'kap', { field: 'name_suggest', size: 5 })
+        .term('spelling', 'wiliams', { field: 'name', size: 3 })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "suggest": {
+            "autocomplete": {
+              "completion": {
+                "field": "name_suggest",
+                "size": 5,
+              },
+              "prefix": "kap",
+            },
+            "spelling": {
+              "term": {
+                "field": "name",
+                "size": 3,
+              },
+              "text": "wiliams",
+            },
           },
         }
       `);

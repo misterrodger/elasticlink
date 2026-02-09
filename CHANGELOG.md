@@ -4,11 +4,45 @@ All notable changes to elasticlink will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
-## [Unreleased]
+## [0.2.0-beta] - 2026-02-09
+
+### Added
+
+- `@elastic/elasticsearch` as a peer dependency (`>=9.0.0`) — required for type derivation (compile-time only, zero runtime cost)
+- Comprehensive integration test suite (`src/__tests__/integration/`) covering all 6 builder areas (query, aggregations, multi-search, bulk, index management, suggesters) against live Elasticsearch 9.x
+- Integration test fixtures using professional domains: finance (`Instrument`, `Trade`), legal (`Matter`, `Attorney`), real estate (`Listing`)
 
 ### Changed
 
-- Nothing yet
+#### Types Aligned with Official `@elastic/elasticsearch`
+
+All input types are now derived directly from the official `@elastic/elasticsearch` package (v9.x) using utility types like `Omit<>` and intersection types. This ensures completeness, accuracy, JSDoc documentation, and automatic alignment when Elasticsearch updates.
+
+- **Query types** (`query.types.ts`): `MatchOptions`, `MultiMatchOptions`, `FuzzyOptions`, `RegexpOptions`, `ConstantScoreOptions`, `HighlightOptions`, `ScriptOptions`, `ScriptQueryOptions`, `ScriptScoreOptions`, `PercolateOptions` — all now derived from official types
+- **Aggregation types** (`aggregation.types.ts`): `TermsAggOptions`, `DateHistogramAggOptions`, `RangeAggOptions`, `HistogramAggOptions`, `AvgAggOptions`, `SumAggOptions`, `MinAggOptions`, `MaxAggOptions`, `CardinalityAggOptions`, `PercentilesAggOptions`, `StatsAggOptions`, `ValueCountAggOptions` — all now `Omit<OfficialType, 'field'>`
+- **Suggester types** (`suggester.types.ts`): `TermSuggesterOptions`, `PhraseSuggesterOptions`, `CompletionSuggesterOptions` — now re-exported directly from official types
+- **Vector types** (`vector.types.ts`): `KnnOptions`, `DenseVectorOptions` — now derived from official `KnnSearch` and `MappingDenseVectorProperty`
+- **Bulk types** (`bulk.types.ts`): `BulkIndexMeta`, `BulkCreateMeta`, `BulkUpdateMeta`, `BulkDeleteMeta` — now derived from official types
+- **Multi-search types** (`multi-search.types.ts`): `MSearchHeader` — now `MsearchMultisearchHeader` from official types
+- **Index management types** (`index-management.types.ts`): `IndexSettings` now `IndicesIndexSettings`; aliases now use `IndicesAlias`
+
+#### ESM Module Output
+
+- Package is now ESM-first (`"type": "module"` in package.json)
+- Added `"exports"` field for modern module resolution
+- All internal imports use explicit `.js` extensions per ESM spec
+- TypeScript compiles to ESM (`import`/`export`) instead of CommonJS (`require`/`module.exports`)
+
+### Breaking Changes
+
+- **ESM output**: Package output is now ESM instead of CommonJS. CJS consumers should use dynamic `import()` or switch to ESM.
+- **Phrase suggester highlighting**: `pre_tag` and `post_tag` are now nested under `highlight: { pre_tag, post_tag }` (aligned with official `SearchPhraseSuggester` type)
+- **Phrase suggester collate**: Collate query `source` is now a string template, not an object (aligned with official `ScriptSource` type)
+- **KNN options**: `k` and `num_candidates` are now optional (aligned with official `KnnSearch` type)
+
+### Removed
+
+- Duplicate types from `aggregation.types.ts`: `GeoDistance`, `GeoBoundingBox`, `GeoPolygon`, `RegexpOptions`, `ConstantScoreOptions` (these were unused duplicates of types in `query.types.ts`)
 
 ## [0.1.0-beta] - 2026-02-02
 
@@ -97,20 +131,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - **Performance**: `timeout()`, `trackScores()`, `explain()`, `minScore()`, `trackTotalHits()`
 - **Document info**: `version()`, `seqNoPrimaryTerm()`
 
-### Developer Experience
-
-- 430+ passing tests with 98%+ coverage
-- Comprehensive JSDoc documentation across all modules
-- Real-world usage examples in test suite
-- Type-safe field references throughout
-- Full TypeScript support with generics
-- Fluent, chainable API for intuitive query building
-- ~22KB bundle size (zero dependencies)
-
 ### Infrastructure
 
 - ESLint and Prettier setup for code quality
-- Jest configuration with verbose test output
 - TypeScript strict mode enabled
 - Pre-publish hooks for build, test, and lint validation
 
