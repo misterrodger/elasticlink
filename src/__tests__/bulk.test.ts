@@ -1,28 +1,39 @@
 import { bulk } from '..';
-
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  category: string;
-};
+import { Matter } from './fixtures/legal.js';
 
 describe('Bulk API', () => {
-  describe('Index operations', () => {
-    it('should build single index operation', () => {
-      const result = bulk<Product>()
-        .index({ id: '1', name: 'Test', price: 100, category: 'electronics' })
-        .build();
+  describe('Builder behavior', () => {
+    it('should return trailing newline for empty build', () => {
+      const result = bulk<Matter>().build();
 
-      const lines = result.split('\n').filter((l) => l);
-      expect(lines).toHaveLength(2); // action + document
+      expect(result).toBe('\n');
     });
 
-    it('should index with metadata', () => {
-      const result = bulk<Product>()
+    it('should return empty array for empty buildArray', () => {
+      const result = bulk<Matter>().buildArray();
+
+      expect(result).toMatchInlineSnapshot(`[]`);
+    });
+
+    it('should chain multiple index operations', () => {
+      const result = bulk<Matter>()
         .index(
-          { id: '1', name: 'Test', price: 100, category: 'electronics' },
-          { _index: 'products', _id: '1' }
+          {
+            matter_id: 'M-1001',
+            title: 'Mergers & Acquisitions Advisory',
+            practice_area: 'corporate',
+            billing_rate: 850
+          },
+          { _index: 'matters', _id: '1' }
+        )
+        .index(
+          {
+            matter_id: 'M-1002',
+            title: 'SEC Compliance Review',
+            practice_area: 'securities',
+            billing_rate: 725
+          },
+          { _index: 'matters', _id: '2' }
         )
         .buildArray();
 
@@ -31,23 +42,87 @@ describe('Bulk API', () => {
           {
             "index": {
               "_id": "1",
-              "_index": "products",
+              "_index": "matters",
             },
           },
           {
-            "category": "electronics",
-            "id": "1",
-            "name": "Test",
-            "price": 100,
+            "billing_rate": 850,
+            "matter_id": "M-1001",
+            "practice_area": "corporate",
+            "title": "Mergers & Acquisitions Advisory",
+          },
+          {
+            "index": {
+              "_id": "2",
+              "_index": "matters",
+            },
+          },
+          {
+            "billing_rate": 725,
+            "matter_id": "M-1002",
+            "practice_area": "securities",
+            "title": "SEC Compliance Review",
+          },
+        ]
+      `);
+    });
+  });
+
+  describe('Index operations', () => {
+    it('should build single index operation', () => {
+      const result = bulk<Matter>()
+        .index({
+          matter_id: 'M-1001',
+          title: 'Acquisition Review',
+          practice_area: 'corporate',
+          billing_rate: 750
+        })
+        .build();
+
+      const lines = result.split('\n').filter((l) => l);
+      expect(lines).toHaveLength(2); // action + document
+    });
+
+    it('should index with metadata', () => {
+      const result = bulk<Matter>()
+        .index(
+          {
+            matter_id: 'M-1001',
+            title: 'Acquisition Review',
+            practice_area: 'corporate',
+            billing_rate: 750
+          },
+          { _index: 'matters', _id: '1' }
+        )
+        .buildArray();
+
+      expect(result).toMatchInlineSnapshot(`
+        [
+          {
+            "index": {
+              "_id": "1",
+              "_index": "matters",
+            },
+          },
+          {
+            "billing_rate": 750,
+            "matter_id": "M-1001",
+            "practice_area": "corporate",
+            "title": "Acquisition Review",
           },
         ]
       `);
     });
 
     it('should index with routing', () => {
-      const result = bulk<Product>()
+      const result = bulk<Matter>()
         .index(
-          { id: '1', name: 'Test', price: 100, category: 'electronics' },
+          {
+            matter_id: 'M-1001',
+            title: 'Acquisition Review',
+            practice_area: 'corporate',
+            billing_rate: 750
+          },
           { routing: 'user-123' }
         )
         .buildArray();
@@ -60,19 +135,24 @@ describe('Bulk API', () => {
             },
           },
           {
-            "category": "electronics",
-            "id": "1",
-            "name": "Test",
-            "price": 100,
+            "billing_rate": 750,
+            "matter_id": "M-1001",
+            "practice_area": "corporate",
+            "title": "Acquisition Review",
           },
         ]
       `);
     });
 
     it('should index with version', () => {
-      const result = bulk<Product>()
+      const result = bulk<Matter>()
         .index(
-          { id: '1', name: 'Test', price: 100, category: 'electronics' },
+          {
+            matter_id: 'M-1001',
+            title: 'Acquisition Review',
+            practice_area: 'corporate',
+            billing_rate: 750
+          },
           { version: 5, version_type: 'external' }
         )
         .buildArray();
@@ -86,10 +166,41 @@ describe('Bulk API', () => {
             },
           },
           {
-            "category": "electronics",
-            "id": "1",
-            "name": "Test",
-            "price": 100,
+            "billing_rate": 750,
+            "matter_id": "M-1001",
+            "practice_area": "corporate",
+            "title": "Acquisition Review",
+          },
+        ]
+      `);
+    });
+
+    it('should index with pipeline', () => {
+      const result = bulk<Matter>()
+        .index(
+          {
+            matter_id: 'M-1001',
+            title: 'Acquisition Review',
+            practice_area: 'corporate',
+            billing_rate: 750
+          },
+          { _index: 'matters', pipeline: 'enrichment-pipeline' }
+        )
+        .buildArray();
+
+      expect(result).toMatchInlineSnapshot(`
+        [
+          {
+            "index": {
+              "_index": "matters",
+              "pipeline": "enrichment-pipeline",
+            },
+          },
+          {
+            "billing_rate": 750,
+            "matter_id": "M-1001",
+            "practice_area": "corporate",
+            "title": "Acquisition Review",
           },
         ]
       `);
@@ -98,22 +209,32 @@ describe('Bulk API', () => {
 
   describe('Create operations', () => {
     it('should build create operation', () => {
-      const result = bulk<Product>()
-        .create({ id: '2', name: 'New Product', price: 200, category: 'tech' })
+      const result = bulk<Matter>()
+        .create({
+          matter_id: 'M-1002',
+          title: 'SEC Filing Review',
+          practice_area: 'securities',
+          billing_rate: 700
+        })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
         "{"create":{}}
-        {"id":"2","name":"New Product","price":200,"category":"tech"}
+        {"matter_id":"M-1002","title":"SEC Filing Review","practice_area":"securities","billing_rate":700}
         "
       `);
     });
 
     it('should create with metadata', () => {
-      const result = bulk<Product>()
+      const result = bulk<Matter>()
         .create(
-          { id: '2', name: 'New Product', price: 200, category: 'tech' },
-          { _index: 'products', _id: '2' }
+          {
+            matter_id: 'M-1002',
+            title: 'SEC Filing Review',
+            practice_area: 'securities',
+            billing_rate: 700
+          },
+          { _index: 'matters', _id: '2' }
         )
         .buildArray();
 
@@ -122,14 +243,46 @@ describe('Bulk API', () => {
           {
             "create": {
               "_id": "2",
-              "_index": "products",
+              "_index": "matters",
             },
           },
           {
-            "category": "tech",
-            "id": "2",
-            "name": "New Product",
-            "price": 200,
+            "billing_rate": 700,
+            "matter_id": "M-1002",
+            "practice_area": "securities",
+            "title": "SEC Filing Review",
+          },
+        ]
+      `);
+    });
+
+    it('should create with routing', () => {
+      const result = bulk<Matter>()
+        .create(
+          {
+            matter_id: 'M-1003',
+            title: 'Patent Portfolio Review',
+            practice_area: 'intellectual-property',
+            billing_rate: 650
+          },
+          { _index: 'matters', _id: '3', routing: 'tenant-abc' }
+        )
+        .buildArray();
+
+      expect(result).toMatchInlineSnapshot(`
+        [
+          {
+            "create": {
+              "_id": "3",
+              "_index": "matters",
+              "routing": "tenant-abc",
+            },
+          },
+          {
+            "billing_rate": 650,
+            "matter_id": "M-1003",
+            "practice_area": "intellectual-property",
+            "title": "Patent Portfolio Review",
           },
         ]
       `);
@@ -138,11 +291,11 @@ describe('Bulk API', () => {
 
   describe('Update operations', () => {
     it('should build update with doc', () => {
-      const result = bulk<Product>()
+      const result = bulk<Matter>()
         .update({
-          _index: 'products',
+          _index: 'matters',
           _id: '3',
-          doc: { name: 'Updated Name', price: 150 }
+          doc: { title: 'Updated Title', billing_rate: 150 }
         })
         .buildArray();
 
@@ -151,13 +304,13 @@ describe('Bulk API', () => {
           {
             "update": {
               "_id": "3",
-              "_index": "products",
+              "_index": "matters",
             },
           },
           {
             "doc": {
-              "name": "Updated Name",
-              "price": 150,
+              "billing_rate": 150,
+              "title": "Updated Title",
             },
           },
         ]
@@ -165,9 +318,9 @@ describe('Bulk API', () => {
     });
 
     it('should update with script', () => {
-      const result = bulk<Product>()
+      const result = bulk<Matter>()
         .update({
-          _index: 'products',
+          _index: 'matters',
           _id: '4',
           script: {
             source: 'ctx._source.price += params.increment',
@@ -181,7 +334,7 @@ describe('Bulk API', () => {
           {
             "update": {
               "_id": "4",
-              "_index": "products",
+              "_index": "matters",
             },
           },
           {
@@ -197,12 +350,22 @@ describe('Bulk API', () => {
     });
 
     it('should update with upsert', () => {
-      const result = bulk<Product>()
+      const result = bulk<Matter>()
         .update({
-          _index: 'products',
+          _index: 'matters',
           _id: '5',
-          doc: { name: 'Updated', price: 100, category: 'tech', id: '5' },
-          upsert: { id: '5', name: 'New', price: 100, category: 'tech' }
+          doc: {
+            title: 'Updated Matter',
+            billing_rate: 900,
+            practice_area: 'corporate',
+            matter_id: 'M-5'
+          },
+          upsert: {
+            matter_id: 'M-5',
+            title: 'New Matter',
+            billing_rate: 900,
+            practice_area: 'corporate'
+          }
         })
         .buildArray();
 
@@ -211,21 +374,21 @@ describe('Bulk API', () => {
           {
             "update": {
               "_id": "5",
-              "_index": "products",
+              "_index": "matters",
             },
           },
           {
             "doc": {
-              "category": "tech",
-              "id": "5",
-              "name": "Updated",
-              "price": 100,
+              "billing_rate": 900,
+              "matter_id": "M-5",
+              "practice_area": "corporate",
+              "title": "Updated Matter",
             },
             "upsert": {
-              "category": "tech",
-              "id": "5",
-              "name": "New",
-              "price": 100,
+              "billing_rate": 900,
+              "matter_id": "M-5",
+              "practice_area": "corporate",
+              "title": "New Matter",
             },
           },
         ]
@@ -233,11 +396,16 @@ describe('Bulk API', () => {
     });
 
     it('should update with doc_as_upsert', () => {
-      const result = bulk<Product>()
+      const result = bulk<Matter>()
         .update({
-          _index: 'products',
+          _index: 'matters',
           _id: '6',
-          doc: { name: 'Product', price: 100, category: 'tech', id: '6' },
+          doc: {
+            matter_id: 'M-6',
+            title: 'IP Dispute',
+            billing_rate: 800,
+            practice_area: 'intellectual-property'
+          },
           doc_as_upsert: true
         })
         .buildArray();
@@ -247,15 +415,15 @@ describe('Bulk API', () => {
           {
             "update": {
               "_id": "6",
-              "_index": "products",
+              "_index": "matters",
             },
           },
           {
             "doc": {
-              "category": "tech",
-              "id": "6",
-              "name": "Product",
-              "price": 100,
+              "billing_rate": 800,
+              "matter_id": "M-6",
+              "practice_area": "intellectual-property",
+              "title": "IP Dispute",
             },
             "doc_as_upsert": true,
           },
@@ -264,11 +432,11 @@ describe('Bulk API', () => {
     });
 
     it('should update with retry_on_conflict', () => {
-      const result = bulk<Product>()
+      const result = bulk<Matter>()
         .update({
-          _index: 'products',
+          _index: 'matters',
           _id: '7',
-          doc: { price: 200 },
+          doc: { billing_rate: 200 },
           retry_on_conflict: 3
         })
         .buildArray();
@@ -278,13 +446,13 @@ describe('Bulk API', () => {
           {
             "update": {
               "_id": "7",
-              "_index": "products",
+              "_index": "matters",
               "retry_on_conflict": 3,
             },
           },
           {
             "doc": {
-              "price": 200,
+              "billing_rate": 200,
             },
           },
         ]
@@ -294,8 +462,8 @@ describe('Bulk API', () => {
 
   describe('Delete operations', () => {
     it('should build delete operation', () => {
-      const result = bulk<Product>()
-        .delete({ _index: 'products', _id: '8' })
+      const result = bulk<Matter>()
+        .delete({ _index: 'matters', _id: '8' })
         .buildArray();
 
       expect(result).toMatchInlineSnapshot(`
@@ -303,7 +471,7 @@ describe('Bulk API', () => {
           {
             "delete": {
               "_id": "8",
-              "_index": "products",
+              "_index": "matters",
             },
           },
         ]
@@ -311,8 +479,8 @@ describe('Bulk API', () => {
     });
 
     it('should delete with routing', () => {
-      const result = bulk<Product>()
-        .delete({ _index: 'products', _id: '9', routing: 'user-456' })
+      const result = bulk<Matter>()
+        .delete({ _index: 'matters', _id: '9', routing: 'user-456' })
         .buildArray();
 
       expect(result).toMatchInlineSnapshot(`
@@ -320,7 +488,7 @@ describe('Bulk API', () => {
           {
             "delete": {
               "_id": "9",
-              "_index": "products",
+              "_index": "matters",
               "routing": "user-456",
             },
           },
@@ -329,8 +497,8 @@ describe('Bulk API', () => {
     });
 
     it('should delete with version', () => {
-      const result = bulk<Product>()
-        .delete({ _index: 'products', _id: '10', version: 3 })
+      const result = bulk<Matter>()
+        .delete({ _index: 'matters', _id: '10', version: 3 })
         .buildArray();
 
       expect(result).toMatchInlineSnapshot(`
@@ -338,8 +506,32 @@ describe('Bulk API', () => {
           {
             "delete": {
               "_id": "10",
-              "_index": "products",
+              "_index": "matters",
               "version": 3,
+            },
+          },
+        ]
+      `);
+    });
+
+    it('should delete with version and version_type', () => {
+      const result = bulk<Matter>()
+        .delete({
+          _index: 'matters',
+          _id: '11',
+          version: 7,
+          version_type: 'external'
+        })
+        .buildArray();
+
+      expect(result).toMatchInlineSnapshot(`
+        [
+          {
+            "delete": {
+              "_id": "11",
+              "_index": "matters",
+              "version": 7,
+              "version_type": "external",
             },
           },
         ]
@@ -349,21 +541,31 @@ describe('Bulk API', () => {
 
   describe('Mixed operations', () => {
     it('should combine multiple operation types', () => {
-      const result = bulk<Product>()
+      const result = bulk<Matter>()
         .index(
-          { id: '1', name: 'Product 1', price: 100, category: 'tech' },
-          { _index: 'products', _id: '1' }
+          {
+            matter_id: 'M-2001',
+            title: 'Contract Negotiation',
+            practice_area: 'corporate',
+            billing_rate: 800
+          },
+          { _index: 'matters', _id: '1' }
         )
         .create(
-          { id: '2', name: 'Product 2', price: 200, category: 'tech' },
-          { _index: 'products', _id: '2' }
+          {
+            matter_id: 'M-2002',
+            title: 'Regulatory Compliance',
+            practice_area: 'securities',
+            billing_rate: 750
+          },
+          { _index: 'matters', _id: '2' }
         )
         .update({
-          _index: 'products',
+          _index: 'matters',
           _id: '3',
-          doc: { name: 'Updated Product 3' }
+          doc: { title: 'Updated Matter 3' }
         })
-        .delete({ _index: 'products', _id: '4' })
+        .delete({ _index: 'matters', _id: '4' })
         .buildArray();
 
       expect(result).toMatchInlineSnapshot(`
@@ -371,42 +573,42 @@ describe('Bulk API', () => {
           {
             "index": {
               "_id": "1",
-              "_index": "products",
+              "_index": "matters",
             },
           },
           {
-            "category": "tech",
-            "id": "1",
-            "name": "Product 1",
-            "price": 100,
+            "billing_rate": 800,
+            "matter_id": "M-2001",
+            "practice_area": "corporate",
+            "title": "Contract Negotiation",
           },
           {
             "create": {
               "_id": "2",
-              "_index": "products",
+              "_index": "matters",
             },
           },
           {
-            "category": "tech",
-            "id": "2",
-            "name": "Product 2",
-            "price": 200,
+            "billing_rate": 750,
+            "matter_id": "M-2002",
+            "practice_area": "securities",
+            "title": "Regulatory Compliance",
           },
           {
             "update": {
               "_id": "3",
-              "_index": "products",
+              "_index": "matters",
             },
           },
           {
             "doc": {
-              "name": "Updated Product 3",
+              "title": "Updated Matter 3",
             },
           },
           {
             "delete": {
               "_id": "4",
-              "_index": "products",
+              "_index": "matters",
             },
           },
         ]
@@ -416,20 +618,30 @@ describe('Bulk API', () => {
 
   describe('Bulk output formats', () => {
     it('should build as NDJSON string', () => {
-      const result = bulk<Product>()
-        .index({ id: '1', name: 'Test', price: 100, category: 'tech' })
+      const result = bulk<Matter>()
+        .index({
+          matter_id: 'M-1001',
+          title: 'Acquisition Review',
+          practice_area: 'corporate',
+          billing_rate: 750
+        })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
         "{"index":{}}
-        {"id":"1","name":"Test","price":100,"category":"tech"}
+        {"matter_id":"M-1001","title":"Acquisition Review","practice_area":"corporate","billing_rate":750}
         "
       `);
     });
 
     it('should build as array', () => {
-      const result = bulk<Product>()
-        .index({ id: '1', name: 'Test', price: 100, category: 'tech' })
+      const result = bulk<Matter>()
+        .index({
+          matter_id: 'M-1001',
+          title: 'Acquisition Review',
+          practice_area: 'corporate',
+          billing_rate: 750
+        })
         .buildArray();
 
       expect(result).toMatchInlineSnapshot(`
@@ -438,10 +650,10 @@ describe('Bulk API', () => {
             "index": {},
           },
           {
-            "category": "tech",
-            "id": "1",
-            "name": "Test",
-            "price": 100,
+            "billing_rate": 750,
+            "matter_id": "M-1001",
+            "practice_area": "corporate",
+            "title": "Acquisition Review",
           },
         ]
       `);
@@ -449,18 +661,33 @@ describe('Bulk API', () => {
   });
 
   describe('Real-world bulk scenarios', () => {
-    it('should batch product updates', () => {
-      const products: Product[] = [
-        { id: '1', name: 'Laptop', price: 1000, category: 'electronics' },
-        { id: '2', name: 'Mouse', price: 25, category: 'accessories' },
-        { id: '3', name: 'Keyboard', price: 75, category: 'accessories' }
+    it('should batch matter index operations', () => {
+      const matters: Matter[] = [
+        {
+          matter_id: 'M-1001',
+          title: 'Mergers & Acquisitions Advisory',
+          practice_area: 'corporate',
+          billing_rate: 850
+        },
+        {
+          matter_id: 'M-1002',
+          title: 'SEC Compliance Review',
+          practice_area: 'securities',
+          billing_rate: 725
+        },
+        {
+          matter_id: 'M-1003',
+          title: 'IP Portfolio Audit',
+          practice_area: 'intellectual-property',
+          billing_rate: 650
+        }
       ];
 
-      let bulkOp = bulk<Product>();
-      for (const product of products) {
-        bulkOp = bulkOp.index(product, {
-          _index: 'products',
-          _id: product.id
+      let bulkOp = bulk<Matter>();
+      for (const matter of matters) {
+        bulkOp = bulkOp.index(matter, {
+          _index: 'matters',
+          _id: matter.matter_id
         });
       }
 
@@ -469,67 +696,72 @@ describe('Bulk API', () => {
         [
           {
             "index": {
-              "_id": "1",
-              "_index": "products",
+              "_id": "M-1001",
+              "_index": "matters",
             },
           },
           {
-            "category": "electronics",
-            "id": "1",
-            "name": "Laptop",
-            "price": 1000,
+            "billing_rate": 850,
+            "matter_id": "M-1001",
+            "practice_area": "corporate",
+            "title": "Mergers & Acquisitions Advisory",
           },
           {
             "index": {
-              "_id": "2",
-              "_index": "products",
+              "_id": "M-1002",
+              "_index": "matters",
             },
           },
           {
-            "category": "accessories",
-            "id": "2",
-            "name": "Mouse",
-            "price": 25,
+            "billing_rate": 725,
+            "matter_id": "M-1002",
+            "practice_area": "securities",
+            "title": "SEC Compliance Review",
           },
           {
             "index": {
-              "_id": "3",
-              "_index": "products",
+              "_id": "M-1003",
+              "_index": "matters",
             },
           },
           {
-            "category": "accessories",
-            "id": "3",
-            "name": "Keyboard",
-            "price": 75,
+            "billing_rate": 650,
+            "matter_id": "M-1003",
+            "practice_area": "intellectual-property",
+            "title": "IP Portfolio Audit",
           },
         ]
       `);
     });
 
     it('should handle mixed CRUD operations', () => {
-      const result = bulk<Product>()
+      const result = bulk<Matter>()
         // Create new products
         .create(
-          { id: '100', name: 'New Product', price: 500, category: 'new' },
-          { _index: 'products', _id: '100' }
+          {
+            matter_id: 'M-5000',
+            title: 'Cross-Border M&A',
+            practice_area: 'corporate',
+            billing_rate: 950
+          },
+          { _index: 'matters', _id: '100' }
         )
         // Update existing
         .update({
-          _index: 'products',
+          _index: 'matters',
           _id: '50',
-          doc: { price: 450 }
+          doc: { billing_rate: 450 }
         })
         // Delete old
-        .delete({ _index: 'products', _id: '25' })
+        .delete({ _index: 'matters', _id: '25' })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
-        "{"create":{"_index":"products","_id":"100"}}
-        {"id":"100","name":"New Product","price":500,"category":"new"}
-        {"update":{"_index":"products","_id":"50"}}
-        {"doc":{"price":450}}
-        {"delete":{"_index":"products","_id":"25"}}
+        "{"create":{"_index":"matters","_id":"100"}}
+        {"matter_id":"M-5000","title":"Cross-Border M&A","practice_area":"corporate","billing_rate":950}
+        {"update":{"_index":"matters","_id":"50"}}
+        {"doc":{"billing_rate":450}}
+        {"delete":{"_index":"matters","_id":"25"}}
         "
       `);
     });

@@ -12,7 +12,7 @@ echo "Running formatter..."
 npm run format
 
 echo "Running tests..."
-npm run test
+npm run test:coverage
 
 echo "Staging all changes..."
 git add .

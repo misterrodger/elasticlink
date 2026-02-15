@@ -1,10 +1,10 @@
 # elasticlink
 
-> **⚠️ Pre-Beta Status**: elasticlink is still in active development. APIs may change before first stable release.
+> **Beta**: elasticlink is in active beta. APIs may change before the first stable release.
 
 [![npm version](https://img.shields.io/npm/v/elasticlink.svg)](https://www.npmjs.com/package/elasticlink)
 [![Build Status](https://github.com/misterrodger/elasticlink/actions/workflows/ci.yml/badge.svg)](https://github.com/misterrodger/elasticlink/actions)
-[![Coverage Status](https://img.shields.io/badge/coverage-98%25-brightgreen)](https://github.com/misterrodger/elasticlink)
+[![codecov](https://codecov.io/gh/misterrodger/elasticlink/branch/main/graph/badge.svg)](https://codecov.io/gh/misterrodger/elasticlink)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 > **Type-safe, fluent API for Elasticsearch queries and index management**
@@ -13,21 +13,31 @@ elasticlink simplifies building Elasticsearch queries and index management in Ty
 
 ## Features
 
-- ✨ **Type-Safe**: Full TypeScript generics for field autocomplete and type checking
-- 🔗 **Fluent API**: Chainable query builder with intuitive method names
-- 🎯 **Zero Runtime Overhead**: Compiles directly to Elasticsearch DSL objects
-- 🧪 **Well-Tested**: 430+ passing tests with 98%+ coverage
-- 📦 **Lightweight**: ~22KB uncompressed, no external dependencies
-- 🎓 **Great DX**: Excellent IntelliSense and error messages
-- 🚀 **Ready to Use**: Core query features working and tested
+- **Type-Safe**: Full TypeScript generics for field autocomplete and type checking
+- **Fluent API**: Chainable query builder with intuitive method names
+- **Zero Runtime Overhead**: Compiles directly to Elasticsearch DSL objects
+- **Well-Tested**: Comprehensive unit and integration test suite against live Elasticsearch
+- **Great DX**: Excellent IntelliSense and error messages
+- **Types from the source**: Types derived directly from `@elastic/elasticsearch` for accuracy and automatic alignment with Elasticsearch updates
+
+## Compatibility
+
+| elasticlink | Node.js | Elasticsearch |
+|-------------|---------|---------------|
+| 0.2.0-beta  | 20, 22  | 9.x (≥9.0.0)  |
+| 0.1.0-beta  | 20, 22  | 9.x (≥9.0.0)  |
+
+Tested against the versions listed. Peer dependency is `@elastic/elasticsearch >=9.0.0`. Open an issue if you need support for a different version.
 
 ## Installation
 
 ```bash
-npm install elasticlink@latest
+npm install elasticlink @elastic/elasticsearch
 ```
 
-Requires Node.js 20+
+Requires Node.js 20+ and `@elastic/elasticsearch` 9.x as a peer dependency.
+
+> **Note:** elasticlink derives its types directly from the official `@elastic/elasticsearch` package for accuracy, completeness, and automatic alignment with Elasticsearch updates. This is a **compile-time only** dependency — it adds zero runtime overhead. If you're already using the Elasticsearch client, you're all set. If not, install it as a dev dependency: `npm install -D @elastic/elasticsearch`.
 
 ## Quick Start
 
@@ -62,6 +72,7 @@ const response = await client.search({ index: 'products', ...q });
 - `match(field, value, options?)` - Full-text search
 - `multiMatch(fields, query, options?)` - Search multiple fields
 - `matchPhrase(field, query)` - Exact phrase matching
+- `matchPhrasePrefix(field, query, options?)` - Prefix phrase matching (search-as-you-type)
 - `term(field, value)` - Exact term matching
 - `terms(field, values)` - Multiple exact values
 - `range(field, conditions)` - Range queries (gte, lte, gt, lt)
@@ -135,17 +146,20 @@ query<Product>()
 ```typescript
 query<Product>()
   .match('name', 'laptop')
-  .from(0)                    // Pagination offset
-  .size(20)                   // Results per page
-  .sort('price', 'asc')       // Sort by field
-  ._source(['name', 'price']) // Which fields to return
-  .timeout('5s')              // Query timeout
-  .trackScores(true)          // Enable scoring in filter context
-  .explain(true)              // Return scoring explanation
-  .minScore(10)               // Minimum relevance score
+  .from(0)                          // Pagination offset
+  .size(20)                         // Results per page
+  .sort('price', 'asc')             // Sort by field
+  ._source(['name', 'price'])       // Which fields to return
+  .timeout('5s')                    // Query timeout
+  .trackScores(true)                // Enable scoring in filter context
+  .trackTotalHits(true)             // Track total hit count (or pass a number threshold)
+  .explain(true)                    // Return scoring explanation
+  .minScore(10)                     // Minimum relevance score
+  .version(true)                    // Include document version in results
+  .seqNoPrimaryTerm(true)           // Include seq_no and primary_term for optimistic concurrency
   .highlight(['name', 'description'], {
-    fragment_size: 150,
-    pre_tags: ['<mark>'],
+    fragment_size: 150,             // Per-field options (fragment_size, number_of_fragments, etc.)
+    pre_tags: ['<mark>'],           // Top-level highlight options
     post_tags: ['</mark>']
   })
   .build();
@@ -155,14 +169,12 @@ query<Product>()
 
 Aggregations can be combined with queries or used standalone:
 
+- **Bucket**: `terms()`, `dateHistogram()`, `histogram()`, `range()`
+- **Metric**: `avg()`, `sum()`, `min()`, `max()`, `cardinality()`, `percentiles()`, `stats()`, `valueCount()`
+- **Composition**: `subAgg()` for nested aggregations
+
 ```typescript
 import { query, aggregations } from 'elasticlink';
-
-type Product = {
-  category: string;
-  price: number;
-  created_at: string;
-};
 
 // Combined query + aggregations
 const result = query<Product>()
@@ -241,34 +253,6 @@ const filtered = query<Product>()
     similarity: 0.7   // Minimum similarity threshold
   })
   .size(20)
-  .build();
-
-// Product recommendations ("more like this")
-const recommendations = query<Product>()
-  .knn('embedding', currentProductEmbedding, {
-    k: 10,
-    num_candidates: 100,
-    filter: {
-      bool: {
-        must_not: [{ term: { id: 'current-product-id' } }],
-        must: [{ term: { category: 'electronics' } }]
-      }
-    }
-  })
-  .size(10)
-  ._source(['id', 'name', 'price'])
-  .build();
-
-// Image similarity search
-const imageEmbedding = new Array(512).fill(0); // 512-dim vector from ResNet
-
-const imageSimilarity = query<Product>()
-  .knn('embedding', imageEmbedding, {
-    k: 50,
-    num_candidates: 500,
-    similarity: 0.8 // High similarity threshold
-  })
-  .size(50)
   .build();
 
 // Hybrid search with aggregations
@@ -353,40 +337,6 @@ const customScored = query<Product>()
   )
   .size(20)
   .build();
-
-// Weighted multi-factor scoring
-const weightedScore = query<Product>()
-  .scriptScore(
-    (q) => q.multiMatch(['name', 'description'], 'premium', { type: 'best_fields' }),
-    {
-      source: `
-        double quality = doc['quality_score'].value;
-        double popularity = doc['popularity'].value;
-        return _score * (quality * 0.7 + popularity * 0.3);
-      `,
-      params: {}
-    },
-    { min_score: 5.0, boost: 1.2 }
-  )
-  .build();
-
-// Personalized scoring
-const personalizedScore = query<Product>()
-  .scriptScore(
-    (q) => q.matchAll(),
-    {
-      source: `
-        double price_score = 1.0 / (1.0 + doc['price'].value / 1000);
-        double quality = doc['quality_score'].value / 10.0;
-        return _score * (price_score * params.price_weight + quality * params.quality_weight);
-      `,
-      params: {
-        price_weight: 0.3,
-        quality_weight: 0.7
-      }
-    }
-  )
-  .build();
 ```
 
 **Script Languages:**
@@ -416,44 +366,6 @@ const alerts = query<AlertRule>()
     }
   })
   .size(100)
-  .build();
-
-// Classify multiple documents
-const classifications = query<AlertRule>()
-  .percolate({
-    field: 'query',
-    documents: [
-      { title: 'AI Breakthrough', content: 'Machine learning advances' },
-      { title: 'Market Update', content: 'Stock prices surge' }
-    ]
-  })
-  ._source(['name', 'category'])
-  .build();
-
-// Match against stored document
-const savedSearch = query<AlertRule>()
-  .percolate({
-    field: 'query',
-    index: 'user_content',
-    id: 'doc-123',
-    routing: 'user-456'
-  })
-  .size(20)
-  .build();
-
-// Security alert system
-const securityAlerts = query<AlertRule>()
-  .percolate({
-    field: 'query',
-    document: {
-      event_type: 'unauthorized_access',
-      severity: 'high',
-      ip_address: '192.168.1.100',
-      timestamp: '2024-01-15T14:00:00Z'
-    },
-    name: 'security_event_check'
-  })
-  .sort('severity', 'desc')
   .build();
 ```
 
@@ -488,26 +400,6 @@ const termSuggestions = suggest<Product>()
   })
   .build();
 
-// Phrase suggester - Fix entire phrases
-const phraseSuggestions = suggest<Product>()
-  .phrase('description-suggestions', 'powerfull laptop', {
-    field: 'description',
-    size: 3,
-    confidence: 2.0,
-    max_errors: 1,
-    pre_tag: '<em>',
-    post_tag: '</em>',
-    direct_generator: [
-      {
-        field: 'description',
-        suggest_mode: 'always',
-        max_edits: 2,
-        min_word_length: 3
-      }
-    ]
-  })
-  .build();
-
 // Completion suggester - Fast autocomplete
 const autocomplete = suggest<Product>()
   .completion('autocomplete', 'lap', {
@@ -535,48 +427,6 @@ const searchWithSuggestions = query<Product>()
   )
   .size(20)
   .build();
-
-// Multiple suggesters
-const multiSuggest = suggest<Product>()
-  .term('name-term', 'laptpo', { field: 'name', size: 3 })
-  .completion('name-complete', 'lap', { field: 'suggest_field', size: 5 })
-  .build();
-
-// Search-as-you-type with context filtering
-const contextual = query<Product>()
-  .bool()
-  .filter((q) => q.term('category', 'electronics'))
-  .suggest((s) =>
-    s.completion('product-autocomplete', 'lapt', {
-      field: 'suggest_field',
-      size: 10,
-      contexts: {
-        category: 'electronics'
-      },
-      fuzzy: {
-        fuzziness: 'AUTO'
-      }
-    })
-  )
-  .size(0) // Only want suggestions, not search results
-  .build();
-
-// Phrase correction with highlighting
-const correction = suggest<Product>()
-  .phrase('phrase-fix', 'powerfull gaming laptop', {
-    field: 'description',
-    size: 3,
-    confidence: 1.5,
-    pre_tag: '<strong>',
-    post_tag: '</strong>',
-    collate: {
-      query: {
-        source: { match: { description: '{{suggestion}}' } }
-      },
-      prune: true
-    }
-  })
-  .build();
 ```
 
 **Suggester Types:**
@@ -584,31 +434,6 @@ const correction = suggest<Product>()
 - **Term:** Suggests corrections for individual terms based on edit distance
 - **Phrase:** Suggests corrections for entire phrases using n-gram language models
 - **Completion:** Fast prefix-based autocomplete (requires `completion` field type)
-
-**Common Use Cases:**
-
-- **Autocomplete:** Search-as-you-type suggestions for product names, categories
-- **Spell Check:** Fix typos in search queries ("laptpo" → "laptop")
-- **Did You Mean:** Suggest alternative queries when searches return few results
-- **Phrase Correction:** Fix grammatical errors in multi-word queries
-
-**Completion Field Mapping:**
-
-```typescript
-import { indexBuilder } from 'elasticlink';
-
-const index = indexBuilder<Product>()
-  .mappings({
-    properties: {
-      suggest_field: {
-        type: 'completion',
-        analyzer: 'simple',
-        search_analyzer: 'simple'
-      }
-    }
-  })
-  .build();
-```
 
 ### Multi-Search API
 
@@ -657,13 +482,6 @@ const array = msearch<Product>()
 - `preference`: Node preference (\_local, \_primary, etc.)
 - `search_type`: Search type (dfs_query_then_fetch, etc.)
 
-**Common Use Cases:**
-
-- **Batch Search:** Execute multiple searches in one request
-- **Cross-Index Search:** Query different indices simultaneously
-- **Performance Optimization:** Reduce HTTP overhead for multiple queries
-- **Dashboard Queries:** Load multiple widgets/charts in parallel
-
 ### Bulk Operations
 
 Batch create, index, update, and delete operations efficiently.
@@ -695,30 +513,11 @@ const bulkOp = bulk<Product>()
     _id: '3',
     doc: { price: 999 }
   })
-  // Update with script
-  .update({
-    _index: 'products',
-    _id: '4',
-    script: {
-      source: 'ctx._source.price *= params.multiplier',
-      params: { multiplier: 0.9 }
-    }
-  })
-  // Update with upsert
-  .update({
-    _index: 'products',
-    _id: '5',
-    doc: { price: 499 },
-    upsert: { id: '5', name: 'New Product', price: 499, category: 'electronics' }
-  })
   // Delete
-  .delete({ _index: 'products', _id: '6' })
+  .delete({ _index: 'products', _id: '4' })
   .build();
 
-// Send to Elasticsearch /_bulk endpoint
-// POST /_bulk
-// Content-Type: application/x-ndjson
-// Body: bulkOp
+// POST /_bulk with Content-Type: application/x-ndjson
 ```
 
 **NDJSON Format:**
@@ -730,20 +529,9 @@ const bulkOp = bulk<Product>()
 {"id":"2","name":"Wireless Mouse","price":29,"category":"accessories"}
 {"update":{"_index":"products","_id":"3"}}
 {"doc":{"price":999}}
-{"update":{"_index":"products","_id":"4"}}
-{"script":{"source":"ctx._source.price *= params.multiplier","params":{"multiplier":0.9}}}
-{"update":{"_index":"products","_id":"5"}}
-{"doc":{"price":499},"upsert":{"id":"5","name":"New Product","price":499,"category":"electronics"}}
-{"delete":{"_index":"products","_id":"6"}}
+{"delete":{"_index":"products","_id":"4"}}
 
 ```
-
-**Operation Types:**
-
-- `index`: Create or replace document
-- `create`: Create new document (fails if exists)
-- `update`: Partial update with doc, script, or upsert
-- `delete`: Remove document
 
 **Update Options:**
 
@@ -753,174 +541,168 @@ const bulkOp = bulk<Product>()
 - `doc_as_upsert`: Use doc as upsert document
 - `retry_on_conflict`: Retry count for version conflicts
 
-**Common Use Cases:**
-
-- **Data Import:** Batch insert large datasets
-- **Sync Operations:** Keep indices in sync with external systems
-- **Price Updates:** Update multiple products efficiently
-- **Batch Deletes:** Remove outdated documents in bulk
-
 ### Index Management
 
 Configure index mappings, settings, and aliases declaratively.
 
 ```typescript
-import { indexBuilder } from 'elasticlink';
+import { indexBuilder, keyword, integer, float, date, text } from 'elasticlink';
 
-type Product = {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  tags: string[];
-  inStock: boolean;
-  embedding: number[];
+type Matter = {
+  title: string;
+  practice_area: string;
+  billing_rate: number;
+  risk_score: number;
+  opened_at: string;
 };
 
-const indexConfig = indexBuilder<Product>()
+const indexConfig = indexBuilder<Matter>()
   .mappings({
-    properties: {
-      id: { type: 'keyword' },
-      name: { type: 'text', analyzer: 'standard' },
-      description: { type: 'text', analyzer: 'english' },
-      price: { type: 'float' },
-      category: { type: 'keyword' },
-      tags: { type: 'keyword' },
-      inStock: { type: 'boolean' },
-      embedding: {
-        type: 'dense_vector',
-        dims: 384,
-        index: true,
-        similarity: 'cosine'
-      }
-    }
+    title: text({ analyzer: 'english' }),
+    practice_area: keyword(),
+    billing_rate: integer(),
+    risk_score: float(),
+    opened_at: date()
   })
   .settings({
     number_of_shards: 2,
     number_of_replicas: 1,
-    refresh_interval: '5s',
-    'index.max_result_window': 10000
+    refresh_interval: '5s'
   })
-  .alias('products_current')
-  .alias('products_search', { is_write_index: true })
+  .alias('matters-current', { is_write_index: true })
+  .alias('matters-all')
   .build();
 
-// Use with Elasticsearch Create Index API
-// PUT /products
+// PUT /matters-v1
 // Content-Type: application/json
 // Body: JSON.stringify(indexConfig)
 ```
 
-**Field Types (20+ supported):**
+Produces:
 
-- **Text:** `text`, `keyword`, `constant_keyword`
-- **Numeric:** `long`, `integer`, `short`, `byte`, `double`, `float`, `half_float`, `scaled_float`
-- **Date:** `date`, `date_nanos`
-- **Boolean:** `boolean`
-- **Binary:** `binary`
-- **Range:** `integer_range`, `float_range`, `long_range`, `double_range`, `date_range`
-- **Objects:** `object`, `nested`, `flattened`
-- **Spatial:** `geo_point`, `geo_shape`
-- **Specialized:** `ip`, `completion`, `token_count`, `dense_vector`, `rank_feature`, `rank_features`
-
-**Mapping Properties:**
-
-- `type`: Field type
-- `analyzer`: Text analyzer (standard, english, etc.)
-- `index`: Enable/disable indexing
-- `store`: Store field separately
-- `fields`: Multi-field mappings
-- `null_value`: Default for null values
-- `copy_to`: Copy field to another field
-- `eager_global_ordinals`: Optimize aggregations
-
-**Settings Options:**
-
-- `number_of_shards`: Shard count (set at creation)
-- `number_of_replicas`: Replica count
-- `refresh_interval`: Auto-refresh interval
-- `max_result_window`: Maximum result window size
-- `analysis`: Custom analyzers, tokenizers, filters
-
-**Alias Options:**
-
-- `is_write_index`: Designate write target for alias
-- `routing`: Default routing value
-- `filter`: Filter documents visible through alias
-
-**Real-World Examples:**
-
-**E-commerce Index:**
-
-```typescript
-const ecommerceIndex = indexBuilder<Product>()
-  .mappings({
-    properties: {
-      sku: { type: 'keyword' },
-      name: { type: 'text', analyzer: 'standard', fields: { keyword: { type: 'keyword' } } },
-      description: { type: 'text', analyzer: 'english' },
-      price: { type: 'scaled_float', scaling_factor: 100 },
-      category: { type: 'keyword' },
-      brand: { type: 'keyword' },
-      tags: { type: 'keyword' },
-      rating: { type: 'half_float' },
-      reviewCount: { type: 'integer' },
-      inStock: { type: 'boolean' },
-      createdAt: { type: 'date' }
+```json
+{
+  "mappings": {
+    "properties": {
+      "title": { "type": "text", "analyzer": "english" },
+      "practice_area": { "type": "keyword" },
+      "billing_rate": { "type": "integer" },
+      "risk_score": { "type": "float" },
+      "opened_at": { "type": "date" }
     }
-  })
-  .settings({
-    number_of_shards: 3,
-    number_of_replicas: 2,
-    refresh_interval: '1s'
-  })
-  .alias('products')
-  .build();
+  },
+  "settings": {
+    "number_of_shards": 2,
+    "number_of_replicas": 1,
+    "refresh_interval": "5s"
+  },
+  "aliases": {
+    "matters-current": { "is_write_index": true },
+    "matters-all": {}
+  }
+}
 ```
 
-**Vector Search Index:**
+**Field Helpers** (shorthand for common field types):
 
 ```typescript
-const vectorIndex = indexBuilder<Article>()
-  .mappings({
-    properties: {
-      title: { type: 'text' },
-      content: { type: 'text' },
-      embedding: {
-        type: 'dense_vector',
-        dims: 768,
-        index: true,
-        similarity: 'cosine',
-        index_options: {
-          type: 'hnsw',
-          m: 16,
-          ef_construction: 100
-        }
-      }
-    }
-  })
-  .settings({
-    number_of_shards: 1,
-    number_of_replicas: 0
-  })
-  .build();
+import { text, keyword, integer, float, double, date, boolean, denseVector, scaledFloat, halfFloat } from 'elasticlink';
+
+// Shorthand — pass options or use defaults
+keyword()                        // { type: 'keyword' }
+integer()                        // { type: 'integer' }
+float()                          // { type: 'float' }
+date()                           // { type: 'date' }
+text({ analyzer: 'english' })    // { type: 'text', analyzer: 'english' }
+denseVector({ dims: 384, index: true, similarity: 'cosine' })
 ```
 
-**Common Use Cases:**
+#### Field Types (25+ supported)
 
-- **Index Creation:** Define schema before indexing data
-- **Schema Migration:** Version indices with aliases
-- **Multi-Tenancy:** Create per-tenant indices programmatically
-- **Vector Search Setup:** Configure dense_vector fields with HNSW
+| Category    | Helpers                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------- |
+| Text        | `text`, `keyword`, `constantKeyword`                                                                    |
+| Numeric     | `long`, `integer`, `short`, `byte`, `double`, `float`, `halfFloat`, `scaledFloat`                       |
+| Date        | `date`, `dateNanos`                                                                                     |
+| Boolean     | `boolean`                                                                                               |
+| Range       | `integerRange`, `floatRange`, `longRange`, `doubleRange`, `dateRange`                                   |
+| Objects     | `object`, `nested`, `flattened`                                                                         |
+| Spatial     | `geoPoint`, `geoShape`                                                                                  |
+| Specialized | `ip`, `completion`, `tokenCount`, `denseVector`, `rankFeature`, `rankFeatures`, `binary`, `percolator`  |
+| Alias       | `alias`                                                                                                 |
+
+#### Mapping Properties
+
+All field helpers accept an optional options object. Common options across types:
+
+| Option                         | Types                  | Description                                                                          |
+| ------------------------------ | ---------------------- | ------------------------------------------------------------------------------------ |
+| `analyzer`                     | `text`                 | Index-time analyzer                                                                  |
+| `search_analyzer`              | `text`                 | Query-time analyzer (overrides `analyzer`)                                           |
+| `normalizer`                   | `keyword`              | Keyword normalizer (e.g. lowercase)                                                  |
+| `index`                        | most types             | Whether to index the field (default: `true`)                                         |
+| `store`                        | most types             | Store field value separately (default: `false`)                                      |
+| `doc_values`                   | most types             | Enable doc values for sorting/aggregations                                           |
+| `boost`                        | text, keyword, numeric | Index-time boost factor                                                              |
+| `coerce`                       | numeric, range         | Convert strings to numbers (default: `true`)                                         |
+| `format`                       | `date`                 | Date format string (e.g. `"yyyy-MM-dd"`)                                             |
+| `scaling_factor`               | `scaledFloat`          | Required multiplier for scaled floats                                                |
+| `dims`                         | `denseVector`          | Number of dimensions (required for KNN indexing)                                     |
+| `similarity`                   | `denseVector`          | Similarity function: `'cosine'`, `'dot_product'`, `'l2_norm'`, `'max_inner_product'` |
+| `element_type`                 | `denseVector`          | Element type: `'float'` (default), `'byte'`, `'bit'`                                 |
+| `fields`                       | text, keyword          | Multi-fields for indexing the same value in multiple ways                            |
+| `properties`                   | object, nested         | Sub-field mappings                                                                   |
+| `enabled`                      | `object`               | Disable indexing of object fields                                                    |
+| `path`                         | `alias`                | Path to the target field                                                             |
+| `max_input_length`             | `completion`           | Max input length for completion suggestions                                          |
+| `preserve_separators`          | `completion`           | Preserve separator characters                                                        |
+| `preserve_position_increments` | `completion`           | Preserve position increments                                                         |
+| `orientation`                  | `geoShape`             | Default orientation for polygons                                                     |
+
+#### Index Settings
+
+The `.settings()` method accepts the full `IndicesIndexSettings` type from `@elastic/elasticsearch`. Common options:
+
+| Setting              | Type     | Description                                        |
+| -------------------- | -------- | -------------------------------------------------- |
+| `number_of_shards`   | `number` | Primary shard count (set at creation, immutable)   |
+| `number_of_replicas` | `number` | Replica count (can be changed after creation)      |
+| `refresh_interval`   | `string` | How often to refresh (`'1s'`, `'-1s'` to disable)  |
+| `max_result_window`  | `number` | Max `from + size` (default: 10000)                 |
+| `analysis`           | `object` | Custom analyzers, tokenizers, filters              |
+| `codec`              | `string` | Compression codec (`'best_compression'`)           |
+
+#### Alias Options
+
+The `.alias()` method accepts an optional `IndicesAlias` object:
+
+| Option            | Type      | Description                                                       |
+| ----------------- | --------- | ----------------------------------------------------------------- |
+| `filter`          | `object`  | Query filter — only matching documents visible through alias      |
+| `is_write_index`  | `boolean` | Designate this index as the write target for the alias            |
+| `routing`         | `string`  | Custom routing value for alias operations                         |
+| `index_routing`   | `string`  | Routing value for index operations only                           |
+| `search_routing`  | `string`  | Routing value for search operations only                          |
+| `is_hidden`       | `boolean` | Hide alias from wildcard expressions                              |
 
 ## Examples
 
-More examples available in [src/__tests__/examples.test.ts](src/__tests__/examples.test.ts).
+More examples available in [src/\_\_tests\_\_/examples.test.ts](src/__tests__/examples.test.ts).
 
 ### E-commerce Product Search
 
+A complete search request: boolean query with must/filter/should, aggregations for facets and price ranges, highlights, `_source` filtering, and pagination.
+
 ```typescript
+type Product = {
+  name: string;
+  description: string;
+  category: string;
+  price: number;
+  tags: string[];
+  in_stock: boolean;
+};
+
 const searchTerm = 'gaming laptop';
 const category = 'electronics';
 const minPrice = 800;
@@ -932,12 +714,29 @@ const result = query<Product>()
   .should(q => q.fuzzy('description', searchTerm, { fuzziness: 'AUTO' }))
   .filter(q => q.term('category', category))
   .filter(q => q.range('price', { gte: minPrice, lte: maxPrice }))
+  .filter(q => q.term('in_stock', true))
   .minimumShouldMatch(1)
-  .highlight(['name', 'description'])
+  .aggs(agg =>
+    agg
+      .terms('by_category', 'category', { size: 10 })
+      .range('price_ranges', 'price', {
+        ranges: [
+          { to: 800 },
+          { from: 800, to: 1500 },
+          { from: 1500 }
+        ]
+      })
+  )
+  .highlight(['name', 'description'], {
+    fragment_size: 150,
+    pre_tags: ['<mark>'],
+    post_tags: ['</mark>']
+  })
+  ._source(['name', 'price', 'category', 'tags'])
   .timeout('5s')
   .from(0)
   .size(20)
-  .sort('price', 'asc')
+  .sort('_score', 'desc')
   .build();
 ```
 
@@ -947,73 +746,179 @@ Produces:
 {
   "query": {
     "bool": {
-      "must": [
-        {
-          "match": {
-            "name": {
-              "query": "gaming laptop",
-              "operator": "and",
-              "boost": 2
-            }
-          }
-        }
-      ],
-      "should": [
-        {
-          "fuzzy": {
-            "description": {
-              "value": "gaming laptop",
-              "fuzziness": "AUTO"
-            }
-          }
-        }
-      ],
+      "must": [{ "match": { "name": { "query": "gaming laptop", "operator": "and", "boost": 2 } } }],
+      "should": [{ "fuzzy": { "description": { "value": "gaming laptop", "fuzziness": "AUTO" } } }],
       "filter": [
         { "term": { "category": "electronics" } },
-        {
-          "range": {
-            "price": { "gte": 800, "lte": 2000 }
-          }
-        }
+        { "range": { "price": { "gte": 800, "lte": 2000 } } },
+        { "term": { "in_stock": true } }
       ],
       "minimum_should_match": 1
     }
   },
-  "highlight": {
-    "fields": {
-      "name": {},
-      "description": {}
+  "aggs": {
+    "by_category": { "terms": { "field": "category", "size": 10 } },
+    "price_ranges": {
+      "range": {
+        "field": "price",
+        "ranges": [{ "to": 800 }, { "from": 800, "to": 1500 }, { "from": 1500 }]
+      }
     }
   },
+  "highlight": {
+    "fields": { "name": { "fragment_size": 150 }, "description": { "fragment_size": 150 } },
+    "pre_tags": ["<mark>"],
+    "post_tags": ["</mark>"]
+  },
+  "_source": ["name", "price", "category", "tags"],
   "timeout": "5s",
   "from": 0,
   "size": 20,
-  "sort": [{ "price": "asc" }]
+  "sort": [{ "_score": "desc" }]
 }
 ```
 
-### Content Search with Filtering
+### Aggregations — Portfolio Analytics
+
+Terms + sub-aggregation + date histogram in one request.
 
 ```typescript
-type Article = {
-  title: string;
-  content: string;
-  author: string;
-  published_date: string;
+type Instrument = {
+  name: string;
+  asset_class: string;
+  sector: string;
+  price: number;
+  yield_rate: number;
+  listed_date: string;
 };
 
-const result = query<Article>()
+const result = query<Instrument>()
   .bool()
-  .must(q => q.multiMatch(['title', 'content'], 'elasticsearch', { type: 'best_fields' }))
-  .filter(q => q.range('published_date', { gte: '2024-01-01' }))
-  .should(q => q.match('author', 'jane', { boost: 2 }))
-  .minimumShouldMatch(1)
-  .highlight(['title', 'content'])
-  .timeout('10s')
-  .trackTotalHits(10000)
-  .from(0)
-  .size(20)
+  .filter(q => q.term('asset_class', 'fixed-income'))
+  .filter(q => q.range('yield_rate', { gte: 3.0 }))
+  .aggs(agg =>
+    agg
+      .terms('by_sector', 'sector', { size: 10 })
+      .subAgg(sub => sub.avg('avg_yield', 'yield_rate').max('max_price', 'price'))
+      .dateHistogram('listings_over_time', 'listed_date', {
+        interval: 'quarter',
+        min_doc_count: 1
+      })
+      .subAgg(sub => sub.percentiles('yield_percentiles', 'yield_rate', { percents: [25, 50, 75, 95] }))
+  )
+  .size(0)
   .build();
+```
+
+Produces:
+
+```json
+{
+  "query": {
+    "bool": {
+      "filter": [
+        { "term": { "asset_class": "fixed-income" } },
+        { "range": { "yield_rate": { "gte": 3.0 } } }
+      ]
+    }
+  },
+  "aggs": {
+    "by_sector": {
+      "terms": { "field": "sector", "size": 10 },
+      "aggs": {
+        "avg_yield": { "avg": { "field": "yield_rate" } },
+        "max_price": { "max": { "field": "price" } }
+      }
+    },
+    "listings_over_time": {
+      "date_histogram": { "field": "listed_date", "interval": "quarter", "min_doc_count": 1 },
+      "aggs": {
+        "yield_percentiles": { "percentiles": { "field": "yield_rate", "percents": [25, 50, 75, 95] } }
+      }
+    }
+  },
+  "size": 0
+}
+```
+
+### Multi-Search — Parallel Queries
+
+Batch multiple independent searches into a single HTTP request.
+
+```typescript
+type Listing = {
+  address: string;
+  property_class: string;
+  list_price: number;
+};
+
+const condoSearch = query<Listing>()
+  .bool()
+  .filter(q => q.term('property_class', 'condo'))
+  .filter(q => q.range('list_price', { lte: 2_000_000 }))
+  .aggs(agg => agg.avg('avg_price', 'list_price'))
+  .size(0)
+  .build();
+
+const townhouseSearch = query<Listing>()
+  .bool()
+  .filter(q => q.term('property_class', 'townhouse'))
+  .aggs(agg => agg.avg('avg_price', 'list_price').min('min_price', 'list_price'))
+  .size(0)
+  .build();
+
+const ndjson = msearch<Listing>()
+  .addQuery(condoSearch, { index: 'listings' })
+  .addQuery(townhouseSearch, { index: 'listings' })
+  .build();
+```
+
+Produces:
+
+```ndjson
+{"index":"listings"}
+{"query":{"bool":{"filter":[{"term":{"property_class":"condo"}},{"range":{"list_price":{"lte":2000000}}}]}},"aggs":{"avg_price":{"avg":{"field":"list_price"}}},"size":0}
+{"index":"listings"}
+{"query":{"bool":{"filter":[{"term":{"property_class":"townhouse"}}]}},"aggs":{"avg_price":{"avg":{"field":"list_price"}},"min_price":{"min":{"field":"list_price"}}},"size":0}
+
+```
+
+### Suggesters — Autocomplete & Spell Check
+
+```typescript
+type Attorney = {
+  name: string;
+  practice_area: string;
+  name_suggest: string; // completion field
+};
+
+// Standalone suggest request
+const suggestions = query<Attorney>()
+  .suggest(s =>
+    s
+      .completion('autocomplete', 'kap', { field: 'name_suggest', size: 5 })
+      .term('spelling', 'wiliams', { field: 'name', size: 3 })
+  )
+  .size(0)
+  .build();
+```
+
+Produces:
+
+```json
+{
+  "suggest": {
+    "autocomplete": {
+      "prefix": "kap",
+      "completion": { "field": "name_suggest", "size": 5 }
+    },
+    "spelling": {
+      "text": "wiliams",
+      "term": { "field": "name", "size": 3 }
+    }
+  },
+  "size": 0
+}
 ```
 
 ### Dynamic Search with Conditional Filters
@@ -1057,7 +962,7 @@ const result = query<Restaurant>()
   .match('cuisine', 'italian')
   .geoDistance(
     'location',
-    { lat: 40.7128, lon: -74.006 },  // The Big 🍎
+    { lat: 40.7128, lon: -74.006 },
     { distance: '5km' }
   )
   .from(0)
@@ -1086,9 +991,6 @@ const q1 = query<User>().match('name', 'John').build();
 
 // ❌ TypeScript error: 'unknown_field' is not a valid field
 const q2 = query<User>().match('unknown_field', 'value').build();
-
-// ❌ TypeScript error: age is number, not string
-const q3 = query<User>().match('age', 'should be a number').build();
 ```
 
 ## Testing
@@ -1106,13 +1008,6 @@ npm test:coverage
 # Type check
 npm run type-check
 ```
-
-All queries are tested against the Elasticsearch DSL specification with 147+ passing tests.
-
-## Version Support
-
-- **Node.js**: 20/22
-- **Elasticsearch**: 9.2.4
 
 ## Roadmap
 
@@ -1136,11 +1031,9 @@ All queries are tested against the Elasticsearch DSL specification with 147+ pas
 - [x] Multi-search API (NDJSON batched queries)
 - [x] Bulk operations (create, index, update, delete)
 - [x] Index management (mappings, settings, aliases)
-- [x] Full test coverage (388+ tests)
-
-### Planned for Future Releases
-
-- [ ] Query suggestions/completions (term, phrase, completion)
+- [x] Query suggestions/completions (term, phrase, completion)
+- [x] Integration test suite against live Elasticsearch 9.x
+- [x] Types derived from official `@elastic/elasticsearch` for accuracy and completeness
 
 ## Contributing
 

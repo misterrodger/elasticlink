@@ -1,5 +1,8 @@
 {
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
   "cSpell.words": [
+    "aggs",
     "determinized",
     "elasticlink",
     "elastiq",
@@ -8,7 +11,9 @@
     "golangci",
     "hnsw",
     "laptpo",
+    "mgmt",
     "misterrodger",
+    "Multisearch",
     "xpack"
   ]
 }

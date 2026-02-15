@@ -15,7 +15,7 @@ jobs:
 
     services:
       elasticsearch:
-        image: docker.elastic.co/elasticsearch/elasticsearch:8.19.10
+        image: docker.elastic.co/elasticsearch/elasticsearch:9.3.0
         env:
           discovery.type: single-node
           xpack.security.enabled: false
@@ -49,9 +49,6 @@ jobs:
         run: npm run build
 
       - name: Test
-        run: npm test
-
-      - name: Test coverage
         run: npm run test:coverage
 
       - name: Upload coverage
