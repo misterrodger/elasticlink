@@ -395,7 +395,7 @@ export type QueryBuilder<T> = {
   /** Include sequence number and primary term */
   seqNoPrimaryTerm: (enabled: boolean) => QueryBuilder<T>;
   /** Track total hits accurately or up to threshold */
-  trackTotalHits: (value: boolean | number) => QueryBuilder<T>;
+  trackTotalHits: (value?: boolean | number) => QueryBuilder<T>;
   /** Highlight matched text */
   highlight: (
     fields: Array<keyof T>,
