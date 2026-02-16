@@ -1,6 +1,6 @@
 {
   "name": "elasticlink",
-  "version": "0.2.0-beta",
+  "version": "0.2.1-beta",
   "description": "Type-safe, lightweight Elasticsearch query builder with fluent API",
   "type": "module",
   "main": "dist/index.js",
@@ -24,7 +24,7 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "audit": "better-npm-audit audit --level=high",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run build && npm test && npm run lint",
     "type-check": "tsc --noEmit"
   },
   "engines": {
