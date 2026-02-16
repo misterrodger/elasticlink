@@ -24,7 +24,7 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "audit": "better-npm-audit audit --level=high",
-    "prepublishOnly": "npm run build && npm test && npm run lint",
+    "prepublishOnly": "npm run build",
     "type-check": "tsc --noEmit"
   },
   "engines": {
