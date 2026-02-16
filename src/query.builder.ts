@@ -335,7 +335,7 @@ export const createQueryBuilder = <T>(
   seqNoPrimaryTerm: (seq_no_primary_term) =>
     createQueryBuilder({ ...state, seq_no_primary_term }),
 
-  trackTotalHits: (track_total_hits) =>
+  trackTotalHits: (track_total_hits = true) =>
     createQueryBuilder({ ...state, track_total_hits }),
 
   highlight: (fields, options) => {
