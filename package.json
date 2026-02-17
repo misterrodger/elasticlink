@@ -1,6 +1,6 @@
 {
   "name": "elasticlink",
-  "version": "0.2.2-beta",
+  "version": "0.3.0-beta",
   "description": "Type-safe, lightweight Elasticsearch query builder with fluent API",
   "type": "module",
   "main": "dist/index.js",
