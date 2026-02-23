@@ -1,12 +1,17 @@
-import { query, suggest } from '..';
-import { Matter } from './fixtures/legal.js';
+import { query, suggest, mappings, keyword, text, float, completion } from '..';
 
-type MatterWithSuggest = Matter & { title_suggest: string };
+const matterWithSuggestMappings = mappings({
+  matter_id: keyword(),
+  title: text(),
+  practice_area: keyword(),
+  billing_rate: float(),
+  title_suggest: completion()
+});
 
 describe('Suggester API', () => {
   describe('Builder behavior', () => {
     it('should return empty suggest object for empty build', () => {
-      const result = suggest<MatterWithSuggest>().build();
+      const result = suggest(matterWithSuggestMappings).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -16,7 +21,7 @@ describe('Suggester API', () => {
     });
 
     it('should overwrite suggester when same name is used twice', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .term('spell-check', 'acquistion', { field: 'title' })
         .term('spell-check', 'corprate', { field: 'practice_area' })
         .build();
@@ -38,7 +43,7 @@ describe('Suggester API', () => {
 
   describe('Term Suggester', () => {
     it('should build basic term suggester', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .term('name-suggestions', 'acquistion', {
           field: 'title'
         })
@@ -59,7 +64,7 @@ describe('Suggester API', () => {
     });
 
     it('should build term suggester with size', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .term('name-suggestions', 'acquistion', {
           field: 'title',
           size: 5
@@ -82,7 +87,7 @@ describe('Suggester API', () => {
     });
 
     it('should build term suggester with suggest_mode', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .term('name-suggestions', 'acquistion', {
           field: 'title',
           suggest_mode: 'popular'
@@ -105,7 +110,7 @@ describe('Suggester API', () => {
     });
 
     it('should build term suggester with string_distance', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .term('name-suggestions', 'acquistion', {
           field: 'title',
           string_distance: 'levenshtein'
@@ -128,7 +133,7 @@ describe('Suggester API', () => {
     });
 
     it('should build term suggester with max_edits', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .term('name-suggestions', 'acquistion', {
           field: 'title',
           max_edits: 2
@@ -151,7 +156,7 @@ describe('Suggester API', () => {
     });
 
     it('should build term suggester with sort option', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .term('name-suggestions', 'acquistion', {
           field: 'title',
           sort: 'frequency'
@@ -174,7 +179,7 @@ describe('Suggester API', () => {
     });
 
     it('should build term suggester with prefix_length option', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .term('name-suggestions', 'acquistion', {
           field: 'title',
           prefix_length: 3
@@ -197,7 +202,7 @@ describe('Suggester API', () => {
     });
 
     it('should build term suggester with all options', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .term('name-suggestions', 'acquistion', {
           field: 'title',
           size: 5,
@@ -234,7 +239,7 @@ describe('Suggester API', () => {
 
   describe('Phrase Suggester', () => {
     it('should build basic phrase suggester', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .phrase('description-suggestions', 'powerfull laptop', {
           field: 'title'
         })
@@ -255,7 +260,7 @@ describe('Suggester API', () => {
     });
 
     it('should build phrase suggester with confidence', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .phrase('description-suggestions', 'powerfull laptop', {
           field: 'title',
           confidence: 2.0
@@ -278,7 +283,7 @@ describe('Suggester API', () => {
     });
 
     it('should build phrase suggester with direct_generator', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .phrase('description-suggestions', 'powerfull laptop', {
           field: 'title',
           direct_generator: [
@@ -313,7 +318,7 @@ describe('Suggester API', () => {
     });
 
     it('should build phrase suggester with highlighting', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .phrase('description-suggestions', 'powerfull laptop', {
           field: 'title',
           highlight: {
@@ -342,7 +347,7 @@ describe('Suggester API', () => {
     });
 
     it('should build phrase suggester with collate', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .phrase('description-suggestions', 'powerfull laptop', {
           field: 'title',
           collate: {
@@ -379,7 +384,7 @@ describe('Suggester API', () => {
     });
 
     it('should build phrase suggester with size option', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .phrase('description-suggestions', 'powerfull laptop', {
           field: 'title',
           size: 5
@@ -402,7 +407,7 @@ describe('Suggester API', () => {
     });
 
     it('should build phrase suggester with gram_size option', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .phrase('description-suggestions', 'powerfull laptop', {
           field: 'title',
           gram_size: 2
@@ -425,7 +430,7 @@ describe('Suggester API', () => {
     });
 
     it('should build phrase suggester with all options', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .phrase('description-suggestions', 'powerfull laptop', {
           field: 'title',
           size: 3,
@@ -466,7 +471,7 @@ describe('Suggester API', () => {
 
   describe('Completion Suggester', () => {
     it('should build basic completion suggester', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .completion('autocomplete', 'lap', {
           field: 'title_suggest'
         })
@@ -487,7 +492,7 @@ describe('Suggester API', () => {
     });
 
     it('should build completion suggester with size', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .completion('autocomplete', 'lap', {
           field: 'title_suggest',
           size: 10
@@ -510,7 +515,7 @@ describe('Suggester API', () => {
     });
 
     it('should build completion suggester with skip_duplicates', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .completion('autocomplete', 'lap', {
           field: 'title_suggest',
           skip_duplicates: true
@@ -533,7 +538,7 @@ describe('Suggester API', () => {
     });
 
     it('should build completion suggester with fuzzy matching', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .completion('autocomplete', 'lap', {
           field: 'title_suggest',
           fuzzy: {
@@ -566,7 +571,7 @@ describe('Suggester API', () => {
     });
 
     it('should build completion suggester with contexts', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .completion('autocomplete', 'lap', {
           field: 'title_suggest',
           contexts: {
@@ -593,7 +598,7 @@ describe('Suggester API', () => {
     });
 
     it('should build completion suggester with all options', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .completion('autocomplete', 'lap', {
           field: 'title_suggest',
           size: 10,
@@ -643,7 +648,7 @@ describe('Suggester API', () => {
 
   describe('Multiple Suggesters', () => {
     it('should combine multiple phrase suggesters', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .phrase('name-phrase', 'powerfull laptop', { field: 'title' })
         .phrase('desc-phrase', 'garming keybord', { field: 'title' })
         .build();
@@ -669,7 +674,7 @@ describe('Suggester API', () => {
     });
 
     it('should combine multiple completion suggesters', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .completion('name-auto', 'lap', { field: 'title' })
         .completion('category-auto', 'ele', { field: 'practice_area' })
         .build();
@@ -695,7 +700,7 @@ describe('Suggester API', () => {
     });
 
     it('should combine multiple term suggesters', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .term('name-suggestions', 'acquistion', { field: 'title' })
         .term('category-suggestions', 'electornics', { field: 'practice_area' })
         .build();
@@ -721,7 +726,7 @@ describe('Suggester API', () => {
     });
 
     it('should combine different suggester types', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .term('name-term', 'acquistion', { field: 'title' })
         .phrase('description-phrase', 'powerfull laptop', {
           field: 'title'
@@ -758,8 +763,8 @@ describe('Suggester API', () => {
 
   describe('Suggester with QueryBuilder', () => {
     it('should add term suggester to query', () => {
-      const result = query<MatterWithSuggest>()
-        .match('practice_area', 'corporate')
+      const result = query(matterWithSuggestMappings)
+        .match('title', 'corporate')
         .suggest((s) =>
           s.term('name-suggestions', 'acquistion', { field: 'title' })
         )
@@ -769,7 +774,7 @@ describe('Suggester API', () => {
         {
           "query": {
             "match": {
-              "practice_area": "corporate",
+              "title": "corporate",
             },
           },
           "suggest": {
@@ -785,8 +790,8 @@ describe('Suggester API', () => {
     });
 
     it('should add phrase suggester to query', () => {
-      const result = query<MatterWithSuggest>()
-        .match('practice_area', 'corporate')
+      const result = query(matterWithSuggestMappings)
+        .match('title', 'corporate')
         .suggest((s) =>
           s.phrase('description-suggestions', 'powerfull laptop', {
             field: 'title',
@@ -799,7 +804,7 @@ describe('Suggester API', () => {
         {
           "query": {
             "match": {
-              "practice_area": "corporate",
+              "title": "corporate",
             },
           },
           "suggest": {
@@ -816,8 +821,8 @@ describe('Suggester API', () => {
     });
 
     it('should add completion suggester to query', () => {
-      const result = query<MatterWithSuggest>()
-        .match('practice_area', 'corporate')
+      const result = query(matterWithSuggestMappings)
+        .match('title', 'corporate')
         .suggest((s) =>
           s.completion('autocomplete', 'lap', {
             field: 'title_suggest',
@@ -830,7 +835,7 @@ describe('Suggester API', () => {
         {
           "query": {
             "match": {
-              "practice_area": "corporate",
+              "title": "corporate",
             },
           },
           "suggest": {
@@ -847,8 +852,8 @@ describe('Suggester API', () => {
     });
 
     it('should add multiple suggesters to query', () => {
-      const result = query<MatterWithSuggest>()
-        .match('practice_area', 'corporate')
+      const result = query(matterWithSuggestMappings)
+        .match('title', 'corporate')
         .suggest((s) =>
           s
             .term('name-term', 'acquistion', { field: 'title', size: 3 })
@@ -863,7 +868,7 @@ describe('Suggester API', () => {
         {
           "query": {
             "match": {
-              "practice_area": "corporate",
+              "title": "corporate",
             },
           },
           "suggest": {
@@ -887,8 +892,8 @@ describe('Suggester API', () => {
     });
 
     it('should combine query, aggregations, and suggestions', () => {
-      const result = query<MatterWithSuggest>()
-        .match('practice_area', 'corporate')
+      const result = query(matterWithSuggestMappings)
+        .match('title', 'corporate')
         .aggs((agg) =>
           agg.terms('popular-areas', 'practice_area', { size: 10 })
         )
@@ -910,7 +915,7 @@ describe('Suggester API', () => {
           },
           "query": {
             "match": {
-              "practice_area": "corporate",
+              "title": "corporate",
             },
           },
           "size": 20,
@@ -930,7 +935,7 @@ describe('Suggester API', () => {
 
   describe('Suggester method chaining', () => {
     it('should support fluent chaining', () => {
-      const result = suggest<MatterWithSuggest>()
+      const result = suggest(matterWithSuggestMappings)
         .term('name-term', 'acquistion', { field: 'title' })
         .phrase('desc-phrase', 'powerfull', { field: 'title' })
         .completion('auto', 'lap', { field: 'title_suggest' })
@@ -944,7 +949,7 @@ describe('Suggester API', () => {
 
   describe('Real-world suggester scenarios', () => {
     it('should build product search with autocomplete', () => {
-      const result = query<MatterWithSuggest>()
+      const result = query(matterWithSuggestMappings)
         .bool()
         .filter((q) => q.term('practice_area', 'corporate'))
         .suggest((s) =>
@@ -994,7 +999,7 @@ describe('Suggester API', () => {
     });
 
     it('should build spell-check with term suggester', () => {
-      const result = query<MatterWithSuggest>()
+      const result = query(matterWithSuggestMappings)
         .match('title', 'acquistion')
         .suggest((s) =>
           s.term('spelling-correction', 'acquistion', {
@@ -1035,7 +1040,7 @@ describe('Suggester API', () => {
     });
 
     it('should build phrase correction with highlighting', () => {
-      const result = query<MatterWithSuggest>()
+      const result = query(matterWithSuggestMappings)
         .match('title', 'powerfull gaming laptop')
         .suggest((s) =>
           s.phrase('phrase-correction', 'powerfull gaming laptop', {

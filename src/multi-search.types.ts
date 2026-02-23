@@ -5,6 +5,7 @@
  */
 
 import type { MsearchMultisearchHeader } from '@elastic/elasticsearch/lib/api/types';
+import type { FieldTypeString } from './index-management.types.js';
 import { QueryState } from './query.types.js';
 
 /**
@@ -16,23 +17,23 @@ export type MSearchHeader = MsearchMultisearchHeader;
 /**
  * A single search request in a multi-search operation
  */
-export type MSearchRequest<T> = {
+export type MSearchRequest<M extends Record<string, FieldTypeString>> = {
   /** Optional header for this search */
   header?: MSearchHeader;
   /** The query body */
-  body: QueryState<T>;
+  body: QueryState<M>;
 };
 
 /**
  * Multi-search builder interface
  */
-export type MSearchBuilder<T> = {
+export type MSearchBuilder<M extends Record<string, FieldTypeString>> = {
   /** Add a search request with header and body */
-  add: (request: MSearchRequest<T>) => MSearchBuilder<T>;
+  add: (request: MSearchRequest<M>) => MSearchBuilder<M>;
   /** Add a search using a query builder */
-  addQuery: (body: QueryState<T>, header?: MSearchHeader) => MSearchBuilder<T>;
+  addQuery: (body: QueryState<M>, header?: MSearchHeader) => MSearchBuilder<M>;
   /** Build as NDJSON string format for Elasticsearch */
   build: () => string;
   /** Build as array of objects (header, body pairs) */
-  buildArray: () => Array<MSearchHeader | QueryState<T>>;
+  buildArray: () => Array<MSearchHeader | QueryState<M>>;
 };

@@ -1,61 +1,32 @@
-# Contributing to elasticlink
+# Development Guide
 
-Thank you for your interest in contributing to elasticlink! We welcome bug reports, feature requests, and pull requests.
+## Prerequisites
 
-## Code of Conduct
+- Node.js 20+
+- npm 10+
 
-Be respectful and constructive. We're building a welcoming community.
-
-## Getting Started
-
-### Prerequisites
-- Node.js 16+
-- npm 8+
-
-### Setup
+## Setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/misterrodger/elasticlink.git
 cd elasticlink
-
-# Install dependencies
 npm install
-
-# Build the project
 npm run build
-
-# Run tests
 npm test
 ```
 
 ## Development Workflow
 
-1. **Create a branch** for your feature or fix
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
+1. Create a branch for your feature or fix
+2. Make changes following the code style below
+3. Test your changes:
 
-2. **Make your changes** following the code style below
-
-3. **Test your changes**
    ```bash
    npm test           # Run all tests
-   npm test:watch    # Run tests in watch mode
    npm run lint       # Check code style
    npm run type-check # Verify TypeScript types
    ```
-
-4. **Commit with clear messages**
-   ```bash
-   git commit -m "feat: add new query type"
-   git commit -m "fix: resolve type safety issue"
-   ```
-
-5. **Push and open a PR**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
+4. Commit with clear messages using semantic format
 
 ## Code Style
 
@@ -69,23 +40,23 @@ npm test
 
 ```typescript
 // In types.ts
-export type QueryBuilder<T> = {
-  yourNewQuery: <K extends keyof T>(
+export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
+  yourNewQuery: <K extends string & keyof M>(
     field: K,
-    value: any,
+    value: unknown,
     options?: YourOptions
-  ) => QueryBuilder<T>;
+  ) => QueryBuilder<M>;
 };
 
 // In query-builder.ts
 yourNewQuery: (field, value, options) => {
   if (!options || Object.keys(options).length === 0) {
-    return createQueryBuilder<T>({
+    return createQueryBuilder<M>({
       ...state,
       query: { your_query: { [field]: value } }
     });
   }
-  return createQueryBuilder<T>({
+  return createQueryBuilder<M>({
     ...state,
     query: { your_query: { [field]: { query: value, ...options } } }
   });
@@ -94,7 +65,7 @@ yourNewQuery: (field, value, options) => {
 // In query-builder.test.ts
 describe('Your Query Type', () => {
   it('should build a simple query', () => {
-    const result = query<TestType>()
+    const result = query(testMappings)
       .yourNewQuery('field', 'value')
       .build();
 
@@ -119,11 +90,17 @@ describe('Your Query Type', () => {
 - Aim for high coverage (80%+)
 
 ```bash
-# Run tests with coverage report
-npm run test:coverage
+npm run test:coverage        # Run tests with coverage report
+npm test -- --updateSnapshot # Update snapshots if output is intentionally changed
+```
 
-# Update snapshots if output is intentionally changed
-npm test -- --updateSnapshot
+## Integration Tests
+
+Integration tests require a live Elasticsearch 9.x instance:
+
+```bash
+docker-compose up -d         # Start ES on localhost:9200
+npm run test:integration     # Run integration tests
 ```
 
 ## Commit Message Format
@@ -138,75 +115,8 @@ Use semantic commit messages:
 - `perf:` - Performance improvement
 - `chore:` - Build, dependencies, tooling
 
-Examples:
-```
-feat: add script query support
-fix: handle null values in range queries
-docs: update API examples
-test: add tests for nested aggregations
-```
-
-## Pull Request Process
-
-1. **Update tests** - Add tests for new features
-2. **Update docs** - Update README.md if API changes
-3. **Update CHANGELOG.md** - Add entry under Unreleased
-4. **Pass CI** - All tests, lint, and type checks must pass
-5. **Get review** - Wait for at least one approval
-6. **Merge** - We'll merge when approved
-
-### PR Title Format
-
-Use the same format as commit messages:
-- `feat: add support for X`
-- `fix: resolve issue with Y`
-- `docs: clarify Z`
-
-### PR Description Template
-
-```markdown
-## Description
-Brief description of what this PR does
-
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Breaking change
-- [ ] Documentation update
-
-## Testing
-How to test these changes
-
-## Checklist
-- [ ] Tests added/updated
-- [ ] Documentation updated
-- [ ] No breaking changes (or documented)
-- [ ] Code follows style guide
-- [ ] All tests pass
-```
-
-## Reporting Issues
-
-### Bug Reports
-
-Please include:
-- Version of elasticlink you're using
-- Node.js version
-- Steps to reproduce
-- Expected vs actual behavior
-- Code example
-
-### Feature Requests
-
-Please include:
-- Use case and motivation
-- Proposed API/syntax
-- Examples of how it would be used
-- Any alternative approaches you've considered
-
 ## Documentation
 
-We use:
 - **README.md** - Main documentation with examples
 - **CHANGELOG.md** - Version history
 - **JSDoc comments** - Inline API documentation
@@ -220,36 +130,16 @@ When adding features:
 
 ## Release Process
 
-The maintainers handle releases:
-
 1. Update version in package.json
 2. Update CHANGELOG.md with release notes
 3. Create git commit with release information
 4. Create git tag matching version
 5. Push to npm (manual or via GitHub Actions)
 
-### Versioning Strategy
+## Versioning
 
 elasticlink follows [Semantic Versioning](https://semver.org/):
 
-- **MAJOR** (`breaking:`): Breaking API changes
-- **MINOR** (`feat:`): New features (backward compatible)
-- **PATCH** (`fix:`, `docs:`, `refactor:`): Bug fixes, documentation, refactoring
-
-All commits should follow the conventional commit format:
-
-- `feat: add KNN query support`
-- `fix: resolve type inference issue`
-- `docs: update README examples`
-- `refactor: simplify query builder logic`
-- `test: add tests for nested aggregations`
-
-## Questions?
-
-- 📖 Read the [README.md](README.md)
-- 🐛 Check [existing issues](https://github.com/misterrodger/elasticlink/issues)
-- 💬 Start a [discussion](https://github.com/misterrodger/elasticlink/discussions)
-
-## Thank You!
-
-Thank you for contributing to elasticlink. Your efforts help make this project better for everyone! 🙏
+- **MAJOR**: Breaking API changes
+- **MINOR**: New features (backward compatible)
+- **PATCH**: Bug fixes, documentation, refactoring

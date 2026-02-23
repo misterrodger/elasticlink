@@ -1,13 +1,10 @@
 /**
- * Per-field-type option types for field helper functions.
- * Each type only includes options relevant to that specific field type,
- * providing type-safe autocomplete in helper functions.
+ * Per-field-type option types and narrowly-typed mapping return types.
+ * Each helper function returns a mapping with a literal `type` field,
+ * enabling compile-time field-type inference in the query builder.
  */
 
-import type {
-  FieldMapping,
-  FieldMappingInput
-} from './index-management.types.js';
+import type { FieldMapping } from './index-management.types.js';
 
 /** Options for text fields */
 export type TextFieldOptions = {
@@ -76,7 +73,7 @@ export type DenseVectorFieldOptions = {
 };
 
 /** Sub-fields for nested and object field types */
-export type NestedFields = Record<string, FieldMappingInput>;
+export type NestedFields = Record<string, FieldMapping>;
 
 /** Options for object fields (enabled flag only — sub-fields are the first argument) */
 export type ObjectFieldOptions = {
@@ -129,3 +126,39 @@ export type RangeFieldOptions = {
   doc_values?: boolean;
   coerce?: boolean;
 };
+
+// ---------------------------------------------------------------------------
+// Narrowly-typed mapping return types — each narrows `type` to a literal
+// ---------------------------------------------------------------------------
+
+export type TypedFieldMapping<T extends string> = Omit<FieldMapping, 'type'> & {
+  type: T;
+};
+
+export type TextFieldMapping = TypedFieldMapping<'text'>;
+export type KeywordFieldMapping = TypedFieldMapping<'keyword'>;
+export type LongFieldMapping = TypedFieldMapping<'long'>;
+export type IntegerFieldMapping = TypedFieldMapping<'integer'>;
+export type ShortFieldMapping = TypedFieldMapping<'short'>;
+export type ByteFieldMapping = TypedFieldMapping<'byte'>;
+export type DoubleFieldMapping = TypedFieldMapping<'double'>;
+export type FloatFieldMapping = TypedFieldMapping<'float'>;
+export type HalfFloatFieldMapping = TypedFieldMapping<'half_float'>;
+export type ScaledFloatFieldMapping = TypedFieldMapping<'scaled_float'>;
+export type DateFieldMapping = TypedFieldMapping<'date'>;
+export type BooleanFieldMapping = TypedFieldMapping<'boolean'>;
+export type BinaryFieldMapping = TypedFieldMapping<'binary'>;
+export type IpFieldMapping = TypedFieldMapping<'ip'>;
+export type DenseVectorFieldMapping = TypedFieldMapping<'dense_vector'>;
+export type GeoPointFieldMapping = TypedFieldMapping<'geo_point'>;
+export type GeoShapeFieldMapping = TypedFieldMapping<'geo_shape'>;
+export type CompletionFieldMapping = TypedFieldMapping<'completion'>;
+export type NestedFieldMapping = TypedFieldMapping<'nested'>;
+export type ObjectFieldMapping = TypedFieldMapping<'object'>;
+export type AliasFieldMapping = TypedFieldMapping<'alias'>;
+export type PercolatorFieldMapping = TypedFieldMapping<'percolator'>;
+export type IntegerRangeFieldMapping = TypedFieldMapping<'integer_range'>;
+export type FloatRangeFieldMapping = TypedFieldMapping<'float_range'>;
+export type LongRangeFieldMapping = TypedFieldMapping<'long_range'>;
+export type DoubleRangeFieldMapping = TypedFieldMapping<'double_range'>;
+export type DateRangeFieldMapping = TypedFieldMapping<'date_range'>;

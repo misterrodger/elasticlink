@@ -1,15 +1,28 @@
-export type Instrument = {
-  name: string;
-  asset_class: string;
-  sector: string;
-  tags: string[];
-  price: number;
-  yield_rate: number;
-  active: boolean;
-  listed_date: string;
-};
+import {
+  mappings,
+  text,
+  keyword,
+  integer,
+  float,
+  date,
+  boolean
+} from '../../../index.js';
+import type { Infer } from '../../../index.js';
 
-export const INSTRUMENTS: Instrument[] = [
+export const instrumentMappings = mappings({
+  name: text(),
+  asset_class: keyword(),
+  sector: keyword(),
+  tags: keyword(),
+  price: integer(),
+  yield_rate: float(),
+  active: boolean(),
+  listed_date: date()
+});
+
+export type Instrument = Infer<typeof instrumentMappings>;
+
+export const INSTRUMENTS = [
   {
     name: 'US Treasury 10-Year Note',
     asset_class: 'fixed-income',
@@ -52,8 +65,10 @@ export const INSTRUMENTS: Instrument[] = [
   }
 ];
 
-export type Trade = {
-  reference: string;
-  status: string;
-  priority: number;
-};
+export const tradeMappings = mappings({
+  reference: text(),
+  status: keyword(),
+  priority: integer()
+});
+
+export type Trade = Infer<typeof tradeMappings>;

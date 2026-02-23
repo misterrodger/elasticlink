@@ -4,6 +4,36 @@ All notable changes to elasticlink will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
+## [0.3.0-beta] - 2026-02-25
+
+### Added
+
+- **`mappings()` builder** — define Elasticsearch field types using helper functions (`text()`, `keyword()`, `float()`, etc.) and get compile-time field-type safety across the entire builder chain
+- **`Infer<S>` utility type** — derive TypeScript document types from a `MappingsSchema`, eliminating the need to maintain separate type definitions
+- **Field-type-aware query constraints** — `match()` only accepts text fields, `term()` only keyword fields, `range()` only numeric/date fields, etc. Invalid field-type combinations are compile-time errors
+- **Field group filter types**: `TextFields<M>`, `KeywordFields<M>`, `NumericFields<M>`, `DateFields<M>`, `BooleanFields<M>`, `GeoPointFields<M>`, `VectorFields<M>` — extract field subsets by Elasticsearch type
+- **Field helper functions**: `text()`, `keyword()`, `long()`, `integer()`, `short()`, `byte()`, `double()`, `float()`, `halfFloat()`, `scaledFloat()`, `date()`, `boolean()`, `binary()`, `ip()`, `denseVector()`, `geoPoint()`, `geoShape()`, `completion()`, `nested()`, `object()`, `alias()`, `percolator()`, `integerRange()`, `floatRange()`, `longRange()`, `doubleRange()`, `dateRange()` — typed field definition helpers for use with `mappings()`
+
+### Changed
+
+- `query()` now accepts a runtime `MappingsSchema` argument: `query(myMappings)` instead of `query<MyType>()`
+- `aggregations()` now accepts a runtime `MappingsSchema` argument: `aggregations(myMappings)` instead of `aggregations<MyType>()`
+- `suggest()` now accepts a runtime `MappingsSchema` argument: `suggest(myMappings)` instead of `suggest<MyType>()`
+- `msearch()` now accepts a runtime `MappingsSchema` argument: `msearch(myMappings)` instead of `msearch<MyType>()`
+- `bulk()` now accepts a runtime `MappingsSchema` argument: `bulk(myMappings)` instead of `bulk<MyType>()`
+- `indexBuilder()` no longer takes a type parameter; `.mappings()` accepts either a `MappingsSchema` or inline field definitions
+
+### Breaking Changes
+
+- **All builder entry points now require a runtime mappings argument**:
+  - `query<T>()` → `query(mappingsSchema)`
+  - `aggregations<T>()` → `aggregations(mappingsSchema)`
+  - `suggest<T>()` → `suggest(mappingsSchema)`
+  - `msearch<T>()` → `msearch(mappingsSchema)`
+  - `bulk<T>()` → `bulk(mappingsSchema)`
+- `indexBuilder<T>()` → `indexBuilder()` — type parameter removed, use `.mappings()` to pass schema
+- Field helper shorthand strings (e.g. `'text'`, `'keyword'`) removed — use typed helper functions (`text()`, `keyword()`, etc.)
+
 ## [0.2.0-beta] - 2026-02-09
 
 ### Added

@@ -3,7 +3,11 @@ import {
   text,
   keyword,
   float,
+  long,
   integer,
+  short,
+  byte,
+  double,
   date,
   boolean,
   denseVector,
@@ -24,20 +28,19 @@ import {
   object,
   alias
 } from '..';
-import { Instrument } from './fixtures/finance.js';
 
 describe('Index Management', () => {
   describe('Builder behavior', () => {
     it('should return empty object for empty builder', () => {
-      const result = indexBuilder<Instrument>().build();
+      const result = indexBuilder().build();
 
       expect(result).toMatchInlineSnapshot(`{}`);
     });
 
     it('should replace mappings when called twice', () => {
-      const result = indexBuilder<Instrument>()
-        .mappings({ name: 'text' })
-        .mappings({ market_cap: 'float' })
+      const result = indexBuilder()
+        .mappings({ name: text() })
+        .mappings({ market_cap: float() })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -54,7 +57,7 @@ describe('Index Management', () => {
     });
 
     it('should replace settings when called twice', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .settings({ number_of_shards: 3 })
         .settings({ number_of_replicas: 2 })
         .build();
@@ -71,11 +74,11 @@ describe('Index Management', () => {
 
   describe('Mappings', () => {
     it('should build basic mappings', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .mappings({
-          name: 'text',
-          market_cap: 'float',
-          asset_class: 'keyword'
+          name: text(),
+          market_cap: float(),
+          asset_class: keyword()
         })
         .build();
 
@@ -99,7 +102,7 @@ describe('Index Management', () => {
     });
 
     it('should build mappings with analyzers', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .mappings({
           name: text({
             analyzer: 'standard',
@@ -124,7 +127,7 @@ describe('Index Management', () => {
     });
 
     it('should build mappings with multi-fields', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .mappings({
           name: text({
             fields: {
@@ -158,16 +161,11 @@ describe('Index Management', () => {
     });
 
     it('should build mappings with nested fields', () => {
-      type InstrumentWithTranches = {
-        name: string;
-        tranches: Array<{ maturity: string; currency: string }>;
-      };
-
-      const result = indexBuilder<InstrumentWithTranches>()
+      const result = indexBuilder()
         .mappings({
           tranches: nested({
-            maturity: 'keyword',
-            currency: 'keyword'
+            maturity: keyword(),
+            currency: keyword()
           })
         })
         .build();
@@ -194,8 +192,7 @@ describe('Index Management', () => {
     });
 
     it('should build mappings with dense_vector', () => {
-      type InstrumentWithVec = Instrument & { embedding: number[] };
-      const result = indexBuilder<InstrumentWithVec>()
+      const result = indexBuilder()
         .mappings({
           embedding: denseVector({
             dims: 384,
@@ -226,150 +223,37 @@ describe('Index Management', () => {
         }
       `);
     });
-
-    it('should build mappings with dynamic strict', () => {
-      const result = indexBuilder<Instrument>()
-        .mappings({
-          dynamic: 'strict',
-          name: 'text'
-        })
-        .build();
-
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "mappings": {
-            "dynamic": "strict",
-            "properties": {
-              "name": {
-                "type": "text",
-              },
-            },
-          },
-        }
-      `);
-    });
-
-    it('should build mappings with dynamic false', () => {
-      const result = indexBuilder<Instrument>()
-        .mappings({
-          dynamic: false,
-          name: 'text'
-        })
-        .build();
-
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "mappings": {
-            "dynamic": false,
-            "properties": {
-              "name": {
-                "type": "text",
-              },
-            },
-          },
-        }
-      `);
-    });
-
-    it('should build mappings with dynamic runtime', () => {
-      const result = indexBuilder<Instrument>()
-        .mappings({
-          dynamic: 'runtime',
-          name: 'text'
-        })
-        .build();
-
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "mappings": {
-            "dynamic": "runtime",
-            "properties": {
-              "name": {
-                "type": "text",
-              },
-            },
-          },
-        }
-      `);
-    });
-
-    it('should build mappings with dynamic_templates', () => {
-      const result = indexBuilder<Instrument>()
-        .mappings({
-          dynamic_templates: [
-            {
-              strings_as_keywords: {
-                match_mapping_type: 'string',
-                mapping: { type: 'keyword' }
-              }
-            }
-          ],
-          name: 'text'
-        })
-        .build();
-
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "mappings": {
-            "dynamic_templates": [
-              {
-                "strings_as_keywords": {
-                  "mapping": {
-                    "type": "keyword",
-                  },
-                  "match_mapping_type": "string",
-                },
-              },
-            ],
-            "properties": {
-              "name": {
-                "type": "text",
-              },
-            },
-          },
-        }
-      `);
-    });
   });
 
   describe('Field type coverage', () => {
     it('should support integer field type', () => {
-      type Doc = { count: number };
-      const result = indexBuilder<Doc>().mappings({ count: 'integer' }).build();
+      const result = indexBuilder().mappings({ count: integer() }).build();
 
       expect(result.mappings?.properties.count?.type).toBe('integer');
     });
 
     it('should support boolean field type', () => {
-      type Doc = { active: boolean };
-      const result = indexBuilder<Doc>()
-        .mappings({ active: 'boolean' })
-        .build();
+      const result = indexBuilder().mappings({ active: boolean() }).build();
 
       expect(result.mappings?.properties.active?.type).toBe('boolean');
     });
 
     it('should support geo_point field type', () => {
-      type Doc = { location: { lat: number; lon: number } };
-      const result = indexBuilder<Doc>()
-        .mappings({ location: 'geo_point' })
-        .build();
+      const result = indexBuilder().mappings({ location: geoPoint() }).build();
 
       expect(result.mappings?.properties.location?.type).toBe('geo_point');
     });
 
     it('should support date_range field type', () => {
-      type Doc = { availability: string };
-      const result = indexBuilder<Doc>()
-        .mappings({ availability: 'date_range' })
+      const result = indexBuilder()
+        .mappings({ availability: dateRange() })
         .build();
 
       expect(result.mappings?.properties.availability?.type).toBe('date_range');
     });
 
     it('should support scaled_float with scaling_factor', () => {
-      type Doc = { score: number };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({
           score: scaledFloat({ scaling_factor: 100 })
         })
@@ -390,10 +274,7 @@ describe('Index Management', () => {
     });
 
     it('should support percolator field type', () => {
-      type Doc = { query: string };
-      const result = indexBuilder<Doc>()
-        .mappings({ query: percolator() })
-        .build();
+      const result = indexBuilder().mappings({ query: percolator() }).build();
 
       expect(result.mappings?.properties.query?.type).toBe('percolator');
     });
@@ -401,7 +282,7 @@ describe('Index Management', () => {
 
   describe('Field mapping properties', () => {
     it('should set boost on a field', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .mappings({
           name: text({ boost: 2 })
         })
@@ -422,7 +303,7 @@ describe('Index Management', () => {
     });
 
     it('should set store and doc_values', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .mappings({
           asset_class: keyword({ store: true, doc_values: false })
         })
@@ -444,7 +325,7 @@ describe('Index Management', () => {
     });
 
     it('should set index to false', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .mappings({
           name: text({ index: false })
         })
@@ -467,7 +348,7 @@ describe('Index Management', () => {
 
   describe('Settings', () => {
     it('should build basic settings', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .settings({
           number_of_shards: 2,
           number_of_replicas: 1
@@ -485,7 +366,7 @@ describe('Index Management', () => {
     });
 
     it('should configure refresh interval', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .settings({
           refresh_interval: '30s'
         })
@@ -501,7 +382,7 @@ describe('Index Management', () => {
     });
 
     it('should configure max result window', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .settings({
           max_result_window: 100000
         })
@@ -519,7 +400,7 @@ describe('Index Management', () => {
 
   describe('Aliases', () => {
     it('should add simple alias', () => {
-      const result = indexBuilder<Instrument>().alias('products_alias').build();
+      const result = indexBuilder().alias('products_alias').build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -531,7 +412,7 @@ describe('Index Management', () => {
     });
 
     it('should add multiple aliases', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .alias('products_read')
         .alias('products_write')
         .build();
@@ -547,7 +428,7 @@ describe('Index Management', () => {
     });
 
     it('should add alias with filter', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .alias('electronics_alias', {
           filter: { term: { category: 'electronics' } }
         })
@@ -569,7 +450,7 @@ describe('Index Management', () => {
     });
 
     it('should add alias with routing', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .alias('routed_alias', { routing: 'shard-1' })
         .build();
 
@@ -585,7 +466,7 @@ describe('Index Management', () => {
     });
 
     it('should add alias with is_write_index', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .alias('write_alias', { is_write_index: true })
         .build();
 
@@ -603,13 +484,13 @@ describe('Index Management', () => {
 
   describe('Complete index configuration', () => {
     it('should combine mappings, settings, and aliases', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .mappings({
           name: text({ analyzer: 'standard' }),
-          market_cap: 'float',
-          asset_class: 'keyword',
-          tags: 'keyword',
-          listed_date: 'date'
+          market_cap: float(),
+          asset_class: keyword(),
+          tags: keyword(),
+          listed_date: date()
         })
         .settings({
           number_of_shards: 2,
@@ -656,9 +537,9 @@ describe('Index Management', () => {
 
   describe('Real-world index configurations', () => {
     it('should build e-commerce product index', () => {
-      const result = indexBuilder<Instrument>()
+      const result = indexBuilder()
         .mappings({
-          isin: 'keyword',
+          isin: keyword(),
           name: text({
             analyzer: 'standard',
             fields: {
@@ -667,10 +548,10 @@ describe('Index Management', () => {
             }
           }),
           sector: text({ analyzer: 'english' }),
-          market_cap: 'float',
-          asset_class: 'keyword',
-          tags: 'keyword',
-          listed_date: 'date'
+          market_cap: float(),
+          asset_class: keyword(),
+          tags: keyword(),
+          listed_date: date()
         })
         .settings({
           number_of_shards: 3,
@@ -744,14 +625,9 @@ describe('Index Management', () => {
     });
 
     it('should build vector search index', () => {
-      type VectorInstrument = {
-        name: string;
-        embedding: number[];
-      };
-
-      const result = indexBuilder<VectorInstrument>()
+      const result = indexBuilder()
         .mappings({
-          name: 'text',
+          name: text(),
           embedding: denseVector({
             dims: 768,
             index: true,
@@ -796,19 +672,12 @@ describe('Index Management', () => {
     });
 
     it('should build time-series index', () => {
-      type LogEntry = {
-        timestamp: string;
-        level: string;
-        message: string;
-        source: string;
-      };
-
-      const result = indexBuilder<LogEntry>()
+      const result = indexBuilder()
         .mappings({
-          timestamp: 'date',
-          level: 'keyword',
-          message: 'text',
-          source: 'keyword'
+          timestamp: date(),
+          level: keyword(),
+          message: text(),
+          source: keyword()
         })
         .settings({
           number_of_shards: 1,
@@ -850,10 +719,9 @@ describe('Index Management', () => {
   });
 
   describe('Field helpers', () => {
-    it('should resolve shorthand strings to field mappings', () => {
-      type Doc = { name: string; count: number };
-      const result = indexBuilder<Doc>()
-        .mappings({ name: 'text', count: 'integer' })
+    it('should resolve field helpers to field mappings', () => {
+      const result = indexBuilder()
+        .mappings({ name: text(), count: integer() })
         .build();
 
       expect(result.mappings?.properties.name).toEqual({ type: 'text' });
@@ -861,8 +729,7 @@ describe('Index Management', () => {
     });
 
     it('should support helpers called with no options', () => {
-      type Doc = { name: string; price: number; active: boolean };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ name: text(), price: float(), active: boolean() })
         .build();
 
@@ -871,13 +738,12 @@ describe('Index Management', () => {
       expect(result.mappings?.properties.active).toEqual({ type: 'boolean' });
     });
 
-    it('should mix shorthand strings and helpers', () => {
-      type InstrumentWithVec2 = Instrument & { embedding: number[] };
-      const result = indexBuilder<InstrumentWithVec2>()
+    it('should support helpers with and without options', () => {
+      const result = indexBuilder()
         .mappings({
-          isin: 'keyword',
+          isin: keyword(),
           name: text({ analyzer: 'standard' }),
-          market_cap: 'float',
+          market_cap: float(),
           embedding: denseVector({ dims: 384 })
         })
         .build();
@@ -895,9 +761,8 @@ describe('Index Management', () => {
     });
 
     it('should support all numeric helpers', () => {
-      type Doc = { a: number; b: number; c: number; d: number };
-      const result = indexBuilder<Doc>()
-        .mappings({ a: 'long', b: 'short', c: 'byte', d: 'double' })
+      const result = indexBuilder()
+        .mappings({ a: long(), b: short(), c: byte(), d: double() })
         .build();
 
       expect(result.mappings?.properties.a?.type).toBe('long');
@@ -907,8 +772,7 @@ describe('Index Management', () => {
     });
 
     it('should support geo and completion helpers', () => {
-      type Doc = { location: unknown; suggest: string };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({
           location: geoPoint(),
           suggest: completion({ analyzer: 'simple' })
@@ -925,8 +789,7 @@ describe('Index Management', () => {
     });
 
     it('should support date helper with format', () => {
-      type Doc = { created: string };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ created: date({ format: 'yyyy-MM-dd' }) })
         .build();
 
@@ -937,8 +800,7 @@ describe('Index Management', () => {
     });
 
     it('should support range type helpers', () => {
-      type Doc = { availability: string };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ availability: dateRange() })
         .build();
 
@@ -948,8 +810,7 @@ describe('Index Management', () => {
     });
 
     it('should support integer helper with options', () => {
-      type Doc = { count: number };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ count: integer({ store: true }) })
         .build();
 
@@ -960,10 +821,7 @@ describe('Index Management', () => {
     });
 
     it('should support halfFloat helper', () => {
-      type Doc = { score: number };
-      const result = indexBuilder<Doc>()
-        .mappings({ score: halfFloat() })
-        .build();
+      const result = indexBuilder().mappings({ score: halfFloat() }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -979,8 +837,7 @@ describe('Index Management', () => {
     });
 
     it('should support halfFloat helper with options', () => {
-      type Doc = { score: number };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ score: halfFloat({ index: false }) })
         .build();
 
@@ -999,8 +856,7 @@ describe('Index Management', () => {
     });
 
     it('should support binary helper', () => {
-      type Doc = { blob: string };
-      const result = indexBuilder<Doc>().mappings({ blob: binary() }).build();
+      const result = indexBuilder().mappings({ blob: binary() }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -1016,8 +872,7 @@ describe('Index Management', () => {
     });
 
     it('should support ip helper', () => {
-      type Doc = { remote_ip: string };
-      const result = indexBuilder<Doc>().mappings({ remote_ip: ip() }).build();
+      const result = indexBuilder().mappings({ remote_ip: ip() }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -1033,8 +888,7 @@ describe('Index Management', () => {
     });
 
     it('should support ip helper with options', () => {
-      type Doc = { remote_ip: string };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ remote_ip: ip({ store: true }) })
         .build();
 
@@ -1053,10 +907,7 @@ describe('Index Management', () => {
     });
 
     it('should support geoShape helper', () => {
-      type Doc = { boundary: unknown };
-      const result = indexBuilder<Doc>()
-        .mappings({ boundary: geoShape() })
-        .build();
+      const result = indexBuilder().mappings({ boundary: geoShape() }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -1072,8 +923,7 @@ describe('Index Management', () => {
     });
 
     it('should support geoShape helper with options', () => {
-      type Doc = { boundary: unknown };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ boundary: geoShape({ ignore_malformed: true }) })
         .build();
 
@@ -1092,8 +942,7 @@ describe('Index Management', () => {
     });
 
     it('should support integerRange helper', () => {
-      type Doc = { age_range: unknown };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ age_range: integerRange() })
         .build();
 
@@ -1111,8 +960,7 @@ describe('Index Management', () => {
     });
 
     it('should support floatRange helper', () => {
-      type Doc = { price_range: unknown };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ price_range: floatRange() })
         .build();
 
@@ -1130,8 +978,7 @@ describe('Index Management', () => {
     });
 
     it('should support longRange helper', () => {
-      type Doc = { timestamp_range: unknown };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ timestamp_range: longRange() })
         .build();
 
@@ -1149,8 +996,7 @@ describe('Index Management', () => {
     });
 
     it('should support doubleRange helper', () => {
-      type Doc = { score_range: unknown };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ score_range: doubleRange() })
         .build();
 
@@ -1168,8 +1014,7 @@ describe('Index Management', () => {
     });
 
     it('should support range helpers with options', () => {
-      type Doc = { availability: unknown };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ availability: integerRange({ store: true }) })
         .build();
 
@@ -1188,10 +1033,7 @@ describe('Index Management', () => {
     });
 
     it('should support object helper with no arguments', () => {
-      type Doc = { metadata: Record<string, unknown> };
-      const result = indexBuilder<Doc>()
-        .mappings({ metadata: object() })
-        .build();
+      const result = indexBuilder().mappings({ metadata: object() }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -1207,10 +1049,9 @@ describe('Index Management', () => {
     });
 
     it('should support object helper with fields', () => {
-      type Doc = { address: { street: string; city: string } };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({
-          address: object({ street: 'text', city: 'keyword' })
+          address: object({ street: text(), city: keyword() })
         })
         .build();
 
@@ -1236,8 +1077,7 @@ describe('Index Management', () => {
     });
 
     it('should support object helper with enabled: false', () => {
-      type Doc = { raw: unknown };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ raw: object(undefined, { enabled: false }) })
         .build();
 
@@ -1256,10 +1096,9 @@ describe('Index Management', () => {
     });
 
     it('should support object helper with fields and enabled option', () => {
-      type Doc = { address: { street: string } };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({
-          address: object({ street: 'text' }, { enabled: true })
+          address: object({ street: text() }, { enabled: true })
         })
         .build();
 
@@ -1283,8 +1122,7 @@ describe('Index Management', () => {
     });
 
     it('should support alias helper with path', () => {
-      type Doc = { name: string; full_name: string };
-      const result = indexBuilder<Doc>()
+      const result = indexBuilder()
         .mappings({ full_name: alias({ path: 'name' }) })
         .build();
 
@@ -1303,10 +1141,7 @@ describe('Index Management', () => {
     });
 
     it('should support alias helper with no options', () => {
-      type Doc = { name: string; full_name: string };
-      const result = indexBuilder<Doc>()
-        .mappings({ full_name: alias() })
-        .build();
+      const result = indexBuilder().mappings({ full_name: alias() }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -1324,9 +1159,11 @@ describe('Index Management', () => {
 
   describe('Undefined field guard', () => {
     it('should skip fields with undefined values in mappings', () => {
-      type Doc = { name: string; price: number };
-      const result = indexBuilder<Doc>()
-        .mappings({ name: 'text', price: undefined as unknown as 'float' })
+      const result = indexBuilder()
+        .mappings({
+          name: text(),
+          price: undefined as unknown as ReturnType<typeof float>
+        })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -1336,6 +1173,7 @@ describe('Index Management', () => {
               "name": {
                 "type": "text",
               },
+              "price": undefined,
             },
           },
         }

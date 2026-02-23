@@ -1,4 +1,4 @@
-import { query, msearch, indexBuilder, keyword, integer } from '../../index.js';
+import { query, msearch, indexBuilder } from '../../index.js';
 import {
   createIndex,
   deleteIndex,
@@ -6,22 +6,13 @@ import {
   refreshIndex,
   msearchRequest
 } from './helpers.js';
-import { Listing, LISTINGS } from './fixtures/real-estate.js';
+import { listingMappings, LISTINGS } from './fixtures/real-estate.js';
 
 const INDEX = 'int-msearch';
 
 describe('MSearchBuilder', () => {
   beforeAll(async () => {
-    await createIndex(
-      INDEX,
-      indexBuilder<Listing>()
-        .mappings({
-          address: 'text',
-          property_class: keyword(),
-          list_price: integer()
-        })
-        .build()
-    );
+    await createIndex(INDEX, indexBuilder().mappings(listingMappings).build());
     for (const doc of LISTINGS) await indexDoc(INDEX, doc);
     await refreshIndex(INDEX);
   });
@@ -32,10 +23,12 @@ describe('MSearchBuilder', () => {
     it('executes two independent queries in one request', async () => {
       const result = await msearchRequest(
         INDEX,
-        msearch<Listing>()
-          .addQuery(query<Listing>().term('property_class', 'condo').build())
+        msearch(listingMappings)
           .addQuery(
-            query<Listing>().term('property_class', 'townhouse').build()
+            query(listingMappings).term('property_class', 'condo').build()
+          )
+          .addQuery(
+            query(listingMappings).term('property_class', 'townhouse').build()
           )
           .build()
       );
@@ -47,12 +40,16 @@ describe('MSearchBuilder', () => {
     it('returns independent results per query', async () => {
       const result = await msearchRequest(
         INDEX,
-        msearch<Listing>()
+        msearch(listingMappings)
           .addQuery(
-            query<Listing>().range('list_price', { lte: 2_000_000 }).build()
+            query(listingMappings)
+              .range('list_price', { lte: 2_000_000 })
+              .build()
           )
           .addQuery(
-            query<Listing>().range('list_price', { gte: 4_000_000 }).build()
+            query(listingMappings)
+              .range('list_price', { gte: 4_000_000 })
+              .build()
           )
           .build()
       );
@@ -66,16 +63,16 @@ describe('MSearchBuilder', () => {
     it('each search can carry its own aggregation', async () => {
       const result = await msearchRequest(
         INDEX,
-        msearch<Listing>()
+        msearch(listingMappings)
           .addQuery(
-            query<Listing>()
+            query(listingMappings)
               .term('property_class', 'condo')
               .aggs((agg) => agg.avg('avg_price', 'list_price'))
               .size(0)
               .build()
           )
           .addQuery(
-            query<Listing>()
+            query(listingMappings)
               .term('property_class', 'townhouse')
               .aggs((agg) => agg.avg('avg_price', 'list_price'))
               .size(0)

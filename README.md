@@ -13,7 +13,7 @@ elasticlink simplifies building Elasticsearch queries and index management in Ty
 
 ## Features
 
-- **Type-Safe**: Full TypeScript generics for field autocomplete and type checking
+- **Mapping-Aware Type Safety**: Define ES field types once via `mappings()`, get compile-time constraints — `match()` only accepts text fields, `term()` only keyword fields, etc.
 - **Fluent API**: Chainable query builder with intuitive method names
 - **Zero Runtime Overhead**: Compiles directly to Elasticsearch DSL objects
 - **Well-Tested**: Comprehensive unit and integration test suite against live Elasticsearch
@@ -22,12 +22,13 @@ elasticlink simplifies building Elasticsearch queries and index management in Ty
 
 ## Compatibility
 
-| elasticlink | Node.js | Elasticsearch |
-|-------------|---------|---------------|
-| 0.2.0-beta  | 20, 22  | 9.x (≥9.0.0)  |
-| 0.1.0-beta  | 20, 22  | 9.x (≥9.0.0)  |
+| elasticlink | Node.js     | Elasticsearch |
+|-------------|-------------|---------------|
+| 0.3.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
+| 0.2.0-beta  | 20, 22      | 9.x (≥9.0.0)  |
+| 0.1.0-beta  | 20, 22      | 9.x (≥9.0.0)  |
 
-Tested against the versions listed. Peer dependency is `@elastic/elasticsearch >=9.0.0`. Open an issue if you need support for a different version.
+Tested against the versions listed. Peer dependency is `@elastic/elasticsearch >=9.0.0`.
 
 ## Installation
 
@@ -42,18 +43,21 @@ Requires Node.js 20+ and `@elastic/elasticsearch` 9.x as a peer dependency.
 ## Quick Start
 
 ```typescript
-import { query } from 'elasticlink';
+import { query, mappings, text, keyword, float, type Infer } from 'elasticlink';
 
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  category: string;
-};
+// Define field types once — this is the single source of truth
+const productMappings = mappings({
+  name: text(),
+  price: float(),
+  category: keyword(),
+});
 
-// Build a type-safe query
-const q = query<Product>()
-  .match('name', 'laptop', { operator: 'and', boost: 2 })
+// Derive a TS type from mappings (optional, for use elsewhere)
+type Product = Infer<typeof productMappings>;
+
+// Build a type-safe query — field constraints are enforced at compile time
+const q = query(productMappings)
+  .match('name', 'laptop')    // ✅ 'name' is a text field
   .range('price', { gte: 500, lte: 2000 })
   .from(0)
   .size(20)
@@ -112,12 +116,12 @@ const response = await client.search({ index: 'products', ...q });
 ### Boolean Logic
 
 ```typescript
-query<Product>()
+query(productMappings)
   .bool()
   .must(q => q.match('name', 'laptop'))      // AND
   .filter(q => q.range('price', { gte: 500 }))
-  .should(q => q.term('featured', true))     // OR
-  .mustNot(q => q.term('discontinued', true)) // NOT
+  .should(q => q.term('category', 'featured'))  // OR
+  .mustNot(q => q.term('category', 'discontinued')) // NOT
   .minimumShouldMatch(1)
   .build();
 ```
@@ -130,7 +134,7 @@ Build queries dynamically based on runtime values:
 const searchTerm = getUserInput();
 const minPrice = getMinPrice();
 
-query<Product>()
+query(productMappings)
   .bool()
   .must(q =>
     q.when(searchTerm, q => q.match('name', searchTerm)) || q.matchAll()
@@ -144,7 +148,7 @@ query<Product>()
 ### Query Parameters
 
 ```typescript
-query<Product>()
+query(productMappings)
   .match('name', 'laptop')
   .from(0)                          // Pagination offset
   .size(20)                         // Results per page
@@ -176,9 +180,9 @@ Aggregations can be combined with queries or used standalone:
 ```typescript
 import { query, aggregations } from 'elasticlink';
 
-// Combined query + aggregations
-const result = query<Product>()
-  .match('category', 'electronics')
+// Combined query + aggregations (inline aggs auto-thread mappings)
+const result = query(productMappings)
+  .term('category', 'electronics')
   .aggs(agg =>
     agg
       .terms('by_category', 'category', { size: 10 })
@@ -187,8 +191,8 @@ const result = query<Product>()
   .size(20)
   .build();
 
-// Standalone aggregations (no query) - use query(false)
-const aggsOnly = query<Product>(false)
+// Standalone aggregations (no query) — use query(mappings, false)
+const aggsOnly = query(productMappings, false)
   .aggs(agg =>
     agg
       .terms('by_category', 'category')
@@ -200,12 +204,9 @@ const aggsOnly = query<Product>(false)
   .build();
 
 // Standalone aggregation builder (for manual composition)
-const standaloneAgg = aggregations<Product>()
-  .dateHistogram('sales_timeline', 'created_at', { interval: 'day' })
-  .subAgg(sub =>
-    sub.sum('daily_revenue', 'price')
-       .cardinality('unique_categories', 'category')
-  )
+const standaloneAgg = aggregations(productMappings)
+  .avg('avg_price', 'price')
+  .terms('by_category', 'category', { size: 10 })
   .build();
 ```
 
@@ -216,21 +217,20 @@ const standaloneAgg = aggregations<Product>()
 KNN (k-nearest neighbors) queries enable semantic search using vector embeddings from machine learning models.
 
 ```typescript
-import { query } from 'elasticlink';
+import { query, mappings, text, keyword, float, denseVector } from 'elasticlink';
 
-type Product = {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  embedding: number[]; // Vector field
-};
+const productWithEmbeddingMappings = mappings({
+  name: text(),
+  description: text(),
+  price: float(),
+  category: keyword(),
+  embedding: denseVector({ dims: 384 }),
+});
 
 // Basic semantic search
 const searchEmbedding = [0.23, 0.45, 0.67, 0.12, 0.89]; // From your ML model
 
-const result = query<Product>()
+const result = query(productWithEmbeddingMappings)
   .knn('embedding', searchEmbedding, {
     k: 10,              // Return top 10 nearest neighbors
     num_candidates: 100 // Consider 100 candidates per shard
@@ -239,7 +239,7 @@ const result = query<Product>()
   .build();
 
 // Semantic search with filters
-const filtered = query<Product>()
+const filtered = query(productWithEmbeddingMappings)
   .knn('embedding', searchEmbedding, {
     k: 20,
     num_candidates: 200,
@@ -256,7 +256,7 @@ const filtered = query<Product>()
   .build();
 
 // Hybrid search with aggregations
-const hybridSearch = query<Product>()
+const hybridSearch = query(productWithEmbeddingMappings)
   .knn('embedding', searchEmbedding, {
     k: 100,
     num_candidates: 1000,
@@ -304,18 +304,17 @@ const mapping: DenseVectorOptions = {
 **Note:** Scripts must be enabled in Elasticsearch configuration. Use with caution as they can impact performance.
 
 ```typescript
-import { query } from 'elasticlink';
+import { query, mappings, text, keyword, float, long } from 'elasticlink';
 
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  popularity: number;
-  quality_score: number;
-};
+const scoredProductMappings = mappings({
+  name: text(),
+  price: float(),
+  popularity: long(),
+  quality_score: float(),
+});
 
 // Script-based filtering
-const filtered = query<Product>()
+const filtered = query(scoredProductMappings)
   .bool()
   .must((q) => q.match('name', 'laptop'))
   .filter((q) =>
@@ -327,7 +326,7 @@ const filtered = query<Product>()
   .build();
 
 // Custom scoring with script_score
-const customScored = query<Product>()
+const customScored = query(scoredProductMappings)
   .scriptScore(
     (q) => q.match('name', 'smartphone'),
     {
@@ -349,14 +348,14 @@ const customScored = query<Product>()
 Percolate queries enable reverse search - match documents against stored queries. Perfect for alerting, content classification, and saved searches.
 
 ```typescript
-type AlertRule = {
-  query: any;
-  name: string;
-  severity: string;
-};
+const alertRuleMappings = mappings({
+  query: percolator(),
+  name: keyword(),
+  severity: keyword(),
+});
 
 // Match document against stored queries
-const alerts = query<AlertRule>()
+const alerts = query(alertRuleMappings)
   .percolate({
     field: 'query',
     document: {
@@ -381,16 +380,16 @@ const alerts = query<AlertRule>()
 Elasticsearch Suggesters provide spell-checking, phrase correction, and autocomplete functionality. Perfect for search-as-you-type experiences and fixing user typos.
 
 ```typescript
-import { query, suggest } from 'elasticlink';
+import { query, suggest, mappings, text, keyword, completion } from 'elasticlink';
 
-type Product = {
-  name: string;
-  description: string;
-  suggest_field: string; // Must be type: completion
-};
+const searchableMappings = mappings({
+  name: text(),
+  description: text(),
+  suggest_field: completion(), // Must be type: completion
+});
 
 // Term suggester - Fix typos in individual terms
-const termSuggestions = suggest<Product>()
+const termSuggestions = suggest(searchableMappings)
   .term('name-suggestions', 'laptpo', {
     field: 'name',
     size: 5,
@@ -401,7 +400,7 @@ const termSuggestions = suggest<Product>()
   .build();
 
 // Completion suggester - Fast autocomplete
-const autocomplete = suggest<Product>()
+const autocomplete = suggest(searchableMappings)
   .completion('autocomplete', 'lap', {
     field: 'suggest_field',
     size: 10,
@@ -416,7 +415,7 @@ const autocomplete = suggest<Product>()
   .build();
 
 // Combine with query - Search with autocomplete
-const searchWithSuggestions = query<Product>()
+const searchWithSuggestions = query(searchableMappings)
   .match('name', 'laptpo')
   .suggest((s) =>
     s.term('spelling-correction', 'laptpo', {
@@ -442,24 +441,24 @@ Batch multiple search requests in a single API call using the NDJSON format.
 ```typescript
 import { query, msearch } from 'elasticlink';
 
-const laptopQuery = query<Product>()
+const laptopQuery = query(productMappings)
   .match('name', 'laptop')
   .range('price', { gte: 500, lte: 2000 })
   .build();
 
-const phoneQuery = query<Product>()
+const phoneQuery = query(productMappings)
   .match('name', 'smartphone')
   .range('price', { gte: 300, lte: 1000 })
   .build();
 
 // Build as NDJSON string for Elasticsearch API
-const ndjson = msearch<Product>()
+const ndjson = msearch(productMappings)
   .addQuery(laptopQuery, { index: 'products', preference: '_local' })
   .addQuery(phoneQuery, { index: 'products', preference: '_local' })
   .build();
 
 // Or build as array of objects
-const array = msearch<Product>()
+const array = msearch(productMappings)
   .addQuery(laptopQuery, { index: 'products' })
   .addQuery(phoneQuery, { index: 'products' })
   .buildArray();
@@ -487,16 +486,16 @@ const array = msearch<Product>()
 Batch create, index, update, and delete operations efficiently.
 
 ```typescript
-import { bulk } from 'elasticlink';
+import { bulk, mappings, keyword, text, float } from 'elasticlink';
 
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  category: string;
-};
+const productMappings = mappings({
+  id: keyword(),
+  name: text(),
+  price: float(),
+  category: keyword(),
+});
 
-const bulkOp = bulk<Product>()
+const bulkOp = bulk(productMappings)
   // Index (create or replace)
   .index(
     { id: '1', name: 'Laptop Pro', price: 1299, category: 'electronics' },
@@ -546,24 +545,18 @@ const bulkOp = bulk<Product>()
 Configure index mappings, settings, and aliases declaratively.
 
 ```typescript
-import { indexBuilder, keyword, integer, float, date, text } from 'elasticlink';
+import { indexBuilder, mappings, keyword, integer, float, date, text } from 'elasticlink';
 
-type Matter = {
-  title: string;
-  practice_area: string;
-  billing_rate: number;
-  risk_score: number;
-  opened_at: string;
-};
+const matterMappings = mappings({
+  title: text({ analyzer: 'english' }),
+  practice_area: keyword(),
+  billing_rate: integer(),
+  risk_score: float(),
+  opened_at: date(),
+});
 
-const indexConfig = indexBuilder<Matter>()
-  .mappings({
-    title: text({ analyzer: 'english' }),
-    practice_area: keyword(),
-    billing_rate: integer(),
-    risk_score: float(),
-    opened_at: date()
-  })
+const indexConfig = indexBuilder()
+  .mappings(matterMappings)
   .settings({
     number_of_shards: 2,
     number_of_replicas: 1,
@@ -694,21 +687,21 @@ More examples available in [src/\_\_tests\_\_/examples.test.ts](src/__tests__/ex
 A complete search request: boolean query with must/filter/should, aggregations for facets and price ranges, highlights, `_source` filtering, and pagination.
 
 ```typescript
-type Product = {
-  name: string;
-  description: string;
-  category: string;
-  price: number;
-  tags: string[];
-  in_stock: boolean;
-};
+const ecommerceMappings = mappings({
+  name: text(),
+  description: text(),
+  category: keyword(),
+  price: float(),
+  tags: keyword(),
+  in_stock: boolean(),
+});
 
 const searchTerm = 'gaming laptop';
 const category = 'electronics';
 const minPrice = 800;
 const maxPrice = 2000;
 
-const result = query<Product>()
+const result = query(ecommerceMappings)
   .bool()
   .must(q => q.match('name', searchTerm, { operator: 'and', boost: 2 }))
   .should(q => q.fuzzy('description', searchTerm, { fuzziness: 'AUTO' }))
@@ -783,16 +776,16 @@ Produces:
 Terms + sub-aggregation + date histogram in one request.
 
 ```typescript
-type Instrument = {
-  name: string;
-  asset_class: string;
-  sector: string;
-  price: number;
-  yield_rate: number;
-  listed_date: string;
-};
+const instrumentMappings = mappings({
+  name: text(),
+  asset_class: keyword(),
+  sector: keyword(),
+  price: float(),
+  yield_rate: float(),
+  listed_date: date(),
+});
 
-const result = query<Instrument>()
+const result = query(instrumentMappings)
   .bool()
   .filter(q => q.term('asset_class', 'fixed-income'))
   .filter(q => q.range('yield_rate', { gte: 3.0 }))
@@ -846,13 +839,13 @@ Produces:
 Batch multiple independent searches into a single HTTP request.
 
 ```typescript
-type Listing = {
-  address: string;
-  property_class: string;
-  list_price: number;
-};
+const listingMappings = mappings({
+  address: text(),
+  property_class: keyword(),
+  list_price: long(),
+});
 
-const condoSearch = query<Listing>()
+const condoSearch = query(listingMappings)
   .bool()
   .filter(q => q.term('property_class', 'condo'))
   .filter(q => q.range('list_price', { lte: 2_000_000 }))
@@ -860,14 +853,14 @@ const condoSearch = query<Listing>()
   .size(0)
   .build();
 
-const townhouseSearch = query<Listing>()
+const townhouseSearch = query(listingMappings)
   .bool()
   .filter(q => q.term('property_class', 'townhouse'))
   .aggs(agg => agg.avg('avg_price', 'list_price').min('min_price', 'list_price'))
   .size(0)
   .build();
 
-const ndjson = msearch<Listing>()
+const ndjson = msearch(listingMappings)
   .addQuery(condoSearch, { index: 'listings' })
   .addQuery(townhouseSearch, { index: 'listings' })
   .build();
@@ -886,14 +879,14 @@ Produces:
 ### Suggesters — Autocomplete & Spell Check
 
 ```typescript
-type Attorney = {
-  name: string;
-  practice_area: string;
-  name_suggest: string; // completion field
-};
+const attorneyMappings = mappings({
+  name: text(),
+  practice_area: keyword(),
+  name_suggest: completion(),
+});
 
 // Standalone suggest request
-const suggestions = query<Attorney>()
+const suggestions = query(attorneyMappings)
   .suggest(s =>
     s
       .completion('autocomplete', 'kap', { field: 'name_suggest', size: 5 })
@@ -925,7 +918,7 @@ Produces:
 
 ```typescript
 const buildDynamicQuery = (filters: SearchFilters) => {
-  return query<Product>()
+  return query(productMappings)
     .bool()
     .must(q =>
       q.when(filters.searchTerm,
@@ -951,15 +944,15 @@ const buildDynamicQuery = (filters: SearchFilters) => {
 ### Geospatial Search
 
 ```typescript
-type Restaurant = {
-  name: string;
-  cuisine: string;
-  location: { lat: number; lon: number };
-  rating: number;
-};
+const restaurantMappings = mappings({
+  name: text(),
+  cuisine: keyword(),
+  location: geoPoint(),
+  rating: float(),
+});
 
-const result = query<Restaurant>()
-  .match('cuisine', 'italian')
+const result = query(restaurantMappings)
+  .term('cuisine', 'italian')
   .geoDistance(
     'location',
     { lat: 40.7128, lon: -74.006 },
@@ -972,25 +965,32 @@ const result = query<Restaurant>()
 
 ## TypeScript Support
 
-elasticlink provides excellent TypeScript support with:
+elasticlink provides mapping-aware TypeScript safety:
 
-- **Field Autocomplete**: Type-safe field names with IntelliSense
-- **Type Validation**: Compile-time checking for query structure
-- **Generic Parameters**: Full type inference across builder chains
+- **Field-Type Constraints**: `match()` only accepts text fields, `term()` only keyword fields — enforced at compile time
+- **Field Autocomplete**: IntelliSense knows your field names and their types
+- **`Infer<S>`**: Derive TS document types from your mappings schema
 
 ```typescript
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  age: number;
-};
+import { query, mappings, text, keyword, integer, type Infer } from 'elasticlink';
 
-// ✅ Type-safe field names
-const q1 = query<User>().match('name', 'John').build();
+const userMappings = mappings({
+  name: text(),
+  email: keyword(),
+  age: integer(),
+});
 
-// ❌ TypeScript error: 'unknown_field' is not a valid field
-const q2 = query<User>().match('unknown_field', 'value').build();
+type User = Infer<typeof userMappings>;
+// => { name: string; email: string; age: number }
+
+// ✅ 'name' is a text field — match() accepts it
+const q1 = query(userMappings).match('name', 'John').build();
+
+// ❌ TypeScript error: 'email' is keyword, not text — use term() instead
+const q2 = query(userMappings).match('email', 'john@example.com').build();
+
+// ✅ Correct: use term() for keyword fields
+const q3 = query(userMappings).term('email', 'john@example.com').build();
 ```
 
 ## Testing
@@ -1035,9 +1035,9 @@ npm run type-check
 - [x] Integration test suite against live Elasticsearch 9.x
 - [x] Types derived from official `@elastic/elasticsearch` for accuracy and completeness
 
-## Contributing
+## Development
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and code style.
 
 ## License
 
@@ -1045,6 +1045,5 @@ MIT © 2026 misterrodger
 
 ## Support
 
-- 📖 [Documentation](https://github.com/misterrodger/elasticlink#readme)
-- 🐛 [Report Issues](https://github.com/misterrodger/elasticlink/issues)
-- 💬 [Discussions](https://github.com/misterrodger/elasticlink/discussions)
+- [Documentation](https://github.com/misterrodger/elasticlink#readme)
+- [Report Issues](https://github.com/misterrodger/elasticlink/issues)

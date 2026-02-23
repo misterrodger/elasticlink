@@ -1,4 +1,4 @@
-import { query, indexBuilder, keyword } from '../../index.js';
+import { query, indexBuilder } from '../../index.js';
 import {
   createIndex,
   deleteIndex,
@@ -6,22 +6,13 @@ import {
   refreshIndex,
   search
 } from './helpers.js';
-import { Attorney, ATTORNEYS } from './fixtures/legal.js';
+import { attorneyMappings, ATTORNEYS } from './fixtures/legal.js';
 
 const INDEX = 'int-suggester';
 
 describe('SuggesterBuilder', () => {
   beforeAll(async () => {
-    await createIndex(
-      INDEX,
-      indexBuilder<Attorney>()
-        .mappings({
-          name: 'text',
-          practice_area: keyword(),
-          name_suggest: { type: 'completion' }
-        })
-        .build()
-    );
+    await createIndex(INDEX, indexBuilder().mappings(attorneyMappings).build());
     for (const doc of ATTORNEYS) await indexDoc(INDEX, doc);
     await refreshIndex(INDEX);
   });
@@ -32,7 +23,7 @@ describe('SuggesterBuilder', () => {
     it('returns spelling corrections for a misspelled term', async () => {
       const result = await search(
         INDEX,
-        query<Attorney>()
+        query(attorneyMappings)
           .suggest((s) =>
             s.term('name-suggestions', 'wiliams', { field: 'name' })
           )
@@ -53,7 +44,7 @@ describe('SuggesterBuilder', () => {
     it('returns autocomplete suggestions for a prefix', async () => {
       const result = await search(
         INDEX,
-        query<Attorney>()
+        query(attorneyMappings)
           .suggest((s) =>
             s.completion('autocomplete', 'kap', { field: 'name_suggest' })
           )
@@ -73,7 +64,7 @@ describe('SuggesterBuilder', () => {
     it('limits results with size option', async () => {
       const result = await search(
         INDEX,
-        query<Attorney>()
+        query(attorneyMappings)
           .suggest((s) =>
             s.completion('autocomplete', '', { field: 'name_suggest', size: 2 })
           )

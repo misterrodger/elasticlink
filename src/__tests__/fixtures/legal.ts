@@ -1,9 +1,14 @@
-export type Matter = {
-  matter_id: string;
-  title: string;
-  practice_area: string;
-  billing_rate: number;
-};
+import { mappings, keyword, text, float } from '../../index.js';
+import type { Infer } from '../../index.js';
+
+export const matterMappings = mappings({
+  matter_id: keyword(),
+  title: text(),
+  practice_area: keyword(),
+  billing_rate: float()
+});
+
+export type Matter = Infer<typeof matterMappings>;
 
 export const MATTERS: Matter[] = [
   {

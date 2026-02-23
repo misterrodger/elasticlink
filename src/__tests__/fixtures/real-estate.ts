@@ -1,18 +1,38 @@
-export type Listing = {
-  property_class: string;
-  address: string;
-  list_price: number;
-  sqft: number;
-};
+import {
+  mappings,
+  keyword,
+  text,
+  float,
+  long,
+  date,
+  geoPoint,
+  denseVector
+} from '../../index.js';
+import type { Infer } from '../../index.js';
 
-export type ListingDetail = Listing & {
-  location: { lat: number; lon: number };
-  listed_date: string;
-  embedding: number[];
-  title: string;
-  description: string;
-  cap_rate: number;
-};
+export const listingMappings = mappings({
+  property_class: keyword(),
+  address: text(),
+  list_price: float(),
+  sqft: long()
+});
+
+export type Listing = Infer<typeof listingMappings>;
+
+export const listingDetailMappings = mappings({
+  property_class: keyword(),
+  address: text(),
+  list_price: float(),
+  sqft: long(),
+  location: geoPoint(),
+  listed_date: date(),
+  embedding: denseVector({ dims: 384 }),
+  title: text(),
+  description: text(),
+  cap_rate: float()
+});
+
+export type ListingDetail = Infer<typeof listingDetailMappings>;
 
 export const LISTINGS: Listing[] = [
   {

@@ -1,22 +1,22 @@
 import { bulk } from '..';
-import { Matter } from './fixtures/legal.js';
+import { Matter, matterMappings } from './fixtures/legal.js';
 
 describe('Bulk API', () => {
   describe('Builder behavior', () => {
     it('should return trailing newline for empty build', () => {
-      const result = bulk<Matter>().build();
+      const result = bulk(matterMappings).build();
 
       expect(result).toBe('\n');
     });
 
     it('should return empty array for empty buildArray', () => {
-      const result = bulk<Matter>().buildArray();
+      const result = bulk(matterMappings).buildArray();
 
       expect(result).toMatchInlineSnapshot(`[]`);
     });
 
     it('should chain multiple index operations', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .index(
           {
             matter_id: 'M-1001',
@@ -70,7 +70,7 @@ describe('Bulk API', () => {
 
   describe('Index operations', () => {
     it('should build single index operation', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .index({
           matter_id: 'M-1001',
           title: 'Acquisition Review',
@@ -84,7 +84,7 @@ describe('Bulk API', () => {
     });
 
     it('should index with metadata', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .index(
           {
             matter_id: 'M-1001',
@@ -115,7 +115,7 @@ describe('Bulk API', () => {
     });
 
     it('should index with routing', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .index(
           {
             matter_id: 'M-1001',
@@ -145,7 +145,7 @@ describe('Bulk API', () => {
     });
 
     it('should index with version', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .index(
           {
             matter_id: 'M-1001',
@@ -176,7 +176,7 @@ describe('Bulk API', () => {
     });
 
     it('should index with pipeline', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .index(
           {
             matter_id: 'M-1001',
@@ -209,7 +209,7 @@ describe('Bulk API', () => {
 
   describe('Create operations', () => {
     it('should build create operation', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .create({
           matter_id: 'M-1002',
           title: 'SEC Filing Review',
@@ -226,7 +226,7 @@ describe('Bulk API', () => {
     });
 
     it('should create with metadata', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .create(
           {
             matter_id: 'M-1002',
@@ -257,7 +257,7 @@ describe('Bulk API', () => {
     });
 
     it('should create with routing', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .create(
           {
             matter_id: 'M-1003',
@@ -291,7 +291,7 @@ describe('Bulk API', () => {
 
   describe('Update operations', () => {
     it('should build update with doc', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .update({
           _index: 'matters',
           _id: '3',
@@ -318,7 +318,7 @@ describe('Bulk API', () => {
     });
 
     it('should update with script', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .update({
           _index: 'matters',
           _id: '4',
@@ -350,7 +350,7 @@ describe('Bulk API', () => {
     });
 
     it('should update with upsert', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .update({
           _index: 'matters',
           _id: '5',
@@ -396,7 +396,7 @@ describe('Bulk API', () => {
     });
 
     it('should update with doc_as_upsert', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .update({
           _index: 'matters',
           _id: '6',
@@ -432,7 +432,7 @@ describe('Bulk API', () => {
     });
 
     it('should update with retry_on_conflict', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .update({
           _index: 'matters',
           _id: '7',
@@ -462,7 +462,7 @@ describe('Bulk API', () => {
 
   describe('Delete operations', () => {
     it('should build delete operation', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .delete({ _index: 'matters', _id: '8' })
         .buildArray();
 
@@ -479,7 +479,7 @@ describe('Bulk API', () => {
     });
 
     it('should delete with routing', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .delete({ _index: 'matters', _id: '9', routing: 'user-456' })
         .buildArray();
 
@@ -497,7 +497,7 @@ describe('Bulk API', () => {
     });
 
     it('should delete with version', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .delete({ _index: 'matters', _id: '10', version: 3 })
         .buildArray();
 
@@ -515,7 +515,7 @@ describe('Bulk API', () => {
     });
 
     it('should delete with version and version_type', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .delete({
           _index: 'matters',
           _id: '11',
@@ -541,7 +541,7 @@ describe('Bulk API', () => {
 
   describe('Mixed operations', () => {
     it('should combine multiple operation types', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .index(
           {
             matter_id: 'M-2001',
@@ -618,7 +618,7 @@ describe('Bulk API', () => {
 
   describe('Bulk output formats', () => {
     it('should build as NDJSON string', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .index({
           matter_id: 'M-1001',
           title: 'Acquisition Review',
@@ -635,7 +635,7 @@ describe('Bulk API', () => {
     });
 
     it('should build as array', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         .index({
           matter_id: 'M-1001',
           title: 'Acquisition Review',
@@ -683,7 +683,7 @@ describe('Bulk API', () => {
         }
       ];
 
-      let bulkOp = bulk<Matter>();
+      let bulkOp = bulk(matterMappings);
       for (const matter of matters) {
         bulkOp = bulkOp.index(matter, {
           _index: 'matters',
@@ -735,7 +735,7 @@ describe('Bulk API', () => {
     });
 
     it('should handle mixed CRUD operations', () => {
-      const result = bulk<Matter>()
+      const result = bulk(matterMappings)
         // Create new products
         .create(
           {

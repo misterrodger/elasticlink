@@ -19,6 +19,7 @@ import type {
   AggregationsValueCountAggregation,
   AggregationsCalendarInterval
 } from '@elastic/elasticsearch/lib/api/types';
+import type { FieldTypeString } from './index-management.types.js';
 
 /**
  * Options for terms aggregation (excludes 'field' which is handled by the builder)
@@ -124,95 +125,95 @@ export type AggregationState = {
 /**
  * Aggregation builder interface
  */
-export type AggregationBuilder<T> = {
+export type AggregationBuilder<M extends Record<string, FieldTypeString>> = {
   /** Terms aggregation - group by field values */
-  terms: <K extends keyof T>(
+  terms: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: TermsAggOptions
-  ) => AggregationBuilder<T>;
+  ) => AggregationBuilder<M>;
 
   /** Date histogram aggregation - group by time intervals */
-  dateHistogram: <K extends keyof T>(
+  dateHistogram: <K extends string & keyof M>(
     name: string,
     field: K,
     options: DateHistogramAggOptions
-  ) => AggregationBuilder<T>;
+  ) => AggregationBuilder<M>;
 
   /** Range aggregation - group by numeric/date ranges */
-  range: <K extends keyof T>(
+  range: <K extends string & keyof M>(
     name: string,
     field: K,
     options: RangeAggOptions
-  ) => AggregationBuilder<T>;
+  ) => AggregationBuilder<M>;
 
   /** Histogram aggregation - group by numeric intervals */
-  histogram: <K extends keyof T>(
+  histogram: <K extends string & keyof M>(
     name: string,
     field: K,
     options: HistogramAggOptions
-  ) => AggregationBuilder<T>;
+  ) => AggregationBuilder<M>;
 
   /** Average aggregation */
-  avg: <K extends keyof T>(
+  avg: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: AvgAggOptions
-  ) => AggregationBuilder<T>;
+  ) => AggregationBuilder<M>;
 
   /** Sum aggregation */
-  sum: <K extends keyof T>(
+  sum: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: SumAggOptions
-  ) => AggregationBuilder<T>;
+  ) => AggregationBuilder<M>;
 
   /** Minimum value aggregation */
-  min: <K extends keyof T>(
+  min: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: MinAggOptions
-  ) => AggregationBuilder<T>;
+  ) => AggregationBuilder<M>;
 
   /** Maximum value aggregation */
-  max: <K extends keyof T>(
+  max: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: MaxAggOptions
-  ) => AggregationBuilder<T>;
+  ) => AggregationBuilder<M>;
 
   /** Cardinality aggregation - count unique values */
-  cardinality: <K extends keyof T>(
+  cardinality: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: CardinalityAggOptions
-  ) => AggregationBuilder<T>;
+  ) => AggregationBuilder<M>;
 
   /** Percentiles aggregation */
-  percentiles: <K extends keyof T>(
+  percentiles: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: PercentilesAggOptions
-  ) => AggregationBuilder<T>;
+  ) => AggregationBuilder<M>;
 
   /** Statistics aggregation (count, min, max, avg, sum) */
-  stats: <K extends keyof T>(
+  stats: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: StatsAggOptions
-  ) => AggregationBuilder<T>;
+  ) => AggregationBuilder<M>;
 
   /** Value count aggregation */
-  valueCount: <K extends keyof T>(
+  valueCount: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: ValueCountAggOptions
-  ) => AggregationBuilder<T>;
+  ) => AggregationBuilder<M>;
 
   /** Add sub-aggregation to parent bucket aggregation */
   subAgg: (
-    fn: (agg: AggregationBuilder<T>) => AggregationBuilder<T>
-  ) => AggregationBuilder<T>;
+    fn: (agg: AggregationBuilder<M>) => AggregationBuilder<M>
+  ) => AggregationBuilder<M>;
 
   /** Build aggregation DSL */
   build: () => AggregationState;

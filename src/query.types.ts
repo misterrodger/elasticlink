@@ -1,6 +1,6 @@
 /**
  * Type definitions for Query Builder
- * Derived from official @elastic/elasticsearch types for accuracy and completeness.
+ * Field constraints are derived from the MappingsSchema field-type map M.
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
  */
 
@@ -17,139 +17,98 @@ import type {
   SearchHighlightBase,
   Script
 } from '@elastic/elasticsearch/lib/api/types';
-import { AggregationBuilder, AggregationState } from './aggregation.types.js';
-import { KnnOptions } from './vector.types.js';
-import { SuggesterBuilder, SuggesterState } from './suggester.types.js';
+import type { FieldTypeString } from './index-management.types.js';
+import type {
+  Infer,
+  MappingsSchema,
+  TextFields,
+  KeywordFields,
+  NumericFields,
+  DateFields,
+  BooleanFields,
+  GeoPointFields,
+  VectorFields
+} from './mapping.types.js';
+import type {
+  AggregationBuilder,
+  AggregationState
+} from './aggregation.types.js';
+import type { KnnOptions } from './vector.types.js';
+import type { SuggesterBuilder, SuggesterState } from './suggester.types.js';
 
-/**
- * Options for match query (excludes 'query' which is handled by the builder)
- * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-match-query.html
- */
 export type MatchOptions = Omit<QueryDslMatchQuery, 'query'>;
-
-/**
- * Options for multi_match query (excludes 'query' and 'fields' which are handled by the builder)
- * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-multi-match-query.html
- */
 export type MultiMatchOptions = Omit<
   QueryDslMultiMatchQuery,
   'query' | 'fields'
 >;
-
-/**
- * Options for fuzzy query (excludes 'value' which is handled by the builder)
- * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-fuzzy-query.html
- */
 export type FuzzyOptions = Omit<QueryDslFuzzyQuery, 'value'>;
-
-/**
- * Options for highlighting matched text (base options applied globally)
- * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/highlighting.html
- */
 export type HighlightOptions = SearchHighlightBase;
-
-/**
- * Options for regexp query (excludes 'value' which is handled by the builder)
- * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-regexp-query.html
- */
 export type RegexpOptions = Omit<QueryDslRegexpQuery, 'value'>;
-
-/**
- * Options for constant_score query (excludes 'filter' which is handled by the builder callback)
- * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-constant-score-query.html
- */
 export type ConstantScoreOptions = Omit<QueryDslConstantScoreQuery, 'filter'>;
-
-/**
- * Options for match_phrase_prefix query (excludes 'query' which is handled by the builder)
- * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-match-phrase-prefix-query.html
- */
 export type MatchPhrasePrefixOptions = Omit<
   QueryDslMatchPhrasePrefixQuery,
   'query'
 >;
 
-/**
- * Options for geo_distance query.
- * Uses custom type because the official type uses dynamic property patterns for the field name.
- */
 export type GeoDistanceOptions = {
-  /** Distance from center point */
   distance: string | number;
-  /** Distance unit */
   unit?: 'mi' | 'km' | 'mm' | 'cm' | 'm' | 'yd' | 'ft' | 'in' | 'nmi';
-  /** Distance calculation method */
   distance_type?: 'arc' | 'plane';
 };
 
-/**
- * Options for geo_bounding_box query.
- * Uses custom type because the official type uses dynamic property patterns for the field name.
- */
 export type GeoBoundingBoxOptions = {
-  /** Top-left corner coordinates */
   top_left?: { lat: number; lon: number };
-  /** Bottom-right corner coordinates */
   bottom_right?: { lat: number; lon: number };
-  /** Top latitude */
   top?: number;
-  /** Left longitude */
   left?: number;
-  /** Bottom latitude */
   bottom?: number;
-  /** Right longitude */
   right?: number;
 };
 
-/**
- * Options for geo_polygon query.
- * Uses custom type because the official type uses dynamic property patterns for the field name.
- */
 export type GeoPolygonOptions = {
-  /** Polygon vertices */
   points: Array<{ lat: number; lon: number }>;
 };
 
-/**
- * Script configuration — re-exported from official @elastic/elasticsearch types
- * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-scripting.html
- */
 export type ScriptOptions = Script;
-
-/**
- * Options for script query — combines script body with query-level options (boost, _name)
- * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-script-query.html
- */
 export type ScriptQueryOptions = Script & Omit<QueryDslScriptQuery, 'script'>;
-
-/**
- * Options for script_score query (excludes 'query' and 'script' which are handled by the builder)
- * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-script-score-query.html
- */
 export type ScriptScoreOptions = Omit<
   QueryDslScriptScoreQuery,
   'query' | 'script'
 >;
-
-/**
- * Options for percolate query — re-exported from official @elastic/elasticsearch types
- * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-percolate-query.html
- */
 export type PercolateOptions = QueryDslPercolateQuery;
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// ---------------------------------------------------------------------------
+// Derived field groups
+// ---------------------------------------------------------------------------
 
-/**
- * Query state representing the complete Elasticsearch query DSL.
- * Input option types are derived from official @elastic/elasticsearch types.
- * Output type alignment (QueryState → SearchSearchRequestBody) is planned for a later step.
- */
-export type QueryState<T> = {
-  /** Internal: whether to include query wrapper */
+type TermableFields<M extends Record<string, FieldTypeString>> =
+  | KeywordFields<M>
+  | NumericFields<M>
+  | DateFields<M>
+  | BooleanFields<M>;
+
+type RangeableFields<M extends Record<string, FieldTypeString>> =
+  | NumericFields<M>
+  | DateFields<M>
+  | KeywordFields<M>;
+
+type FuzzyableFields<M extends Record<string, FieldTypeString>> =
+  | TextFields<M>
+  | KeywordFields<M>;
+
+// Infer value type for a field
+type Val<M extends Record<string, FieldTypeString>, K extends keyof M> = Infer<
+  MappingsSchema<M>
+>[K];
+
+// ---------------------------------------------------------------------------
+// QueryState
+// ---------------------------------------------------------------------------
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export type QueryState<M extends Record<string, FieldTypeString>> = {
   _includeQuery?: boolean;
-  /** Query DSL */
   query?: any;
-  /** KNN vector search configuration */
   knn?: {
     field: string;
     query_vector: number[];
@@ -159,33 +118,19 @@ export type QueryState<T> = {
     boost?: number;
     similarity?: number;
   };
-  /** Aggregations */
   aggs?: AggregationState;
-  /** Suggestions for query terms/phrases/completions */
   suggest?: SuggesterState;
-  /** Pagination offset */
   from?: number;
-  /** Number of results to return */
   size?: number;
-  /** Sort order */
-  sort?: Array<{ [K in keyof T]: 'asc' | 'desc' }>;
-  /** Fields to include in response */
-  _source?: Array<keyof T>;
-  /** Query timeout */
+  sort?: Array<Record<string, 'asc' | 'desc'>>;
+  _source?: Array<string & keyof M>;
   timeout?: string;
-  /** Include scores in response */
   track_scores?: boolean;
-  /** Include score explanation */
   explain?: boolean;
-  /** Minimum score threshold */
   min_score?: number;
-  /** Include document version */
   version?: boolean;
-  /** Include sequence number and primary term */
   seq_no_primary_term?: boolean;
-  /** Track total hits accurately or up to threshold */
   track_total_hits?: boolean | number;
-  /** Highlighting configuration */
   highlight?: {
     fields: Record<string, HighlightOptions>;
     pre_tags?: string[];
@@ -193,246 +138,215 @@ export type QueryState<T> = {
   };
 };
 
-/**
- * Clause builder for constructing query clauses within bool contexts
- */
-export type ClauseBuilder<T> = {
-  /** Match all documents */
+// ---------------------------------------------------------------------------
+// ClauseBuilder
+// ---------------------------------------------------------------------------
+
+export type ClauseBuilder<M extends Record<string, FieldTypeString>> = {
   matchAll: () => any;
-  /** Full-text match query */
-  match: <K extends keyof T>(
+  match: <K extends TextFields<M> & string>(
     field: K,
-    value: T[K],
+    value: string,
     options?: MatchOptions
   ) => any;
-  /** Multi-field match query */
-  multiMatch: <K extends keyof T>(
+  multiMatch: <K extends TextFields<M> & string>(
     fields: K[],
     value: string,
     options?: MultiMatchOptions
   ) => any;
-  /** Exact phrase match */
-  matchPhrase: <K extends keyof T>(field: K, value: T[K]) => any;
-  /** Phrase prefix match for autocomplete */
-  matchPhrasePrefix: <K extends keyof T>(
+  matchPhrase: <K extends TextFields<M> & string>(
     field: K,
-    value: T[K],
+    value: string
+  ) => any;
+  matchPhrasePrefix: <K extends TextFields<M> & string>(
+    field: K,
+    value: string,
     options?: MatchPhrasePrefixOptions
   ) => any;
-  /** Exact term match */
-  term: <K extends keyof T>(field: K, value: T[K]) => any;
-  /** Match any of multiple terms */
-  terms: <K extends keyof T>(field: K, value: T[K]) => any;
-  /** Range query (gte, lte, gt, lt) */
-  range: <K extends keyof T>(
+  term: <K extends TermableFields<M> & string>(
     field: K,
-    conditions: { gte?: T[K]; lte?: T[K]; gt?: T[K]; lt?: T[K] }
+    value: Val<M, K>
   ) => any;
-  /** Check field exists */
-  exists: <K extends keyof T>(field: K) => any;
-  /** Prefix match */
-  prefix: <K extends keyof T>(field: K, value: string) => any;
-  /** Wildcard pattern match */
-  wildcard: <K extends keyof T>(field: K, value: string) => any;
-  /** Fuzzy match with edit distance */
-  fuzzy: <K extends keyof T>(
+  terms: <K extends TermableFields<M> & string>(
+    field: K,
+    value: Array<Val<M, K>>
+  ) => any;
+  range: <K extends RangeableFields<M> & string>(
+    field: K,
+    conditions: {
+      gte?: Val<M, K>;
+      lte?: Val<M, K>;
+      gt?: Val<M, K>;
+      lt?: Val<M, K>;
+    }
+  ) => any;
+  exists: <K extends string & keyof M>(field: K) => any;
+  prefix: <K extends KeywordFields<M> & string>(field: K, value: string) => any;
+  wildcard: <K extends KeywordFields<M> & string>(
+    field: K,
+    value: string
+  ) => any;
+  fuzzy: <K extends FuzzyableFields<M> & string>(
     field: K,
     value: string,
     options?: FuzzyOptions
   ) => any;
-  /** Match documents by IDs */
   ids: (values: string[]) => any;
-  /** KNN vector similarity search */
-  knn: <K extends keyof T>(
+  knn: <K extends VectorFields<M> & string>(
     field: K,
     queryVector: number[],
     options: KnnOptions
   ) => any;
-  /** Script-based query */
   script: (options: ScriptQueryOptions) => any;
-  /** Conditional query building */
   when: <R>(
     condition: any,
-    thenFn: (q: ClauseBuilder<T>) => R,
-    elseFn?: (q: ClauseBuilder<T>) => R
+    thenFn: (q: ClauseBuilder<M>) => R,
+    elseFn?: (q: ClauseBuilder<M>) => R
   ) => R | undefined;
 };
 
-/**
- * Main query builder interface with fluent API
- */
-export type QueryBuilder<T> = {
-  /** Start a boolean query */
-  bool: () => QueryBuilder<T>;
-  /** Add must clause (AND, affects scoring) */
-  must: (fn: (q: ClauseBuilder<T>) => any) => QueryBuilder<T>;
-  /** Add must_not clause (NOT, filter context) */
-  mustNot: (fn: (q: ClauseBuilder<T>) => any) => QueryBuilder<T>;
-  /** Add should clause (OR, affects scoring) */
-  should: (fn: (q: ClauseBuilder<T>) => any) => QueryBuilder<T>;
-  /** Add filter clause (AND, no scoring) */
-  filter: (fn: (q: ClauseBuilder<T>) => any) => QueryBuilder<T>;
-  /** Minimum should clauses that must match */
-  minimumShouldMatch: (n: number) => QueryBuilder<T>;
+// ---------------------------------------------------------------------------
+// QueryBuilder
+// ---------------------------------------------------------------------------
 
-  // Full-text queries
-  /** Match all documents */
-  matchAll: () => QueryBuilder<T>;
-  /** Full-text match query */
-  match: <K extends keyof T>(
+export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
+  bool: () => QueryBuilder<M>;
+  must: (fn: (q: ClauseBuilder<M>) => any) => QueryBuilder<M>;
+  mustNot: (fn: (q: ClauseBuilder<M>) => any) => QueryBuilder<M>;
+  should: (fn: (q: ClauseBuilder<M>) => any) => QueryBuilder<M>;
+  filter: (fn: (q: ClauseBuilder<M>) => any) => QueryBuilder<M>;
+  minimumShouldMatch: (n: number) => QueryBuilder<M>;
+
+  matchAll: () => QueryBuilder<M>;
+  match: <K extends TextFields<M> & string>(
     field: K,
-    value: T[K],
+    value: string,
     options?: MatchOptions
-  ) => QueryBuilder<T>;
-  /** Multi-field match query */
-  multiMatch: <K extends keyof T>(
+  ) => QueryBuilder<M>;
+  multiMatch: <K extends TextFields<M> & string>(
     fields: K[],
     value: string,
     options?: MultiMatchOptions
-  ) => QueryBuilder<T>;
-  /** Exact phrase match */
-  matchPhrase: <K extends keyof T>(field: K, value: T[K]) => QueryBuilder<T>;
-  /** Phrase prefix match for autocomplete */
-  matchPhrasePrefix: <K extends keyof T>(
+  ) => QueryBuilder<M>;
+  matchPhrase: <K extends TextFields<M> & string>(
     field: K,
-    value: T[K],
+    value: string
+  ) => QueryBuilder<M>;
+  matchPhrasePrefix: <K extends TextFields<M> & string>(
+    field: K,
+    value: string,
     options?: MatchPhrasePrefixOptions
-  ) => QueryBuilder<T>;
+  ) => QueryBuilder<M>;
 
-  // Term-level queries
-  /** Exact term match */
-  term: <K extends keyof T>(field: K, value: T[K]) => QueryBuilder<T>;
-  /** Match any of multiple terms */
-  terms: <K extends keyof T>(field: K, values: T[K][]) => QueryBuilder<T>;
-  /** Range query (gte, lte, gt, lt) */
-  range: <K extends keyof T>(
+  term: <K extends TermableFields<M> & string>(
     field: K,
-    conditions: { gte?: T[K]; lte?: T[K]; gt?: T[K]; lt?: T[K] }
-  ) => QueryBuilder<T>;
-  /** Check field exists */
-  exists: (field: keyof T) => QueryBuilder<T>;
-  /** Prefix match */
-  prefix: <K extends keyof T>(field: K, value: string) => QueryBuilder<T>;
-  /** Wildcard pattern match */
-  wildcard: <K extends keyof T>(field: K, value: string) => QueryBuilder<T>;
-  /** Fuzzy match with edit distance */
-  fuzzy: <K extends keyof T>(
+    value: Val<M, K>
+  ) => QueryBuilder<M>;
+  terms: <K extends TermableFields<M> & string>(
+    field: K,
+    values: Array<Val<M, K>>
+  ) => QueryBuilder<M>;
+  range: <K extends RangeableFields<M> & string>(
+    field: K,
+    conditions: {
+      gte?: Val<M, K>;
+      lte?: Val<M, K>;
+      gt?: Val<M, K>;
+      lt?: Val<M, K>;
+    }
+  ) => QueryBuilder<M>;
+  exists: (field: string & keyof M) => QueryBuilder<M>;
+  prefix: <K extends KeywordFields<M> & string>(
+    field: K,
+    value: string
+  ) => QueryBuilder<M>;
+  wildcard: <K extends KeywordFields<M> & string>(
+    field: K,
+    value: string
+  ) => QueryBuilder<M>;
+  fuzzy: <K extends FuzzyableFields<M> & string>(
     field: K,
     value: string,
     options?: FuzzyOptions
-  ) => QueryBuilder<T>;
-  /** Match documents by IDs */
-  ids: (values: string[]) => QueryBuilder<T>;
-  /** Nested object query */
-  nested: <P extends keyof T>(
-    path: P,
+  ) => QueryBuilder<M>;
+  ids: (values: string[]) => QueryBuilder<M>;
+  nested: (
+    path: string,
     fn: (q: ClauseBuilder<any>) => any,
     options?: { score_mode?: 'avg' | 'sum' | 'min' | 'max' | 'none' }
-  ) => QueryBuilder<T>;
+  ) => QueryBuilder<M>;
 
-  // Vector search
-  /** KNN vector similarity search */
-  knn: <K extends keyof T>(
+  knn: <K extends VectorFields<M> & string>(
     field: K,
     queryVector: number[],
     options: KnnOptions
-  ) => QueryBuilder<T>;
+  ) => QueryBuilder<M>;
 
-  // Script queries
-  /** Script-based query */
-  script: (options: ScriptQueryOptions) => QueryBuilder<T>;
-  /** Custom scoring with script */
+  script: (options: ScriptQueryOptions) => QueryBuilder<M>;
   scriptScore: (
-    query: (q: ClauseBuilder<T>) => any,
+    query: (q: ClauseBuilder<M>) => any,
     script: ScriptOptions,
     options?: ScriptScoreOptions
-  ) => QueryBuilder<T>;
-  /** Percolate query for reverse search */
-  percolate: (options: PercolateOptions) => QueryBuilder<T>;
+  ) => QueryBuilder<M>;
+  percolate: (options: PercolateOptions) => QueryBuilder<M>;
 
-  // Conditionals
-  /** Conditional query building */
   when: <R>(
     condition: any,
-    thenFn: (q: QueryBuilder<T>) => R,
-    elseFn?: (q: QueryBuilder<T>) => R
+    thenFn: (q: QueryBuilder<M>) => R,
+    elseFn?: (q: QueryBuilder<M>) => R
   ) => R | undefined;
 
-  // Aggregations
-  /** Add aggregations */
   aggs: (
-    fn: (agg: AggregationBuilder<T>) => AggregationBuilder<T>
-  ) => QueryBuilder<T>;
+    fn: (agg: AggregationBuilder<M>) => AggregationBuilder<M>
+  ) => QueryBuilder<M>;
 
-  // Suggestions
-  /** Add query suggestions (term, phrase, completion) */
   suggest: (
-    fn: (s: SuggesterBuilder<T>) => SuggesterBuilder<T>
-  ) => QueryBuilder<T>;
+    fn: (s: SuggesterBuilder<M>) => SuggesterBuilder<M>
+  ) => QueryBuilder<M>;
 
-  // Query parameters
-  /** Sort results by field */
-  sort: <K extends keyof T>(
+  sort: <K extends string & keyof M>(
     field: K,
     direction: 'asc' | 'desc'
-  ) => QueryBuilder<T>;
-  /** Pagination offset */
-  from: (from: number) => QueryBuilder<T>;
-  /** Number of results to return */
-  size: (size: number) => QueryBuilder<T>;
-  /** Fields to include in response */
-  _source: (fields: Array<keyof T>) => QueryBuilder<T>;
-  /** Query timeout */
-  timeout: (timeout: string) => QueryBuilder<T>;
-  /** Include scores in response */
-  trackScores: (track: boolean) => QueryBuilder<T>;
-  /** Include score explanation */
-  explain: (explain: boolean) => QueryBuilder<T>;
-  /** Minimum score threshold */
-  minScore: (score: number) => QueryBuilder<T>;
-  /** Include document version */
-  version: (version: boolean) => QueryBuilder<T>;
-  /** Include sequence number and primary term */
-  seqNoPrimaryTerm: (enabled: boolean) => QueryBuilder<T>;
-  /** Track total hits accurately or up to threshold */
-  trackTotalHits: (value?: boolean | number) => QueryBuilder<T>;
-  /** Highlight matched text */
+  ) => QueryBuilder<M>;
+  from: (from: number) => QueryBuilder<M>;
+  size: (size: number) => QueryBuilder<M>;
+  _source: (fields: Array<string & keyof M>) => QueryBuilder<M>;
+  timeout: (timeout: string) => QueryBuilder<M>;
+  trackScores: (track: boolean) => QueryBuilder<M>;
+  explain: (explain: boolean) => QueryBuilder<M>;
+  minScore: (score: number) => QueryBuilder<M>;
+  version: (version: boolean) => QueryBuilder<M>;
+  seqNoPrimaryTerm: (enabled: boolean) => QueryBuilder<M>;
+  trackTotalHits: (value: boolean | number) => QueryBuilder<M>;
   highlight: (
-    fields: Array<keyof T>,
+    fields: Array<string & keyof M>,
     options?: HighlightOptions
-  ) => QueryBuilder<T>;
+  ) => QueryBuilder<M>;
 
-  // Geo queries
-  /** Geo distance query */
-  geoDistance: <K extends keyof T>(
+  geoDistance: <K extends GeoPointFields<M> & string>(
     field: K,
     center: { lat: number; lon: number },
     options: GeoDistanceOptions
-  ) => QueryBuilder<T>;
-  /** Geo bounding box query */
-  geoBoundingBox: <K extends keyof T>(
+  ) => QueryBuilder<M>;
+  geoBoundingBox: <K extends GeoPointFields<M> & string>(
     field: K,
     options: GeoBoundingBoxOptions
-  ) => QueryBuilder<T>;
-  /** Geo polygon query */
-  geoPolygon: <K extends keyof T>(
+  ) => QueryBuilder<M>;
+  geoPolygon: <K extends GeoPointFields<M> & string>(
     field: K,
     options: GeoPolygonOptions
-  ) => QueryBuilder<T>;
+  ) => QueryBuilder<M>;
 
-  // Pattern and scoring queries
-  /** Regular expression query */
-  regexp: <K extends keyof T>(
+  regexp: <K extends KeywordFields<M> & string>(
     field: K,
     value: string,
     options?: RegexpOptions
-  ) => QueryBuilder<T>;
-  /** Constant score query (no scoring) */
+  ) => QueryBuilder<M>;
   constantScore: (
-    fn: (q: ClauseBuilder<T>) => any,
+    fn: (q: ClauseBuilder<M>) => any,
     options?: ConstantScoreOptions
-  ) => QueryBuilder<T>;
+  ) => QueryBuilder<M>;
 
-  /** Build final query DSL */
-  build: () => QueryState<T>;
+  build: () => QueryState<M>;
 };
+/* eslint-enable @typescript-eslint/no-explicit-any */

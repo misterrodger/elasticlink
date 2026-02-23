@@ -1,5 +1,6 @@
 import {
   indexBuilder,
+  mappings,
   text,
   keyword,
   integer,
@@ -14,21 +15,20 @@ import {
 import { createIndex, deleteIndex, esGet } from './helpers.js';
 
 const INDEX_FULL = 'int-index-mgmt-full';
-const INDEX_DYNAMIC = 'int-index-mgmt-dynamic';
 const INDEX_ALIAS = 'int-index-mgmt-alias';
 
-type FullDoc = {
-  title: string;
-  category: string;
-  count: number;
-  score: number;
-  created_at: string;
-  active: boolean;
-  location: unknown;
-  embedding: number[];
-  tags: unknown[];
-  suggest: string;
-};
+const fullDocMappings = mappings({
+  title: text(),
+  category: keyword(),
+  count: integer(),
+  score: float(),
+  created_at: date(),
+  active: boolean(),
+  location: geoPoint(),
+  embedding: denseVector({ dims: 3 }),
+  tags: nested({ label: keyword(), weight: float() }),
+  suggest: completion()
+});
 
 const fieldTypes = (props: Record<string, { type: string }>) =>
   Object.fromEntries(Object.entries(props).map(([k, v]) => [k, v.type]));
@@ -37,19 +37,8 @@ describe('Index Management — full index config', () => {
   beforeAll(() =>
     createIndex(
       INDEX_FULL,
-      indexBuilder<FullDoc>()
-        .mappings({
-          title: text(),
-          category: keyword(),
-          count: integer(),
-          score: float(),
-          created_at: date(),
-          active: boolean(),
-          location: geoPoint(),
-          embedding: denseVector({ dims: 3 }),
-          tags: nested({ label: 'keyword', weight: 'float' }),
-          suggest: completion()
-        })
+      indexBuilder()
+        .mappings(fullDocMappings)
         .settings({ number_of_shards: 1, number_of_replicas: 0 })
         .build()
     )
@@ -91,35 +80,12 @@ describe('Index Management — full index config', () => {
   });
 });
 
-describe('Index Management — dynamic mapping option', () => {
-  type Doc = { title: string };
-
-  beforeAll(() =>
-    createIndex(
-      INDEX_DYNAMIC,
-      indexBuilder<Doc>().mappings({ title: 'text', dynamic: 'strict' }).build()
-    )
-  );
-
-  afterAll(() => deleteIndex(INDEX_DYNAMIC));
-
-  it('persists the dynamic setting in the mapping', async () => {
-    const result = await esGet(`/${INDEX_DYNAMIC}/_mapping`);
-
-    expect(result[INDEX_DYNAMIC].mappings.dynamic).toMatchInlineSnapshot(
-      `"strict"`
-    );
-  });
-});
-
 describe('Index Management — aliases', () => {
-  type Doc = { title: string };
-
   beforeAll(() =>
     createIndex(
       INDEX_ALIAS,
-      indexBuilder<Doc>()
-        .mappings({ title: 'text' })
+      indexBuilder()
+        .mappings({ title: text() })
         .alias('int-alias-read')
         .alias('int-alias-write', { is_write_index: true })
         .build()
