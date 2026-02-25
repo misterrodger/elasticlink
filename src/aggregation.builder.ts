@@ -1,3 +1,5 @@
+import type { FieldTypeString } from './index-management.types.js';
+import type { MappingsSchema } from './mapping.types.js';
 import {
   AggregationBuilder,
   AggregationState,
@@ -15,11 +17,13 @@ import {
   ValueCountAggOptions
 } from './aggregation.types.js';
 
-export const createAggregationBuilder = <T>(
+export const createAggregationBuilder = <
+  M extends Record<string, FieldTypeString>
+>(
   state: AggregationState = {}
-): AggregationBuilder<T> => ({
+): AggregationBuilder<M> => ({
   // Bucket aggregations
-  terms: <K extends keyof T>(
+  terms: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: TermsAggOptions
@@ -31,10 +35,10 @@ export const createAggregationBuilder = <T>(
         ...(options && Object.keys(options).length > 0 ? options : {})
       }
     };
-    return createAggregationBuilder<T>(aggregations);
+    return createAggregationBuilder<M>(aggregations);
   },
 
-  dateHistogram: <K extends keyof T>(
+  dateHistogram: <K extends string & keyof M>(
     name: string,
     field: K,
     options: DateHistogramAggOptions
@@ -46,10 +50,10 @@ export const createAggregationBuilder = <T>(
         ...options
       }
     };
-    return createAggregationBuilder<T>(aggregations);
+    return createAggregationBuilder<M>(aggregations);
   },
 
-  range: <K extends keyof T>(
+  range: <K extends string & keyof M>(
     name: string,
     field: K,
     options: RangeAggOptions
@@ -61,10 +65,10 @@ export const createAggregationBuilder = <T>(
         ranges: options.ranges
       }
     };
-    return createAggregationBuilder<T>(aggregations);
+    return createAggregationBuilder<M>(aggregations);
   },
 
-  histogram: <K extends keyof T>(
+  histogram: <K extends string & keyof M>(
     name: string,
     field: K,
     options: HistogramAggOptions
@@ -76,11 +80,15 @@ export const createAggregationBuilder = <T>(
         ...options
       }
     };
-    return createAggregationBuilder<T>(aggregations);
+    return createAggregationBuilder<M>(aggregations);
   },
 
   // Metric aggregations
-  avg: <K extends keyof T>(name: string, field: K, options?: AvgAggOptions) => {
+  avg: <K extends string & keyof M>(
+    name: string,
+    field: K,
+    options?: AvgAggOptions
+  ) => {
     const aggregations: AggregationState = { ...state };
     aggregations[name] = {
       avg: {
@@ -88,10 +96,14 @@ export const createAggregationBuilder = <T>(
         ...(options && Object.keys(options).length > 0 ? options : {})
       }
     };
-    return createAggregationBuilder<T>(aggregations);
+    return createAggregationBuilder<M>(aggregations);
   },
 
-  sum: <K extends keyof T>(name: string, field: K, options?: SumAggOptions) => {
+  sum: <K extends string & keyof M>(
+    name: string,
+    field: K,
+    options?: SumAggOptions
+  ) => {
     const aggregations: AggregationState = { ...state };
     aggregations[name] = {
       sum: {
@@ -99,10 +111,14 @@ export const createAggregationBuilder = <T>(
         ...(options && Object.keys(options).length > 0 ? options : {})
       }
     };
-    return createAggregationBuilder<T>(aggregations);
+    return createAggregationBuilder<M>(aggregations);
   },
 
-  min: <K extends keyof T>(name: string, field: K, options?: MinAggOptions) => {
+  min: <K extends string & keyof M>(
+    name: string,
+    field: K,
+    options?: MinAggOptions
+  ) => {
     const aggregations: AggregationState = { ...state };
     aggregations[name] = {
       min: {
@@ -110,10 +126,14 @@ export const createAggregationBuilder = <T>(
         ...(options && Object.keys(options).length > 0 ? options : {})
       }
     };
-    return createAggregationBuilder<T>(aggregations);
+    return createAggregationBuilder<M>(aggregations);
   },
 
-  max: <K extends keyof T>(name: string, field: K, options?: MaxAggOptions) => {
+  max: <K extends string & keyof M>(
+    name: string,
+    field: K,
+    options?: MaxAggOptions
+  ) => {
     const aggregations: AggregationState = { ...state };
     aggregations[name] = {
       max: {
@@ -121,10 +141,10 @@ export const createAggregationBuilder = <T>(
         ...(options && Object.keys(options).length > 0 ? options : {})
       }
     };
-    return createAggregationBuilder<T>(aggregations);
+    return createAggregationBuilder<M>(aggregations);
   },
 
-  cardinality: <K extends keyof T>(
+  cardinality: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: CardinalityAggOptions
@@ -136,10 +156,10 @@ export const createAggregationBuilder = <T>(
         ...(options && Object.keys(options).length > 0 ? options : {})
       }
     };
-    return createAggregationBuilder<T>(aggregations);
+    return createAggregationBuilder<M>(aggregations);
   },
 
-  percentiles: <K extends keyof T>(
+  percentiles: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: PercentilesAggOptions
@@ -151,10 +171,10 @@ export const createAggregationBuilder = <T>(
         ...(options && Object.keys(options).length > 0 ? options : {})
       }
     };
-    return createAggregationBuilder<T>(aggregations);
+    return createAggregationBuilder<M>(aggregations);
   },
 
-  stats: <K extends keyof T>(
+  stats: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: StatsAggOptions
@@ -166,10 +186,10 @@ export const createAggregationBuilder = <T>(
         ...(options && Object.keys(options).length > 0 ? options : {})
       }
     };
-    return createAggregationBuilder<T>(aggregations);
+    return createAggregationBuilder<M>(aggregations);
   },
 
-  valueCount: <K extends keyof T>(
+  valueCount: <K extends string & keyof M>(
     name: string,
     field: K,
     options?: ValueCountAggOptions
@@ -181,7 +201,7 @@ export const createAggregationBuilder = <T>(
         ...(options && Object.keys(options).length > 0 ? options : {})
       }
     };
-    return createAggregationBuilder<T>(aggregations);
+    return createAggregationBuilder<M>(aggregations);
   },
 
   // Sub-aggregations
@@ -196,7 +216,7 @@ export const createAggregationBuilder = <T>(
     const lastAgg = state[lastKey];
 
     // Apply sub-aggregations
-    const subAggs = fn(createAggregationBuilder<T>({})).build();
+    const subAggs = fn(createAggregationBuilder<M>({})).build();
     const updatedState = {
       ...state,
       [lastKey]: {
@@ -205,7 +225,7 @@ export const createAggregationBuilder = <T>(
       }
     };
 
-    return createAggregationBuilder<T>(updatedState);
+    return createAggregationBuilder<M>(updatedState);
   },
 
   // Build
@@ -213,4 +233,6 @@ export const createAggregationBuilder = <T>(
 });
 
 // Helper function to create aggregations without needing to import the builder
-export const aggregations = <T>() => createAggregationBuilder<T>();
+export const aggregations = <M extends Record<string, FieldTypeString>>(
+  _schema: MappingsSchema<M>
+) => createAggregationBuilder<M>();

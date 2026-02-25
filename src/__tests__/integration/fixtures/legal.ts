@@ -1,12 +1,25 @@
-export type Matter = {
-  title: string;
-  practice_area: string;
-  billing_rate: number;
-  risk_score: number;
-  opened_at: string;
-};
+import {
+  mappings,
+  text,
+  keyword,
+  integer,
+  float,
+  date,
+  completion
+} from '../../../index.js';
+import type { Infer } from '../../../index.js';
 
-export const MATTERS: Matter[] = [
+export const matterMappings = mappings({
+  title: text(),
+  practice_area: keyword(),
+  billing_rate: integer(),
+  risk_score: float(),
+  opened_at: date()
+});
+
+export type Matter = Infer<typeof matterMappings>;
+
+export const MATTERS = [
   {
     title: 'Mergers & Acquisitions Advisory',
     practice_area: 'corporate',
@@ -37,11 +50,13 @@ export const MATTERS: Matter[] = [
   }
 ];
 
-export type Attorney = {
-  name: string;
-  practice_area: string;
-  name_suggest: string;
-};
+export const attorneyMappings = mappings({
+  name: text(),
+  practice_area: keyword(),
+  name_suggest: completion()
+});
+
+export type Attorney = Infer<typeof attorneyMappings>;
 
 export const ATTORNEYS = [
   {

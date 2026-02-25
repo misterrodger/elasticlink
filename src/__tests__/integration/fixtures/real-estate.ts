@@ -1,10 +1,15 @@
-export type Listing = {
-  address: string;
-  property_class: string;
-  list_price: number;
-};
+import { mappings, text, keyword, integer } from '../../../index.js';
+import type { Infer } from '../../../index.js';
 
-export const LISTINGS: Listing[] = [
+export const listingMappings = mappings({
+  address: text(),
+  property_class: keyword(),
+  list_price: integer()
+});
+
+export type Listing = Infer<typeof listingMappings>;
+
+export const LISTINGS = [
   {
     address: '200 Harbor View Dr, Unit 12A',
     property_class: 'condo',

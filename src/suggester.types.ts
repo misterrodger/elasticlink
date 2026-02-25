@@ -9,6 +9,7 @@ import type {
   SearchPhraseSuggester,
   SearchCompletionSuggester
 } from '@elastic/elasticsearch/lib/api/types';
+import type { FieldTypeString } from './index-management.types.js';
 
 /**
  * Options for term suggester — re-exported from official @elastic/elasticsearch types
@@ -44,27 +45,27 @@ export type SuggesterState = {
 /**
  * Suggester builder interface
  */
-export type SuggesterBuilder<T> = {
+export type SuggesterBuilder<M extends Record<string, FieldTypeString>> = {
   /** Term suggester - suggests corrections for individual terms */
   term: (
     name: string,
     text: string,
     options: TermSuggesterOptions
-  ) => SuggesterBuilder<T>;
+  ) => SuggesterBuilder<M>;
 
   /** Phrase suggester - suggests corrections for entire phrases */
   phrase: (
     name: string,
     text: string,
     options: PhraseSuggesterOptions
-  ) => SuggesterBuilder<T>;
+  ) => SuggesterBuilder<M>;
 
   /** Completion suggester - autocomplete functionality */
   completion: (
     name: string,
     prefix: string,
     options: CompletionSuggesterOptions
-  ) => SuggesterBuilder<T>;
+  ) => SuggesterBuilder<M>;
 
   /** Build suggester DSL */
   build: () => { suggest: SuggesterState };

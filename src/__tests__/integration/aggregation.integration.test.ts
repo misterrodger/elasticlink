@@ -1,11 +1,4 @@
-import {
-  query,
-  indexBuilder,
-  keyword,
-  integer,
-  float,
-  date
-} from '../../index.js';
+import { query, indexBuilder } from '../../index.js';
 import {
   createIndex,
   deleteIndex,
@@ -13,24 +6,13 @@ import {
   refreshIndex,
   search
 } from './helpers.js';
-import { Matter, MATTERS } from './fixtures/legal.js';
+import { matterMappings, MATTERS } from './fixtures/legal.js';
 
 const INDEX = 'int-aggregation';
 
 describe('AggregationBuilder', () => {
   beforeAll(async () => {
-    await createIndex(
-      INDEX,
-      indexBuilder<Matter>()
-        .mappings({
-          title: 'text',
-          practice_area: keyword(),
-          billing_rate: integer(),
-          risk_score: float(),
-          opened_at: date()
-        })
-        .build()
-    );
+    await createIndex(INDEX, indexBuilder().mappings(matterMappings).build());
     for (const doc of MATTERS) await indexDoc(INDEX, doc);
     await refreshIndex(INDEX);
   });
@@ -41,7 +23,7 @@ describe('AggregationBuilder', () => {
     it('buckets documents by a keyword field', async () => {
       const result = await search(
         INDEX,
-        query<Matter>()
+        query(matterMappings)
           .matchAll()
           .aggs((agg) => agg.terms('by_area', 'practice_area'))
           .size(0)
@@ -73,7 +55,7 @@ describe('AggregationBuilder', () => {
     it('supports size option and sub-aggregations', async () => {
       const result = await search(
         INDEX,
-        query<Matter>()
+        query(matterMappings)
           .matchAll()
           .aggs((agg) =>
             agg
@@ -109,7 +91,7 @@ describe('AggregationBuilder', () => {
     it('computes avg, min, max, sum, and value_count in one request', async () => {
       const result = await search(
         INDEX,
-        query<Matter>()
+        query(matterMappings)
           .matchAll()
           .aggs((agg) =>
             agg
@@ -147,7 +129,7 @@ describe('AggregationBuilder', () => {
     it('computes stats and cardinality', async () => {
       const result = await search(
         INDEX,
-        query<Matter>()
+        query(matterMappings)
           .matchAll()
           .aggs((agg) =>
             agg
@@ -179,7 +161,7 @@ describe('AggregationBuilder', () => {
     it('buckets documents into named billing rate ranges', async () => {
       const result = await search(
         INDEX,
-        query<Matter>()
+        query(matterMappings)
           .matchAll()
           .aggs((agg) =>
             agg.range('rate_bands', 'billing_rate', {
@@ -221,7 +203,7 @@ describe('AggregationBuilder', () => {
     it('groups documents into yearly buckets', async () => {
       const result = await search(
         INDEX,
-        query<Matter>()
+        query(matterMappings)
           .matchAll()
           .aggs((agg) =>
             agg.dateHistogram('by_year', 'opened_at', {

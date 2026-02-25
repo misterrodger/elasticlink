@@ -1,4 +1,4 @@
-import { bulk, query, indexBuilder, keyword, integer } from '../../index.js';
+import { bulk, query, indexBuilder } from '../../index.js';
 import {
   createIndex,
   deleteIndex,
@@ -6,25 +6,20 @@ import {
   search,
   bulkRequest
 } from './helpers.js';
-import { Trade } from './fixtures/finance.js';
+import { tradeMappings } from './fixtures/finance.js';
 
 const INDEX = 'int-bulk';
 
 describe('BulkBuilder', () => {
   beforeAll(() =>
-    createIndex(
-      INDEX,
-      indexBuilder<Trade>()
-        .mappings({ reference: 'text', status: keyword(), priority: integer() })
-        .build()
-    )
+    createIndex(INDEX, indexBuilder().mappings(tradeMappings).build())
   );
 
   afterAll(() => deleteIndex(INDEX));
 
   describe('Bulk — index and create', () => {
     it('indexes and creates documents via bulk, then retrieves them', async () => {
-      const ndjson = bulk<Trade>()
+      const ndjson = bulk(tradeMappings)
         .index(
           { reference: 'TRD-001 AAPL Buy 100', status: 'settled', priority: 1 },
           { _index: INDEX, _id: 'trd-1' }
@@ -46,7 +41,7 @@ describe('BulkBuilder', () => {
 
       const searchResult = await search(
         INDEX,
-        query<Trade>().matchAll().build()
+        query(tradeMappings).matchAll().build()
       );
 
       expect(searchResult.hits.total.value).toBe(3);
@@ -55,7 +50,7 @@ describe('BulkBuilder', () => {
 
   describe('Bulk — update', () => {
     it('partially updates a document', async () => {
-      const ndjson = bulk<Trade>()
+      const ndjson = bulk(tradeMappings)
         .update({ _index: INDEX, _id: 'trd-2', doc: { status: 'settled' } })
         .build();
 
@@ -64,14 +59,14 @@ describe('BulkBuilder', () => {
 
       const result = await search(
         INDEX,
-        query<Trade>().term('status', 'settled').build()
+        query(tradeMappings).term('status', 'settled').build()
       );
 
       expect(result.hits.total.value).toBe(2);
     });
 
     it('upserts a document that does not exist', async () => {
-      const ndjson = bulk<Trade>()
+      const ndjson = bulk(tradeMappings)
         .update({
           _index: INDEX,
           _id: 'trd-4',
@@ -87,7 +82,10 @@ describe('BulkBuilder', () => {
       await bulkRequest(ndjson);
       await refreshIndex(INDEX);
 
-      const result = await search(INDEX, query<Trade>().matchAll().build());
+      const result = await search(
+        INDEX,
+        query(tradeMappings).matchAll().build()
+      );
 
       expect(result.hits.total.value).toBe(4);
     });
@@ -95,14 +93,17 @@ describe('BulkBuilder', () => {
 
   describe('Bulk — delete', () => {
     it('deletes a document via bulk', async () => {
-      const ndjson = bulk<Trade>()
+      const ndjson = bulk(tradeMappings)
         .delete({ _index: INDEX, _id: 'trd-4' })
         .build();
 
       await bulkRequest(ndjson);
       await refreshIndex(INDEX);
 
-      const result = await search(INDEX, query<Trade>().matchAll().build());
+      const result = await search(
+        INDEX,
+        query(tradeMappings).matchAll().build()
+      );
 
       expect(result.hits.total.value).toBe(3);
     });
@@ -110,7 +111,7 @@ describe('BulkBuilder', () => {
 
   describe('Bulk — mixed operations', () => {
     it('executes index, update, and delete in a single bulk call', async () => {
-      const ndjson = bulk<Trade>()
+      const ndjson = bulk(tradeMappings)
         .index(
           { reference: 'TRD-099 NVDA Buy 5', status: 'pending', priority: 99 },
           { _index: INDEX, _id: 'trd-temp' }

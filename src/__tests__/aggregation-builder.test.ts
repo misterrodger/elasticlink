@@ -1,24 +1,24 @@
 import { aggregations } from '..';
-import { ListingDetail } from './fixtures/real-estate.js';
+import { listingDetailMappings } from './fixtures/real-estate.js';
 
 describe('AggregationBuilder', () => {
   describe('Builder behavior', () => {
     it('should return empty object for empty builder', () => {
-      const result = aggregations<ListingDetail>().build();
+      const result = aggregations(listingDetailMappings).build();
 
       expect(result).toMatchInlineSnapshot(`{}`);
     });
 
     it('should throw when calling subAgg without parent aggregation', () => {
       expect(() => {
-        aggregations<ListingDetail>()
+        aggregations(listingDetailMappings)
           .subAgg((agg) => agg.avg('avg_price', 'list_price'))
           .build();
       }).toThrow('No aggregation to add sub-aggregation to');
     });
 
     it('should support multiple top-level aggregations at same level', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .terms('by_property_class', 'property_class')
         .avg('avg_price', 'list_price')
         .dateHistogram('over_time', 'listed_date', { interval: 'month' })
@@ -49,7 +49,7 @@ describe('AggregationBuilder', () => {
 
   describe('Bucket aggregations', () => {
     it('should create a terms aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .terms('category_agg', 'property_class', { size: 10 })
         .build();
 
@@ -66,7 +66,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a terms aggregation without options', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .terms('category_agg', 'property_class')
         .build();
 
@@ -82,7 +82,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a date histogram aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .dateHistogram('listings_by_date', 'listed_date', {
           interval: 'day',
           min_doc_count: 1
@@ -103,7 +103,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a range aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .range('price_ranges', 'list_price', {
           ranges: [{ to: 100 }, { from: 100, to: 500 }, { from: 500 }]
         })
@@ -133,7 +133,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a histogram aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .histogram('price_histogram', 'list_price', { interval: 50 })
         .build();
 
@@ -152,7 +152,7 @@ describe('AggregationBuilder', () => {
 
   describe('Metric aggregations', () => {
     it('should create an avg aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .avg('avg_price', 'list_price')
         .build();
 
@@ -168,7 +168,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a sum aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .sum('total_price', 'list_price')
         .build();
 
@@ -184,7 +184,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a min aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .min('min_price', 'list_price')
         .build();
 
@@ -200,7 +200,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a max aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .max('max_price', 'list_price')
         .build();
 
@@ -216,7 +216,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a cardinality aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .cardinality('unique_categories', 'property_class', {
           precision_threshold: 100
         })
@@ -235,7 +235,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a percentiles aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .percentiles('price_percentiles', 'list_price', {
           percents: [25, 50, 75, 95]
         })
@@ -259,7 +259,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a percentiles aggregation with no options', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .percentiles('price_percentiles', 'list_price')
         .build();
 
@@ -275,7 +275,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a stats aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .stats('price_stats', 'list_price')
         .build();
 
@@ -291,7 +291,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a value_count aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .valueCount('rating_count', 'cap_rate')
         .build();
 
@@ -309,7 +309,7 @@ describe('AggregationBuilder', () => {
 
   describe('Sub-aggregations', () => {
     it('should add sub-aggregations to a bucket aggregation', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .terms('categories', 'property_class', { size: 10 })
         .subAgg((agg) => agg.avg('avg_price', 'list_price'))
         .build();
@@ -334,7 +334,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should add multiple sub-aggregations', () => {
-      const result = aggregations<ListingDetail>()
+      const result = aggregations(listingDetailMappings)
         .terms('categories', 'property_class')
         .subAgg((agg) =>
           agg.avg('avg_price', 'list_price').max('max_rating', 'cap_rate')
@@ -368,7 +368,7 @@ describe('AggregationBuilder', () => {
   describe('Aggregation options', () => {
     describe('Terms aggregation options', () => {
       it('should create terms with min_doc_count', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .terms('categories', 'property_class', { min_doc_count: 5 })
           .build();
 
@@ -385,7 +385,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create terms with order', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .terms('categories', 'property_class', { order: { _count: 'asc' } })
           .build();
 
@@ -404,7 +404,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create terms with missing value', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .terms('categories', 'property_class', { missing: 'N/A' })
           .build();
 
@@ -421,7 +421,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create terms with all options', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .terms('categories', 'property_class', {
             size: 20,
             min_doc_count: 2,
@@ -442,7 +442,7 @@ describe('AggregationBuilder', () => {
 
     describe('Range aggregation options', () => {
       it('should create range with keyed ranges', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .range('price_ranges', 'list_price', {
             ranges: [
               { key: 'cheap', to: 100 },
@@ -474,7 +474,7 @@ describe('AggregationBuilder', () => {
 
     describe('DateHistogram aggregation options', () => {
       it('should create dateHistogram with minimal options', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .dateHistogram('by_day', 'listed_date', { interval: 'day' })
           .build();
 
@@ -491,7 +491,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create dateHistogram with extended_bounds', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .dateHistogram('over_time', 'listed_date', {
             interval: 'day',
             extended_bounds: {
@@ -508,7 +508,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create dateHistogram with time_zone', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .dateHistogram('over_time', 'listed_date', {
             interval: 'day',
             time_zone: 'America/New_York'
@@ -521,7 +521,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create dateHistogram with order', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .dateHistogram('over_time', 'listed_date', {
             interval: 'month',
             order: { _key: 'desc' }
@@ -536,7 +536,7 @@ describe('AggregationBuilder', () => {
 
     describe('Histogram aggregation options', () => {
       it('should create histogram with min_doc_count', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .histogram('price_buckets', 'list_price', {
             interval: 100,
             min_doc_count: 1
@@ -547,7 +547,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create histogram with extended_bounds', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .histogram('price_buckets', 'list_price', {
             interval: 50,
             extended_bounds: { min: 0, max: 1000 }
@@ -563,7 +563,7 @@ describe('AggregationBuilder', () => {
 
     describe('Metric aggregation options', () => {
       it('should create avg with missing value', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .avg('avg_price', 'list_price', { missing: 0 })
           .build();
 
@@ -580,7 +580,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create sum with missing value', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .sum('total_price', 'list_price', { missing: 0 })
           .build();
 
@@ -588,7 +588,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create min with missing value', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .min('min_price', 'list_price', { missing: 9999 })
           .build();
 
@@ -596,7 +596,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create max with missing value', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .max('max_price', 'list_price', { missing: 0 })
           .build();
 
@@ -604,7 +604,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create cardinality without options', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .cardinality('unique_categories', 'property_class')
           .build();
 
@@ -620,7 +620,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create percentiles with keyed option', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .percentiles('price_percentiles', 'list_price', {
             percents: [25, 50, 75, 95, 99],
             keyed: true
@@ -634,7 +634,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create stats with missing value', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .stats('price_stats', 'list_price', { missing: 0 })
           .build();
 
@@ -642,7 +642,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create valueCount with missing value', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .valueCount('rating_count', 'cap_rate', { missing: 0 })
           .build();
 
@@ -652,7 +652,7 @@ describe('AggregationBuilder', () => {
 
     describe('Sub-aggregation patterns', () => {
       it('should add sub-agg to dateHistogram', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .dateHistogram('by_month', 'listed_date', { interval: 'month' })
           .subAgg((sub) =>
             sub
@@ -673,7 +673,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should add sub-agg to range aggregation', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .range('price_ranges', 'list_price', {
             ranges: [{ to: 50 }, { from: 50, to: 100 }, { from: 100 }]
           })
@@ -694,7 +694,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should add sub-agg to histogram aggregation', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .histogram('price_histogram', 'list_price', { interval: 25 })
           .subAgg((sub) =>
             sub.cardinality('unique_categories', 'property_class')
@@ -712,7 +712,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create multiple sibling sub-aggregations', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .terms('by_property_class', 'property_class')
           .subAgg((sub) =>
             sub
@@ -739,7 +739,7 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create multiple bucket aggregations at same level', () => {
-        const result = aggregations<ListingDetail>()
+        const result = aggregations(listingDetailMappings)
           .terms('by_property_class', 'property_class', { size: 10 })
           .terms('by_title', 'title', { size: 5 })
           .dateHistogram('by_date', 'listed_date', { interval: 'week' })

@@ -3,6 +3,8 @@
  * Enables batching multiple index/create/update/delete operations
  */
 
+import type { FieldTypeString } from './index-management.types.js';
+import type { MappingsSchema, Infer } from './mapping.types.js';
 import { BulkBuilder } from './bulk.types.js';
 
 /**
@@ -56,4 +58,6 @@ export const createBulkBuilder = <T>(
  *   .delete({ _index: 'products', _id: '4' })
  *   .build(); // POST to /_bulk with Content-Type: application/x-ndjson
  */
-export const bulk = <T>() => createBulkBuilder<T>();
+export const bulk = <M extends Record<string, FieldTypeString>>(
+  _schema: MappingsSchema<M>
+) => createBulkBuilder<Infer<MappingsSchema<M>>>();

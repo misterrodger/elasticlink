@@ -1,34 +1,20 @@
+import type { FieldTypeString } from './index-management.types.js';
+import type { MappingsSchema } from './mapping.types.js';
 import { createQueryBuilder } from './query.builder.js';
-import { createAggregationBuilder } from './aggregation.builder.js';
 
 // Search API
-export const query = <T>(includeQuery: boolean = true) =>
-  createQueryBuilder<T>({ _includeQuery: includeQuery });
-export const aggregations = <T>() => createAggregationBuilder<T>();
+export const query = <M extends Record<string, FieldTypeString>>(
+  _schema: MappingsSchema<M>,
+  includeQuery: boolean = true
+) => createQueryBuilder<M>({ _includeQuery: includeQuery });
+export type { QueryBuilder, ClauseBuilder } from './query.types.js';
 
-// Multi-search API
-export { msearch, createMSearchBuilder } from './multi-search.builder.js';
-export type {
-  MSearchBuilder,
-  MSearchRequest,
-  MSearchHeader
-} from './multi-search.types.js';
+// Aggregations API
+export { aggregations } from './aggregation.builder.js';
+export type { AggregationBuilder } from './aggregation.types.js';
 
-// Bulk API
-export { bulk, createBulkBuilder } from './bulk.builder.js';
-export type {
-  BulkBuilder,
-  BulkIndexMeta,
-  BulkCreateMeta,
-  BulkUpdateMeta,
-  BulkDeleteMeta
-} from './bulk.types.js';
-
-// Index Management API
-export {
-  indexBuilder,
-  createIndexBuilder
-} from './index-management.builder.js';
+// Mappings API
+export { mappings } from './mapping.builder.js';
 export {
   text,
   keyword,
@@ -59,42 +45,30 @@ export {
   dateRange
 } from './field.helpers.js';
 export type {
-  IndexBuilder,
-  IndexMappings,
-  IndexSettings,
-  CreateIndexOptions,
-  FieldMapping,
-  FieldTypeString,
-  FieldMappingInput,
-  MappingsInput
-} from './index-management.types.js';
-export type {
-  TextFieldOptions,
-  KeywordFieldOptions,
-  NumericFieldOptions,
-  ScaledFloatFieldOptions,
-  DateFieldOptions,
-  BooleanFieldOptions,
-  DenseVectorFieldOptions,
-  NestedFields,
-  ObjectFieldOptions,
-  CompletionFieldOptions,
-  GeoPointFieldOptions,
-  GeoShapeFieldOptions,
-  AliasFieldOptions,
-  IpFieldOptions,
-  RangeFieldOptions
-} from './field.types.js';
+  MappingsSchema,
+  Infer,
+  FieldsOfType,
+  TextFields,
+  KeywordFields,
+  NumericFields,
+  DateFields,
+  BooleanFields,
+  GeoPointFields,
+  VectorFields
+} from './mapping.types.js';
+
+// Multi-search API
+export { msearch } from './multi-search.builder.js';
+export type { MSearchBuilder } from './multi-search.types.js';
+
+// Bulk API
+export { bulk } from './bulk.builder.js';
+export type { BulkBuilder } from './bulk.types.js';
+
+// Index Management API
+export { indexBuilder } from './index-management.builder.js';
+export type { IndexBuilder } from './index-management.types.js';
 
 // Suggester API
-export { suggest, createSuggesterBuilder } from './suggester.builder.js';
-export type {
-  SuggesterBuilder,
-  SuggesterState,
-  TermSuggesterOptions,
-  PhraseSuggesterOptions,
-  CompletionSuggesterOptions
-} from './suggester.types.js';
-
-// Export types
-export type { KnnOptions, DenseVectorOptions } from './vector.types.js';
+export { suggest } from './suggester.builder.js';
+export type { SuggesterBuilder } from './suggester.types.js';

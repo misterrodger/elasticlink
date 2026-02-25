@@ -1,24 +1,20 @@
 /**
  * Field type helper functions for ergonomic index mapping definitions.
- * Each helper returns a FieldMapping with `type` pre-filled and only accepts
- * options relevant to that specific field type.
+ * Each helper returns a narrowly-typed mapping with a literal `type` field,
+ * enabling compile-time field-type inference in the query builder.
  *
  * @example
- * import { text, keyword, denseVector } from 'elasticlink';
+ * import { text, keyword, denseVector, mappings } from 'elasticlink';
  *
- * indexBuilder<Product>()
- *   .mappings({
- *     name: text({ analyzer: 'standard' }),
- *     price: 'float',
- *     category: 'keyword',
- *     embedding: denseVector({ dims: 384 }),
- *   })
+ * const productMappings = mappings({
+ *   name: text({ analyzer: 'standard' }),
+ *   price: float(),
+ *   category: keyword(),
+ *   embedding: denseVector({ dims: 384 }),
+ * });
  */
 
-import type {
-  FieldMapping,
-  FieldMappingInput
-} from './index-management.types.js';
+import type { FieldMapping } from './index-management.types.js';
 import type {
   TextFieldOptions,
   KeywordFieldOptions,
@@ -34,67 +30,102 @@ import type {
   GeoShapeFieldOptions,
   AliasFieldOptions,
   IpFieldOptions,
-  RangeFieldOptions
+  RangeFieldOptions,
+  TextFieldMapping,
+  KeywordFieldMapping,
+  LongFieldMapping,
+  IntegerFieldMapping,
+  ShortFieldMapping,
+  ByteFieldMapping,
+  DoubleFieldMapping,
+  FloatFieldMapping,
+  HalfFloatFieldMapping,
+  ScaledFloatFieldMapping,
+  DateFieldMapping,
+  BooleanFieldMapping,
+  BinaryFieldMapping,
+  IpFieldMapping,
+  DenseVectorFieldMapping,
+  GeoPointFieldMapping,
+  GeoShapeFieldMapping,
+  CompletionFieldMapping,
+  NestedFieldMapping,
+  ObjectFieldMapping,
+  AliasFieldMapping,
+  PercolatorFieldMapping,
+  IntegerRangeFieldMapping,
+  FloatRangeFieldMapping,
+  LongRangeFieldMapping,
+  DoubleRangeFieldMapping,
+  DateRangeFieldMapping
 } from './field.types.js';
 
 // Text & keyword
-export const text = (options?: TextFieldOptions): FieldMapping => ({
+export const text = (options?: TextFieldOptions): TextFieldMapping => ({
   type: 'text',
   ...options
 });
-export const keyword = (options?: KeywordFieldOptions): FieldMapping => ({
+export const keyword = (
+  options?: KeywordFieldOptions
+): KeywordFieldMapping => ({
   type: 'keyword',
   ...options
 });
 
 // Numeric
-export const long = (options?: NumericFieldOptions): FieldMapping => ({
+export const long = (options?: NumericFieldOptions): LongFieldMapping => ({
   type: 'long',
   ...options
 });
-export const integer = (options?: NumericFieldOptions): FieldMapping => ({
+export const integer = (
+  options?: NumericFieldOptions
+): IntegerFieldMapping => ({
   type: 'integer',
   ...options
 });
-export const short = (options?: NumericFieldOptions): FieldMapping => ({
+export const short = (options?: NumericFieldOptions): ShortFieldMapping => ({
   type: 'short',
   ...options
 });
-export const byte = (options?: NumericFieldOptions): FieldMapping => ({
+export const byte = (options?: NumericFieldOptions): ByteFieldMapping => ({
   type: 'byte',
   ...options
 });
-export const double = (options?: NumericFieldOptions): FieldMapping => ({
+export const double = (options?: NumericFieldOptions): DoubleFieldMapping => ({
   type: 'double',
   ...options
 });
-export const float = (options?: NumericFieldOptions): FieldMapping => ({
+export const float = (options?: NumericFieldOptions): FloatFieldMapping => ({
   type: 'float',
   ...options
 });
-export const halfFloat = (options?: NumericFieldOptions): FieldMapping => ({
+export const halfFloat = (
+  options?: NumericFieldOptions
+): HalfFloatFieldMapping => ({
   type: 'half_float',
   ...options
 });
 export const scaledFloat = (
   options?: ScaledFloatFieldOptions
-): FieldMapping => ({ type: 'scaled_float', ...options });
+): ScaledFloatFieldMapping => ({ type: 'scaled_float', ...options });
 
 // Date & boolean
-export const date = (options?: DateFieldOptions): FieldMapping => ({
+export const date = (options?: DateFieldOptions): DateFieldMapping => ({
   type: 'date',
   ...options
 });
-export const boolean = (options?: BooleanFieldOptions): FieldMapping => ({
+export const boolean = (
+  options?: BooleanFieldOptions
+): BooleanFieldMapping => ({
   type: 'boolean',
   ...options
 });
 
 // Binary
-export const binary = (): FieldMapping => ({ type: 'binary' });
+export const binary = (): BinaryFieldMapping => ({ type: 'binary' });
 
 // IP
-export const ip = (options?: IpFieldOptions): FieldMapping => ({
+export const ip = (options?: IpFieldOptions): IpFieldMapping => ({
   type: 'ip',
   ...options
 });
@@ -102,79 +133,85 @@ export const ip = (options?: IpFieldOptions): FieldMapping => ({
 // Vector
 export const denseVector = (
   options?: DenseVectorFieldOptions
-): FieldMapping => ({ type: 'dense_vector', ...options });
+): DenseVectorFieldMapping => ({ type: 'dense_vector', ...options });
 
 // Geo
-export const geoPoint = (options?: GeoPointFieldOptions): FieldMapping => ({
+export const geoPoint = (
+  options?: GeoPointFieldOptions
+): GeoPointFieldMapping => ({
   type: 'geo_point',
   ...options
 });
-export const geoShape = (options?: GeoShapeFieldOptions): FieldMapping => ({
+export const geoShape = (
+  options?: GeoShapeFieldOptions
+): GeoShapeFieldMapping => ({
   type: 'geo_shape',
   ...options
 });
 
 // Completion
-export const completion = (options?: CompletionFieldOptions): FieldMapping => ({
+export const completion = (
+  options?: CompletionFieldOptions
+): CompletionFieldMapping => ({
   type: 'completion',
   ...options
 });
 
 // Structured
-export const nested = (fields?: NestedFields): FieldMapping => ({
+export const nested = (fields?: NestedFields): NestedFieldMapping => ({
   type: 'nested',
-  ...(fields && { properties: resolveProperties(fields) })
+  ...(fields && { properties: fields })
 });
 export const object = (
   fields?: NestedFields,
   options?: ObjectFieldOptions
-): FieldMapping => ({
+): ObjectFieldMapping => ({
   type: 'object',
   ...(options?.enabled !== undefined && { enabled: options.enabled }),
-  ...(fields && { properties: resolveProperties(fields) })
+  ...(fields && { properties: fields })
 });
 
 // Alias
-export const alias = (options?: AliasFieldOptions): FieldMapping => ({
+export const alias = (options?: AliasFieldOptions): AliasFieldMapping => ({
   type: 'alias',
   ...options
 });
 
 // Percolator
-export const percolator = (): FieldMapping => ({ type: 'percolator' });
+export const percolator = (): PercolatorFieldMapping => ({
+  type: 'percolator'
+});
 
 // Range types
-export const integerRange = (options?: RangeFieldOptions): FieldMapping => ({
+export const integerRange = (
+  options?: RangeFieldOptions
+): IntegerRangeFieldMapping => ({
   type: 'integer_range',
   ...options
 });
-export const floatRange = (options?: RangeFieldOptions): FieldMapping => ({
+export const floatRange = (
+  options?: RangeFieldOptions
+): FloatRangeFieldMapping => ({
   type: 'float_range',
   ...options
 });
-export const longRange = (options?: RangeFieldOptions): FieldMapping => ({
+export const longRange = (
+  options?: RangeFieldOptions
+): LongRangeFieldMapping => ({
   type: 'long_range',
   ...options
 });
-export const doubleRange = (options?: RangeFieldOptions): FieldMapping => ({
+export const doubleRange = (
+  options?: RangeFieldOptions
+): DoubleRangeFieldMapping => ({
   type: 'double_range',
   ...options
 });
-export const dateRange = (options?: RangeFieldOptions): FieldMapping => ({
+export const dateRange = (
+  options?: RangeFieldOptions
+): DateRangeFieldMapping => ({
   type: 'date_range',
   ...options
 });
 
-/**
- * Resolves a FieldMappingInput to a FieldMapping.
- * Converts shorthand strings like 'text' to { type: 'text' }.
- */
-export const resolveField = (input: FieldMappingInput): FieldMapping =>
-  typeof input === 'string' ? { type: input } : input;
-
-const resolveProperties = (
-  props: Record<string, FieldMappingInput>
-): Record<string, FieldMapping> =>
-  Object.fromEntries(
-    Object.entries(props).map(([k, v]) => [k, resolveField(v)])
-  );
+export const resolveField = (input: FieldMapping): FieldMapping => input;
