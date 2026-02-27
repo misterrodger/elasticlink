@@ -47,25 +47,13 @@ export type SuggesterState = {
  */
 export type SuggesterBuilder<M extends Record<string, FieldTypeString>> = {
   /** Term suggester - suggests corrections for individual terms */
-  term: (
-    name: string,
-    text: string,
-    options: TermSuggesterOptions
-  ) => SuggesterBuilder<M>;
+  term: (name: string, text: string, options: TermSuggesterOptions) => SuggesterBuilder<M>;
 
   /** Phrase suggester - suggests corrections for entire phrases */
-  phrase: (
-    name: string,
-    text: string,
-    options: PhraseSuggesterOptions
-  ) => SuggesterBuilder<M>;
+  phrase: (name: string, text: string, options: PhraseSuggesterOptions) => SuggesterBuilder<M>;
 
   /** Completion suggester - autocomplete functionality */
-  completion: (
-    name: string,
-    prefix: string,
-    options: CompletionSuggesterOptions
-  ) => SuggesterBuilder<M>;
+  completion: (name: string, prefix: string, options: CompletionSuggesterOptions) => SuggesterBuilder<M>;
 
   /** Build suggester DSL */
   build: () => { suggest: SuggesterState };

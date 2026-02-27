@@ -1,11 +1,5 @@
 import { query, indexBuilder } from '../../index.js';
-import {
-  createIndex,
-  deleteIndex,
-  indexDoc,
-  refreshIndex,
-  search
-} from './helpers.js';
+import { createIndex, deleteIndex, indexDoc, refreshIndex, search } from './helpers.js';
 import { attorneyMappings, ATTORNEYS } from './fixtures/legal.js';
 
 const INDEX = 'int-suggester';
@@ -24,19 +18,13 @@ describe('SuggesterBuilder', () => {
       const result = await search(
         INDEX,
         query(attorneyMappings)
-          .suggest((s) =>
-            s.term('name-suggestions', 'wiliams', { field: 'name' })
-          )
+          .suggest((s) => s.term('name-suggestions', 'wiliams', { field: 'name' }))
           .size(0)
           .build()
       );
 
-      expect(
-        result.suggest['name-suggestions'][0].options.length
-      ).toBeGreaterThan(0);
-      expect(result.suggest['name-suggestions'][0].options[0].text).toBe(
-        'williams'
-      );
+      expect(result.suggest['name-suggestions'][0].options.length).toBeGreaterThan(0);
+      expect(result.suggest['name-suggestions'][0].options[0].text).toBe('williams');
     });
   });
 
@@ -45,36 +33,32 @@ describe('SuggesterBuilder', () => {
       const result = await search(
         INDEX,
         query(attorneyMappings)
-          .suggest((s) =>
-            s.completion('autocomplete', 'kap', { field: 'name_suggest' })
-          )
+          .suggest((s) => s.completion('autocomplete', 'kap', { field: 'name_suggest' }))
           .size(0)
           .build()
       );
 
-      const options = result.suggest.autocomplete[0].options;
+      const {
+        suggest: {
+          autocomplete: [{ options }]
+        }
+      } = result;
       const texts = options.map((o: { text: string }) => o.text);
 
       expect(options.length).toBeGreaterThan(0);
-      expect(
-        texts.some((t: string) => t.toLowerCase().includes('kapoor'))
-      ).toBe(true);
+      expect(texts.some((t: string) => t.toLowerCase().includes('kapoor'))).toBe(true);
     });
 
     it('limits results with size option', async () => {
       const result = await search(
         INDEX,
         query(attorneyMappings)
-          .suggest((s) =>
-            s.completion('autocomplete', '', { field: 'name_suggest', size: 2 })
-          )
+          .suggest((s) => s.completion('autocomplete', '', { field: 'name_suggest', size: 2 }))
           .size(0)
           .build()
       );
 
-      expect(result.suggest.autocomplete[0].options.length).toBeLessThanOrEqual(
-        2
-      );
+      expect(result.suggest.autocomplete[0].options.length).toBeLessThanOrEqual(2);
     });
   });
 });

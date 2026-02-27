@@ -30,8 +30,7 @@ export type BulkCreateMeta = BulkCreateOperation;
  * The builder splits these into separate header and body when building the bulk request.
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
  */
-export type BulkUpdateMeta<T> = BulkUpdateOperation &
-  BulkUpdateAction<T, Partial<T>>;
+export type BulkUpdateMeta<T> = BulkUpdateOperation & BulkUpdateAction<T, Partial<T>>;
 
 /**
  * Metadata for bulk delete operation — re-exported from official @elastic/elasticsearch types

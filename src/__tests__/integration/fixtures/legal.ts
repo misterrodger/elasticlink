@@ -1,12 +1,4 @@
-import {
-  mappings,
-  text,
-  keyword,
-  integer,
-  float,
-  date,
-  completion
-} from '../../../index.js';
+import { mappings, text, keyword, integer, float, date, completion } from '../../../index.js';
 import type { Infer } from '../../../index.js';
 
 export const matterMappings = mappings({

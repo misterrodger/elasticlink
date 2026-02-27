@@ -80,6 +80,7 @@ describe('Bulk API', () => {
         .build();
 
       const lines = result.split('\n').filter((l) => l);
+
       expect(lines).toHaveLength(2); // action + document
     });
 
@@ -462,9 +463,7 @@ describe('Bulk API', () => {
 
   describe('Delete operations', () => {
     it('should build delete operation', () => {
-      const result = bulk(matterMappings)
-        .delete({ _index: 'matters', _id: '8' })
-        .buildArray();
+      const result = bulk(matterMappings).delete({ _index: 'matters', _id: '8' }).buildArray();
 
       expect(result).toMatchInlineSnapshot(`
         [
@@ -479,9 +478,7 @@ describe('Bulk API', () => {
     });
 
     it('should delete with routing', () => {
-      const result = bulk(matterMappings)
-        .delete({ _index: 'matters', _id: '9', routing: 'user-456' })
-        .buildArray();
+      const result = bulk(matterMappings).delete({ _index: 'matters', _id: '9', routing: 'user-456' }).buildArray();
 
       expect(result).toMatchInlineSnapshot(`
         [
@@ -497,9 +494,7 @@ describe('Bulk API', () => {
     });
 
     it('should delete with version', () => {
-      const result = bulk(matterMappings)
-        .delete({ _index: 'matters', _id: '10', version: 3 })
-        .buildArray();
+      const result = bulk(matterMappings).delete({ _index: 'matters', _id: '10', version: 3 }).buildArray();
 
       expect(result).toMatchInlineSnapshot(`
         [
@@ -692,6 +687,7 @@ describe('Bulk API', () => {
       }
 
       const result = bulkOp.buildArray();
+
       expect(result).toMatchInlineSnapshot(`
         [
           {

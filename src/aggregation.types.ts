@@ -20,6 +20,7 @@ import type {
   AggregationsCalendarInterval
 } from '@elastic/elasticsearch/lib/api/types';
 import type { FieldTypeString } from './index-management.types.js';
+import type { DateFields, NumericFields } from './mapping.types.js';
 
 /**
  * Options for terms aggregation (excludes 'field' which is handled by the builder)
@@ -37,10 +38,7 @@ export type DateHistogramInterval = AggregationsCalendarInterval;
  * Options for date_histogram aggregation (excludes 'field' which is handled by the builder)
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-datehistogram-aggregation.html
  */
-export type DateHistogramAggOptions = Omit<
-  AggregationsDateHistogramAggregation,
-  'field'
->;
+export type DateHistogramAggOptions = Omit<AggregationsDateHistogramAggregation, 'field'>;
 
 /**
  * Options for range aggregation (excludes 'field' which is handled by the builder)
@@ -52,10 +50,7 @@ export type RangeAggOptions = Omit<AggregationsRangeAggregation, 'field'>;
  * Options for histogram aggregation (excludes 'field' which is handled by the builder)
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-histogram-aggregation.html
  */
-export type HistogramAggOptions = Omit<
-  AggregationsHistogramAggregation,
-  'field'
->;
+export type HistogramAggOptions = Omit<AggregationsHistogramAggregation, 'field'>;
 
 /**
  * Options for avg aggregation (excludes 'field' which is handled by the builder)
@@ -85,19 +80,13 @@ export type MaxAggOptions = Omit<AggregationsMaxAggregation, 'field'>;
  * Options for cardinality aggregation (excludes 'field' which is handled by the builder)
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-cardinality-aggregation.html
  */
-export type CardinalityAggOptions = Omit<
-  AggregationsCardinalityAggregation,
-  'field'
->;
+export type CardinalityAggOptions = Omit<AggregationsCardinalityAggregation, 'field'>;
 
 /**
  * Options for percentiles aggregation (excludes 'field' which is handled by the builder)
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html
  */
-export type PercentilesAggOptions = Omit<
-  AggregationsPercentilesAggregation,
-  'field'
->;
+export type PercentilesAggOptions = Omit<AggregationsPercentilesAggregation, 'field'>;
 
 /**
  * Options for stats aggregation (excludes 'field' which is handled by the builder)
@@ -109,10 +98,7 @@ export type StatsAggOptions = Omit<AggregationsStatsAggregation, 'field'>;
  * Options for value_count aggregation (excludes 'field' which is handled by the builder)
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-valuecount-aggregation.html
  */
-export type ValueCountAggOptions = Omit<
-  AggregationsValueCountAggregation,
-  'field'
->;
+export type ValueCountAggOptions = Omit<AggregationsValueCountAggregation, 'field'>;
 
 /**
  * Aggregation state for build output
@@ -127,60 +113,36 @@ export type AggregationState = {
  */
 export type AggregationBuilder<M extends Record<string, FieldTypeString>> = {
   /** Terms aggregation - group by field values */
-  terms: <K extends string & keyof M>(
-    name: string,
-    field: K,
-    options?: TermsAggOptions
-  ) => AggregationBuilder<M>;
+  terms: <K extends string & keyof M>(name: string, field: K, options?: TermsAggOptions) => AggregationBuilder<M>;
 
   /** Date histogram aggregation - group by time intervals */
-  dateHistogram: <K extends string & keyof M>(
+  dateHistogram: <K extends DateFields<M> & string>(
     name: string,
     field: K,
-    options: DateHistogramAggOptions
+    options?: DateHistogramAggOptions
   ) => AggregationBuilder<M>;
 
   /** Range aggregation - group by numeric/date ranges */
-  range: <K extends string & keyof M>(
-    name: string,
-    field: K,
-    options: RangeAggOptions
-  ) => AggregationBuilder<M>;
+  range: <K extends string & keyof M>(name: string, field: K, options?: RangeAggOptions) => AggregationBuilder<M>;
 
   /** Histogram aggregation - group by numeric intervals */
-  histogram: <K extends string & keyof M>(
+  histogram: <K extends NumericFields<M> & string>(
     name: string,
     field: K,
-    options: HistogramAggOptions
+    options?: HistogramAggOptions
   ) => AggregationBuilder<M>;
 
   /** Average aggregation */
-  avg: <K extends string & keyof M>(
-    name: string,
-    field: K,
-    options?: AvgAggOptions
-  ) => AggregationBuilder<M>;
+  avg: <K extends NumericFields<M> & string>(name: string, field: K, options?: AvgAggOptions) => AggregationBuilder<M>;
 
   /** Sum aggregation */
-  sum: <K extends string & keyof M>(
-    name: string,
-    field: K,
-    options?: SumAggOptions
-  ) => AggregationBuilder<M>;
+  sum: <K extends NumericFields<M> & string>(name: string, field: K, options?: SumAggOptions) => AggregationBuilder<M>;
 
   /** Minimum value aggregation */
-  min: <K extends string & keyof M>(
-    name: string,
-    field: K,
-    options?: MinAggOptions
-  ) => AggregationBuilder<M>;
+  min: <K extends NumericFields<M> & string>(name: string, field: K, options?: MinAggOptions) => AggregationBuilder<M>;
 
   /** Maximum value aggregation */
-  max: <K extends string & keyof M>(
-    name: string,
-    field: K,
-    options?: MaxAggOptions
-  ) => AggregationBuilder<M>;
+  max: <K extends NumericFields<M> & string>(name: string, field: K, options?: MaxAggOptions) => AggregationBuilder<M>;
 
   /** Cardinality aggregation - count unique values */
   cardinality: <K extends string & keyof M>(
@@ -190,14 +152,14 @@ export type AggregationBuilder<M extends Record<string, FieldTypeString>> = {
   ) => AggregationBuilder<M>;
 
   /** Percentiles aggregation */
-  percentiles: <K extends string & keyof M>(
+  percentiles: <K extends NumericFields<M> & string>(
     name: string,
     field: K,
     options?: PercentilesAggOptions
   ) => AggregationBuilder<M>;
 
   /** Statistics aggregation (count, min, max, avg, sum) */
-  stats: <K extends string & keyof M>(
+  stats: <K extends NumericFields<M> & string>(
     name: string,
     field: K,
     options?: StatsAggOptions
@@ -211,9 +173,7 @@ export type AggregationBuilder<M extends Record<string, FieldTypeString>> = {
   ) => AggregationBuilder<M>;
 
   /** Add sub-aggregation to parent bucket aggregation */
-  subAgg: (
-    fn: (agg: AggregationBuilder<M>) => AggregationBuilder<M>
-  ) => AggregationBuilder<M>;
+  subAgg: (fn: (agg: AggregationBuilder<M>) => AggregationBuilder<M>) => AggregationBuilder<M>;
 
   /** Build aggregation DSL */
   build: () => AggregationState;

@@ -1,11 +1,5 @@
 import { query, msearch, indexBuilder } from '../../index.js';
-import {
-  createIndex,
-  deleteIndex,
-  indexDoc,
-  refreshIndex,
-  msearchRequest
-} from './helpers.js';
+import { createIndex, deleteIndex, indexDoc, refreshIndex, msearchRequest } from './helpers.js';
 import { listingMappings, LISTINGS } from './fixtures/real-estate.js';
 
 const INDEX = 'int-msearch';
@@ -24,12 +18,8 @@ describe('MSearchBuilder', () => {
       const result = await msearchRequest(
         INDEX,
         msearch(listingMappings)
-          .addQuery(
-            query(listingMappings).term('property_class', 'condo').build()
-          )
-          .addQuery(
-            query(listingMappings).term('property_class', 'townhouse').build()
-          )
+          .addQuery(query(listingMappings).term('property_class', 'condo').build())
+          .addQuery(query(listingMappings).term('property_class', 'townhouse').build())
           .build()
       );
 
@@ -41,16 +31,8 @@ describe('MSearchBuilder', () => {
       const result = await msearchRequest(
         INDEX,
         msearch(listingMappings)
-          .addQuery(
-            query(listingMappings)
-              .range('list_price', { lte: 2_000_000 })
-              .build()
-          )
-          .addQuery(
-            query(listingMappings)
-              .range('list_price', { gte: 4_000_000 })
-              .build()
-          )
+          .addQuery(query(listingMappings).range('list_price', { lte: 2_000_000 }).build())
+          .addQuery(query(listingMappings).range('list_price', { gte: 4_000_000 }).build())
           .build()
       );
 

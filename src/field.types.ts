@@ -16,6 +16,18 @@ export type TextFieldOptions = {
   doc_values?: boolean;
   similarity?: string;
   fields?: Record<string, FieldMapping>;
+  copy_to?: string | string[];
+  index_prefixes?: { min_chars?: number; max_chars?: number };
+  index_phrases?: boolean;
+  eager_global_ordinals?: boolean;
+  term_vector?:
+    | 'no'
+    | 'yes'
+    | 'with_positions'
+    | 'with_offsets'
+    | 'with_positions_offsets'
+    | 'with_positions_payloads'
+    | 'with_positions_offsets_payloads';
 };
 
 /** Options for keyword fields */
@@ -27,6 +39,10 @@ export type KeywordFieldOptions = {
   similarity?: string;
   normalizer?: string;
   fields?: Record<string, FieldMapping>;
+  copy_to?: string | string[];
+  null_value?: string;
+  eager_global_ordinals?: boolean;
+  ignore_above?: number;
 };
 
 /** Options shared by numeric field types (long, integer, short, byte, double, float, half_float) */
@@ -37,6 +53,9 @@ export type NumericFieldOptions = {
   doc_values?: boolean;
   coerce?: boolean;
   fields?: Record<string, FieldMapping>;
+  copy_to?: string | string[];
+  null_value?: number;
+  ignore_malformed?: boolean;
 };
 
 /** Options for scaled_float (extends numeric with scaling_factor) */
@@ -52,6 +71,9 @@ export type DateFieldOptions = {
   store?: boolean;
   doc_values?: boolean;
   fields?: Record<string, FieldMapping>;
+  copy_to?: string | string[];
+  null_value?: string;
+  ignore_malformed?: boolean;
 };
 
 /** Options for boolean fields */
@@ -60,6 +82,7 @@ export type BooleanFieldOptions = {
   index?: boolean;
   store?: boolean;
   doc_values?: boolean;
+  null_value?: boolean;
 };
 
 /** Options for dense_vector fields */
@@ -94,6 +117,7 @@ export type GeoPointFieldOptions = {
   index?: boolean;
   store?: boolean;
   doc_values?: boolean;
+  ignore_malformed?: boolean;
 };
 
 /** Options for geo_shape fields */
@@ -107,7 +131,7 @@ export type GeoShapeFieldOptions = {
 
 /** Options for alias fields */
 export type AliasFieldOptions = {
-  path?: string;
+  path: string;
 };
 
 /** Options for ip fields */
@@ -116,6 +140,8 @@ export type IpFieldOptions = {
   index?: boolean;
   store?: boolean;
   doc_values?: boolean;
+  null_value?: string;
+  ignore_malformed?: boolean;
 };
 
 /** Options for range fields (integer_range, float_range, long_range, double_range, date_range) */
@@ -125,6 +151,61 @@ export type RangeFieldOptions = {
   store?: boolean;
   doc_values?: boolean;
   coerce?: boolean;
+};
+
+/**
+ * Options for match_only_text fields.
+ * Use when you only need filter/match but not relevance scoring — faster and uses less disk.
+ */
+export type MatchOnlyTextFieldOptions = {
+  fields?: Record<string, FieldMapping>;
+  copy_to?: string | string[];
+  meta?: Record<string, string>;
+};
+
+/**
+ * Options for search_as_you_type fields.
+ * Provides out-of-the-box autocomplete / typeahead capabilities.
+ */
+export type SearchAsYouTypeFieldOptions = {
+  analyzer?: string;
+  search_analyzer?: string;
+  max_shingle_size?: number;
+  index?: boolean;
+  similarity?: string;
+};
+
+/**
+ * Options for constant_keyword fields.
+ * Every document in the index has the same value for this field.
+ * Useful for multi-index queries to identify the index type.
+ */
+export type ConstantKeywordFieldOptions = {
+  value?: string;
+};
+
+/**
+ * Options for wildcard fields.
+ * Optimized for grep-like wildcard/regexp queries on high-cardinality or large fields.
+ * Use instead of keyword when leading wildcards (`*foo`) are needed.
+ */
+export type WildcardFieldOptions = {
+  null_value?: string;
+  ignore_above?: number;
+};
+
+/**
+ * Options for flattened fields.
+ * Flattens complex/dynamic objects into a single field. Faster than nested,
+ * but only supports keyword-level queries on inner values.
+ */
+export type FlattenedFieldOptions = {
+  depth_limit?: number;
+  doc_values?: boolean;
+  index?: boolean;
+  null_value?: string;
+  similarity?: string;
+  eager_global_ordinals?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -162,3 +243,8 @@ export type FloatRangeFieldMapping = TypedFieldMapping<'float_range'>;
 export type LongRangeFieldMapping = TypedFieldMapping<'long_range'>;
 export type DoubleRangeFieldMapping = TypedFieldMapping<'double_range'>;
 export type DateRangeFieldMapping = TypedFieldMapping<'date_range'>;
+export type MatchOnlyTextFieldMapping = TypedFieldMapping<'match_only_text'>;
+export type SearchAsYouTypeFieldMapping = TypedFieldMapping<'search_as_you_type'>;
+export type ConstantKeywordFieldMapping = TypedFieldMapping<'constant_keyword'>;
+export type WildcardFieldMapping = TypedFieldMapping<'wildcard'>;
+export type FlattenedFieldMapping = TypedFieldMapping<'flattened'>;

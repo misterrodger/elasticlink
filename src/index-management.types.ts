@@ -4,18 +4,18 @@
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/indices.html
  */
 
-import type {
-  IndicesIndexSettings,
-  IndicesAlias
-} from '@elastic/elasticsearch/lib/api/types';
-import type { MappingsSchema } from './mapping.types.js';
+import type { IndicesIndexSettings, IndicesAlias } from '@elastic/elasticsearch/lib/api/types';
+import type { MappingsSchema, MappingOptions } from './mapping.types.js';
 
 /**
  * All supported Elasticsearch field type strings.
  */
 export type FieldTypeString =
   | 'text'
+  | 'match_only_text'
   | 'keyword'
+  | 'constant_keyword'
+  | 'wildcard'
   | 'long'
   | 'integer'
   | 'short'
@@ -36,9 +36,11 @@ export type FieldTypeString =
   | 'alias'
   | 'object'
   | 'nested'
+  | 'flattened'
   | 'geo_point'
   | 'geo_shape'
   | 'completion'
+  | 'search_as_you_type'
   | 'dense_vector'
   | 'percolator';
 
@@ -70,6 +72,26 @@ export type FieldMapping = {
   preserve_separators?: boolean;
   preserve_position_increments?: boolean;
   orientation?: string;
+  copy_to?: string | string[];
+  index_prefixes?: { min_chars?: number; max_chars?: number };
+  index_phrases?: boolean;
+  ignore_malformed?: boolean;
+  null_value?: string | number | boolean;
+  eager_global_ordinals?: boolean;
+  term_vector?: string;
+  ignore_above?: number;
+  max_shingle_size?: number;
+  value?: string;
+  depth_limit?: number;
+};
+
+/**
+ * _source field configuration for index mappings.
+ */
+export type SourceConfig = {
+  enabled?: boolean;
+  includes?: string[];
+  excludes?: string[];
 };
 
 /**
@@ -80,6 +102,8 @@ export type IndexMappings = {
   dynamic?: boolean | 'strict' | 'runtime';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dynamic_templates?: any[];
+  _source?: SourceConfig;
+  _meta?: Record<string, unknown>;
 };
 
 /**
@@ -102,9 +126,8 @@ export type CreateIndexOptions = {
  */
 export type IndexBuilder = {
   mappings: (
-    schemaOrFields:
-      | MappingsSchema<Record<string, FieldTypeString>>
-      | Record<string, FieldMapping>
+    schemaOrFields: MappingsSchema<Record<string, FieldTypeString>> | Record<string, FieldMapping>,
+    options?: MappingOptions
   ) => IndexBuilder;
   settings: (settings: IndexSettings) => IndexBuilder;
   alias: (name: string, options?: IndicesAlias) => IndexBuilder;

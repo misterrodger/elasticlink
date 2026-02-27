@@ -42,7 +42,13 @@ export {
   floatRange,
   longRange,
   doubleRange,
-  dateRange
+  dateRange,
+  matchOnlyText,
+  searchAsYouType,
+  constantKeyword,
+  wildcardField,
+  flattened,
+  quantizedDenseVector
 } from './field.helpers.js';
 export type {
   MappingsSchema,
@@ -54,7 +60,8 @@ export type {
   DateFields,
   BooleanFields,
   GeoPointFields,
-  VectorFields
+  VectorFields,
+  IpFields
 } from './mapping.types.js';
 
 // Multi-search API
@@ -72,3 +79,6 @@ export type { IndexBuilder } from './index-management.types.js';
 // Suggester API
 export { suggest } from './suggester.builder.js';
 export type { SuggesterBuilder } from './suggester.types.js';
+
+// Settings Presets
+export { productionSearchSettings, indexSortSettings, fastIngestSettings } from './settings.presets.js';

@@ -4,6 +4,27 @@ All notable changes to elasticlink will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
+## [0.4.0-beta] - 2026-02-28
+
+### Added
+
+- **Settings presets** — three ready-made `IndicesIndexSettings` helpers for common lifecycle stages:
+  - `productionSearchSettings(overrides?)` — balanced production defaults (1 replica, 5s refresh)
+  - `indexSortSettings(fields)` — configure index-time sort order for disk compression and early query termination
+  - `fastIngestSettings(overrides?)` — async translog, no replicas, refresh disabled; optimized for bulk ingest throughput; use `productionSearchSettings()` to restore afterward
+- **New field helpers**: `matchOnlyText()`, `searchAsYouType()`, `constantKeyword()`, `wildcardField()`, `flattened()`, `quantizedDenseVector()` — all exported from the main entry point
+- **New query methods**: `combinedFields()`, `matchBoolPrefix()`, `queryString()`, `simpleQueryString()`, `moreLikeThis()`
+- **Strict mapping default** — `mappings()` now sets `dynamic: 'strict'` by default, preventing unmapped fields from being silently indexed
+
+### Fixed
+
+- `when()` returning `undefined` in `must()`/`filter()`/`should()`/`mustNot()` clauses no longer produces `null` entries in the serialized DSL array — undefined results are now filtered out before building
+- `doc_as_upsert: false` in bulk `update()` is now correctly included in the output (was silently dropped by a truthy guard)
+- `dynamic: false` and `_source: false` in index mappings are now correctly included in the output (same truthy guard issue)
+- `script()` and `scriptScore()` no longer drop explicit `boost: 0` or `params: {}` values
+- `fastIngestSettings()` now deep-merges the `translog` key so partial overrides (e.g. only `durability`) do not clobber the `sync_interval` default
+- `MatchOnlyTextFieldOptions` removed unsupported `analyzer` and `search_analyzer` params (the `match_only_text` field type does not allow configuring the analyzer)
+
 ## [0.3.0-beta] - 2026-02-25
 
 ### Added

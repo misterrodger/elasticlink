@@ -765,9 +765,7 @@ describe('Suggester API', () => {
     it('should add term suggester to query', () => {
       const result = query(matterWithSuggestMappings)
         .match('title', 'corporate')
-        .suggest((s) =>
-          s.term('name-suggestions', 'acquistion', { field: 'title' })
-        )
+        .suggest((s) => s.term('name-suggestions', 'acquistion', { field: 'title' }))
         .build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -855,12 +853,10 @@ describe('Suggester API', () => {
       const result = query(matterWithSuggestMappings)
         .match('title', 'corporate')
         .suggest((s) =>
-          s
-            .term('name-term', 'acquistion', { field: 'title', size: 3 })
-            .completion('name-complete', 'lap', {
-              field: 'title_suggest',
-              size: 5
-            })
+          s.term('name-term', 'acquistion', { field: 'title', size: 3 }).completion('name-complete', 'lap', {
+            field: 'title_suggest',
+            size: 5
+          })
         )
         .build();
 
@@ -894,12 +890,8 @@ describe('Suggester API', () => {
     it('should combine query, aggregations, and suggestions', () => {
       const result = query(matterWithSuggestMappings)
         .match('title', 'corporate')
-        .aggs((agg) =>
-          agg.terms('popular-areas', 'practice_area', { size: 10 })
-        )
-        .suggest((s) =>
-          s.term('name-suggestions', 'acquistion', { field: 'title', size: 5 })
-        )
+        .aggs((agg) => agg.terms('popular-areas', 'practice_area', { size: 10 }))
+        .suggest((s) => s.term('name-suggestions', 'acquistion', { field: 'title', size: 5 }))
         .size(20)
         .build();
 

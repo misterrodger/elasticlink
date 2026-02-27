@@ -11,9 +11,7 @@ import { SuggesterBuilder, SuggesterState } from './suggester.types.js';
  * Creates a suggester builder
  * @returns SuggesterBuilder instance
  */
-export const createSuggesterBuilder = <
-  M extends Record<string, FieldTypeString>
->(
+export const createSuggesterBuilder = <M extends Record<string, FieldTypeString>>(
   state: SuggesterState = {}
 ): SuggesterBuilder<M> => ({
   term: (name, text, options) => {
@@ -46,6 +44,7 @@ export const createSuggesterBuilder = <
     });
   },
 
+  // eslint-disable-next-line functional/functional-parameters
   build: () => ({
     suggest: state
   })
@@ -60,6 +59,5 @@ export const createSuggesterBuilder = <
  *   .build();
  * ```
  */
-export const suggest = <M extends Record<string, FieldTypeString>>(
-  _schema: MappingsSchema<M>
-) => createSuggesterBuilder<M>();
+export const suggest = <M extends Record<string, FieldTypeString>>(_schema: MappingsSchema<M>) =>
+  createSuggesterBuilder<M>();

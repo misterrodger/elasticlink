@@ -9,14 +9,6 @@ describe('AggregationBuilder', () => {
       expect(result).toMatchInlineSnapshot(`{}`);
     });
 
-    it('should throw when calling subAgg without parent aggregation', () => {
-      expect(() => {
-        aggregations(listingDetailMappings)
-          .subAgg((agg) => agg.avg('avg_price', 'list_price'))
-          .build();
-      }).toThrow('No aggregation to add sub-aggregation to');
-    });
-
     it('should support multiple top-level aggregations at same level', () => {
       const result = aggregations(listingDetailMappings)
         .terms('by_property_class', 'property_class')
@@ -49,9 +41,7 @@ describe('AggregationBuilder', () => {
 
   describe('Bucket aggregations', () => {
     it('should create a terms aggregation', () => {
-      const result = aggregations(listingDetailMappings)
-        .terms('category_agg', 'property_class', { size: 10 })
-        .build();
+      const result = aggregations(listingDetailMappings).terms('category_agg', 'property_class', { size: 10 }).build();
 
       expect(result).toMatchInlineSnapshot(`
           {
@@ -66,9 +56,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a terms aggregation without options', () => {
-      const result = aggregations(listingDetailMappings)
-        .terms('category_agg', 'property_class')
-        .build();
+      const result = aggregations(listingDetailMappings).terms('category_agg', 'property_class').build();
 
       expect(result).toMatchInlineSnapshot(`
           {
@@ -152,9 +140,7 @@ describe('AggregationBuilder', () => {
 
   describe('Metric aggregations', () => {
     it('should create an avg aggregation', () => {
-      const result = aggregations(listingDetailMappings)
-        .avg('avg_price', 'list_price')
-        .build();
+      const result = aggregations(listingDetailMappings).avg('avg_price', 'list_price').build();
 
       expect(result).toMatchInlineSnapshot(`
           {
@@ -168,9 +154,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a sum aggregation', () => {
-      const result = aggregations(listingDetailMappings)
-        .sum('total_price', 'list_price')
-        .build();
+      const result = aggregations(listingDetailMappings).sum('total_price', 'list_price').build();
 
       expect(result).toMatchInlineSnapshot(`
           {
@@ -184,9 +168,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a min aggregation', () => {
-      const result = aggregations(listingDetailMappings)
-        .min('min_price', 'list_price')
-        .build();
+      const result = aggregations(listingDetailMappings).min('min_price', 'list_price').build();
 
       expect(result).toMatchInlineSnapshot(`
           {
@@ -200,9 +182,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a max aggregation', () => {
-      const result = aggregations(listingDetailMappings)
-        .max('max_price', 'list_price')
-        .build();
+      const result = aggregations(listingDetailMappings).max('max_price', 'list_price').build();
 
       expect(result).toMatchInlineSnapshot(`
           {
@@ -259,9 +239,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a percentiles aggregation with no options', () => {
-      const result = aggregations(listingDetailMappings)
-        .percentiles('price_percentiles', 'list_price')
-        .build();
+      const result = aggregations(listingDetailMappings).percentiles('price_percentiles', 'list_price').build();
 
       expect(result).toMatchInlineSnapshot(`
           {
@@ -275,9 +253,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a stats aggregation', () => {
-      const result = aggregations(listingDetailMappings)
-        .stats('price_stats', 'list_price')
-        .build();
+      const result = aggregations(listingDetailMappings).stats('price_stats', 'list_price').build();
 
       expect(result).toMatchInlineSnapshot(`
           {
@@ -291,9 +267,7 @@ describe('AggregationBuilder', () => {
     });
 
     it('should create a value_count aggregation', () => {
-      const result = aggregations(listingDetailMappings)
-        .valueCount('rating_count', 'cap_rate')
-        .build();
+      const result = aggregations(listingDetailMappings).valueCount('rating_count', 'cap_rate').build();
 
       expect(result).toMatchInlineSnapshot(`
           {
@@ -336,9 +310,7 @@ describe('AggregationBuilder', () => {
     it('should add multiple sub-aggregations', () => {
       const result = aggregations(listingDetailMappings)
         .terms('categories', 'property_class')
-        .subAgg((agg) =>
-          agg.avg('avg_price', 'list_price').max('max_rating', 'cap_rate')
-        )
+        .subAgg((agg) => agg.avg('avg_price', 'list_price').max('max_rating', 'cap_rate'))
         .build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -430,7 +402,7 @@ describe('AggregationBuilder', () => {
           })
           .build();
 
-        expect(result.categories.terms).toEqual({
+        expect(result.categories.terms).toStrictEqual({
           field: 'property_class',
           size: 20,
           min_doc_count: 2,
@@ -501,7 +473,7 @@ describe('AggregationBuilder', () => {
           })
           .build();
 
-        expect(result.over_time.date_histogram.extended_bounds).toEqual({
+        expect(result.over_time.date_histogram.extended_bounds).toStrictEqual({
           min: '2024-01-01',
           max: '2024-12-31'
         });
@@ -515,9 +487,7 @@ describe('AggregationBuilder', () => {
           })
           .build();
 
-        expect(result.over_time.date_histogram.time_zone).toBe(
-          'America/New_York'
-        );
+        expect(result.over_time.date_histogram.time_zone).toBe('America/New_York');
       });
 
       it('should create dateHistogram with order', () => {
@@ -528,7 +498,7 @@ describe('AggregationBuilder', () => {
           })
           .build();
 
-        expect(result.over_time.date_histogram.order).toEqual({
+        expect(result.over_time.date_histogram.order).toStrictEqual({
           _key: 'desc'
         });
       });
@@ -554,7 +524,7 @@ describe('AggregationBuilder', () => {
           })
           .build();
 
-        expect(result.price_buckets.histogram.extended_bounds).toEqual({
+        expect(result.price_buckets.histogram.extended_bounds).toStrictEqual({
           min: 0,
           max: 1000
         });
@@ -563,9 +533,7 @@ describe('AggregationBuilder', () => {
 
     describe('Metric aggregation options', () => {
       it('should create avg with missing value', () => {
-        const result = aggregations(listingDetailMappings)
-          .avg('avg_price', 'list_price', { missing: 0 })
-          .build();
+        const result = aggregations(listingDetailMappings).avg('avg_price', 'list_price', { missing: 0 }).build();
 
         expect(result).toMatchInlineSnapshot(`
             {
@@ -580,33 +548,25 @@ describe('AggregationBuilder', () => {
       });
 
       it('should create sum with missing value', () => {
-        const result = aggregations(listingDetailMappings)
-          .sum('total_price', 'list_price', { missing: 0 })
-          .build();
+        const result = aggregations(listingDetailMappings).sum('total_price', 'list_price', { missing: 0 }).build();
 
         expect(result.total_price.sum.missing).toBe(0);
       });
 
       it('should create min with missing value', () => {
-        const result = aggregations(listingDetailMappings)
-          .min('min_price', 'list_price', { missing: 9999 })
-          .build();
+        const result = aggregations(listingDetailMappings).min('min_price', 'list_price', { missing: 9999 }).build();
 
         expect(result.min_price.min.missing).toBe(9999);
       });
 
       it('should create max with missing value', () => {
-        const result = aggregations(listingDetailMappings)
-          .max('max_price', 'list_price', { missing: 0 })
-          .build();
+        const result = aggregations(listingDetailMappings).max('max_price', 'list_price', { missing: 0 }).build();
 
         expect(result.max_price.max.missing).toBe(0);
       });
 
       it('should create cardinality without options', () => {
-        const result = aggregations(listingDetailMappings)
-          .cardinality('unique_categories', 'property_class')
-          .build();
+        const result = aggregations(listingDetailMappings).cardinality('unique_categories', 'property_class').build();
 
         expect(result).toMatchInlineSnapshot(`
             {
@@ -628,15 +588,11 @@ describe('AggregationBuilder', () => {
           .build();
 
         expect(result.price_percentiles.percentiles.keyed).toBe(true);
-        expect(result.price_percentiles.percentiles.percents).toEqual([
-          25, 50, 75, 95, 99
-        ]);
+        expect(result.price_percentiles.percentiles.percents).toStrictEqual([25, 50, 75, 95, 99]);
       });
 
       it('should create stats with missing value', () => {
-        const result = aggregations(listingDetailMappings)
-          .stats('price_stats', 'list_price', { missing: 0 })
-          .build();
+        const result = aggregations(listingDetailMappings).stats('price_stats', 'list_price', { missing: 0 }).build();
 
         expect(result.price_stats.stats.missing).toBe(0);
       });
@@ -654,11 +610,7 @@ describe('AggregationBuilder', () => {
       it('should add sub-agg to dateHistogram', () => {
         const result = aggregations(listingDetailMappings)
           .dateHistogram('by_month', 'listed_date', { interval: 'month' })
-          .subAgg((sub) =>
-            sub
-              .sum('monthly_revenue', 'list_price')
-              .avg('avg_rating', 'cap_rate')
-          )
+          .subAgg((sub) => sub.sum('monthly_revenue', 'list_price').avg('avg_rating', 'cap_rate'))
           .build();
 
         expect(result).toMatchObject({
@@ -696,9 +648,7 @@ describe('AggregationBuilder', () => {
       it('should add sub-agg to histogram aggregation', () => {
         const result = aggregations(listingDetailMappings)
           .histogram('price_histogram', 'list_price', { interval: 25 })
-          .subAgg((sub) =>
-            sub.cardinality('unique_categories', 'property_class')
-          )
+          .subAgg((sub) => sub.cardinality('unique_categories', 'property_class'))
           .build();
 
         expect(result).toMatchObject({

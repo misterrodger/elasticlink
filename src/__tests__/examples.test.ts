@@ -17,7 +17,8 @@ import {
   denseVector,
   geoPoint,
   nested,
-  completion
+  completion,
+  percolator
 } from '..';
 
 /**
@@ -89,6 +90,7 @@ const contentDocumentMappings = mappings({
   tags: keyword(),
   embedding: denseVector({ dims: 384 })
 });
+
 describe('Real-world Usage Examples', () => {
   describe('E-commerce Product Search', () => {
     it('should build a basic product search query', () => {
@@ -126,9 +128,7 @@ describe('Real-world Usage Examples', () => {
       const result = query(instrumentMappings)
         .bool()
         .must((q) => q.match('name', searchTerm, { operator: 'and', boost: 2 }))
-        .should((q) =>
-          q.fuzzy('description', searchTerm, { fuzziness: 'AUTO' })
-        )
+        .should((q) => q.fuzzy('description', searchTerm, { fuzziness: 'AUTO' }))
         .filter((q) => q.term('asset_class', category))
         .filter((q) =>
           q.range('market_cap', {
@@ -242,12 +242,7 @@ describe('Real-world Usage Examples', () => {
               })
             ) || q.matchAll()
         )
-        .filter(
-          (q) =>
-            q.when(selectedCategory, (q2) =>
-              q2.term('asset_class', selectedCategory)
-            ) || q.matchAll()
-        )
+        .filter((q) => q.when(selectedCategory, (q2) => q2.term('asset_class', selectedCategory)) || q.matchAll())
         .filter(
           (q) =>
             q.when(minPrice && maxPrice, (q2) =>
@@ -259,9 +254,7 @@ describe('Real-world Usage Examples', () => {
         )
         .filter(
           (q) =>
-            q.when(selectedTags && selectedTags.length > 0, (q2) =>
-              q2.terms('tags', selectedTags!)
-            ) || q.matchAll()
+            q.when(selectedTags && selectedTags.length > 0, (q2) => q2.terms('tags', selectedTags!)) || q.matchAll()
         )
         .timeout('5s')
         .from(0)
@@ -315,9 +308,7 @@ describe('Real-world Usage Examples', () => {
 
       const result = query(instrumentMappings)
         .bool()
-        .must((q) =>
-          q.matchPhrasePrefix('name', userInput, { max_expansions: 20 })
-        )
+        .must((q) => q.matchPhrasePrefix('name', userInput, { max_expansions: 20 }))
         .highlight(['name'], { fragment_size: 100 })
         .trackTotalHits(true)
         .from(0)
@@ -369,9 +360,7 @@ describe('Real-world Usage Examples', () => {
             operator: 'and'
           })
         )
-        .should((q) =>
-          q.fuzzy('author', authorName, { fuzziness: 'AUTO', boost: 2 })
-        )
+        .should((q) => q.fuzzy('author', authorName, { fuzziness: 'AUTO', boost: 2 }))
         .filter((q) =>
           q.range('published_date', {
             gte: startDate
@@ -612,10 +601,7 @@ describe('Real-world Usage Examples', () => {
               })
             ) || q.matchAll()
         )
-        .filter(
-          (q) =>
-            q.when(true, (q2) => q2.terms('tags', ['finance'])) || q.matchAll()
-        )
+        .filter((q) => q.when(true, (q2) => q2.terms('tags', ['finance'])) || q.matchAll())
         .filter(
           (q) =>
             q.when(startDate && endDate, (q2) =>
@@ -742,9 +728,7 @@ describe('Real-world Usage Examples', () => {
             lte: facetFilters.priceRange.max
           })
         )
-        .filter((q) =>
-          q.range('credit_rating', { gte: facetFilters.minRating })
-        )
+        .filter((q) => q.range('credit_rating', { gte: facetFilters.minRating }))
         .highlight(['name'], { fragment_size: 100 })
         .timeout('5s')
         .from(0)
@@ -876,10 +860,7 @@ describe('Real-world Usage Examples', () => {
       const agg = aggregations(instrumentMappings)
         .terms('by_category', 'asset_class', { size: 10 })
         .subAgg((sub) =>
-          sub
-            .avg('average_price', 'market_cap')
-            .max('highest_price', 'market_cap')
-            .min('lowest_price', 'market_cap')
+          sub.avg('average_price', 'market_cap').max('highest_price', 'market_cap').min('lowest_price', 'market_cap')
         )
         .build();
 
@@ -919,11 +900,9 @@ describe('Real-world Usage Examples', () => {
           min_doc_count: 1
         })
         .subAgg((sub) =>
-          sub
-            .sum('daily_revenue', 'market_cap')
-            .cardinality('unique_categories', 'asset_class', {
-              precision_threshold: 100
-            })
+          sub.sum('daily_revenue', 'market_cap').cardinality('unique_categories', 'asset_class', {
+            precision_threshold: 100
+          })
         )
         .build();
 
@@ -955,11 +934,7 @@ describe('Real-world Usage Examples', () => {
 
     it('should find restaurants near a location', () => {
       const result = query(restaurantMappings)
-        .geoDistance(
-          'location',
-          { lat: 40.7128, lon: -74.006 },
-          { distance: '5km' }
-        )
+        .geoDistance('location', { lat: 40.7128, lon: -74.006 }, { distance: '5km' })
         .size(20)
         .build();
 
@@ -1008,9 +983,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should find products matching a pattern', () => {
-      const result = query(instrumentMappings)
-        .regexp('asset_class', 'elec.*', { flags: 'CASE_INSENSITIVE' })
-        .build();
+      const result = query(instrumentMappings).regexp('asset_class', 'elec.*', { flags: 'CASE_INSENSITIVE' }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -1051,20 +1024,12 @@ describe('Real-world Usage Examples', () => {
 
     it('should combine geo search with aggregations for store analytics', () => {
       const queryResult = query(storeMappings)
-        .geoDistance(
-          'coordinates',
-          { lat: 40.7128, lon: -74.006 },
-          { distance: '10km' }
-        )
+        .geoDistance('coordinates', { lat: 40.7128, lon: -74.006 }, { distance: '10km' })
         .build();
 
       const agg = aggregations(storeMappings)
         .terms('by_district', 'district', { size: 5 })
-        .subAgg((sub) =>
-          sub
-            .avg('avg_rating', 'rating')
-            .valueCount('total_items', 'item_count')
-        )
+        .subAgg((sub) => sub.avg('avg_rating', 'rating').valueCount('total_items', 'item_count'))
         .build();
 
       expect(queryResult.query?.geo_distance).toBeDefined();
@@ -1138,9 +1103,7 @@ describe('Real-world Usage Examples', () => {
 
     it('should build image similarity search', () => {
       // Simulated 512-dimensional image embedding (e.g., from ResNet)
-      const imageEmbedding = new Array(512)
-        .fill(0)
-        .map((_, i) => Math.sin(i / 100));
+      const imageEmbedding = new Array(512).fill(0).map((_, i) => Math.sin(i / 100));
 
       const result = query(instrumentWithEmbeddingMappings)
         .knn('embedding', imageEmbedding, {
@@ -1195,11 +1158,7 @@ describe('Real-world Usage Examples', () => {
             }
           }
         })
-        .aggs((agg) =>
-          agg
-            .terms('top_authors', 'author', { size: 10 })
-            .terms('popular_tags', 'tags', { size: 20 })
-        )
+        .aggs((agg) => agg.terms('top_authors', 'author', { size: 10 }).terms('popular_tags', 'tags', { size: 20 }))
         .size(20)
         .build();
 
@@ -1210,9 +1169,7 @@ describe('Real-world Usage Examples', () => {
 
     it('should build multilingual semantic search', () => {
       // Embedding from multilingual model (e.g., multilingual-E5)
-      const multilingualEmbedding = new Array(768)
-        .fill(0)
-        .map(() => Math.random());
+      const multilingualEmbedding = new Array(768).fill(0).map(() => Math.random());
 
       const result = query(contentDocumentMappings)
         .knn('embedding', multilingualEmbedding, {
@@ -1263,10 +1220,7 @@ describe('Real-world Usage Examples', () => {
           num_candidates: 1000,
           filter: {
             bool: {
-              filter: [
-                { range: { price: { gte: 50 } } },
-                { term: { category: 'technology' } }
-              ]
+              filter: [{ range: { price: { gte: 50 } } }, { term: { category: 'technology' } }]
             }
           }
         })
@@ -1362,9 +1316,7 @@ describe('Real-world Usage Examples', () => {
         .build();
 
       expect(result.query?.script_score?.query?.match).toBeDefined();
-      expect(result.query?.script_score?.script?.source).toContain(
-        'popularity'
-      );
+      expect(result.query?.script_score?.script?.source).toContain('popularity');
     });
 
     it('should build weighted quality + popularity score', () => {
@@ -1415,9 +1367,7 @@ describe('Real-world Usage Examples', () => {
         .size(50)
         .build();
 
-      expect(result.query?.script_score?.script?.params).toEqual(
-        userPreferences
-      );
+      expect(result.query?.script_score?.script?.params).toStrictEqual(userPreferences);
     });
 
     it('should build time-decay scoring for trending products', () => {
@@ -1438,13 +1388,13 @@ describe('Real-world Usage Examples', () => {
         .build();
 
       expect(result.query?.script_score?.boost).toBe(1.5);
-      expect(result.sort).toEqual([{ popularity: 'desc' }]);
+      expect(result.sort).toStrictEqual([{ popularity: 'desc' }]);
     });
   });
 
   describe('Percolate Queries & Alert Matching', () => {
     const alertRuleMappings = mappings({
-      query: keyword(), // percolator field, but using keyword as placeholder
+      query: percolator(),
       name: text(),
       severity: keyword(),
       category: keyword()
@@ -1466,7 +1416,7 @@ describe('Real-world Usage Examples', () => {
         .size(100)
         .build();
 
-      expect(result.query?.percolate?.document).toEqual(logEntry);
+      expect(result.query?.percolate?.document).toStrictEqual(logEntry);
     });
 
     it('should classify multiple documents', () => {
@@ -1592,11 +1542,7 @@ describe('Real-world Usage Examples', () => {
         .build();
 
       // New arrivals query
-      const newArrivals = query(dashboardProductMappings)
-        .matchAll()
-        .sort('created_at', 'desc')
-        .size(10)
-        .build();
+      const newArrivals = query(dashboardProductMappings).matchAll().sort('created_at', 'desc').size(10).build();
 
       // Electronics deals query
       const electronicsDeals = query(dashboardProductMappings)
@@ -1630,10 +1576,7 @@ describe('Real-world Usage Examples', () => {
         content: text(),
         tenant_id: keyword()
       });
-      const searchQuery = query(tenantDocMappings)
-        .match('content', 'important')
-        .size(20)
-        .build();
+      const searchQuery = query(tenantDocMappings).match('content', 'important').size(20).build();
 
       const result = msearch(tenantDocMappings)
         .addQuery(searchQuery, { index: 'tenant-001-docs' })
@@ -1783,10 +1726,7 @@ describe('Real-world Usage Examples', () => {
 
       const bulkOp = bulk(inventoryItemMappings)
         // Add new items
-        .create(
-          { id: 'new-1', name: 'New Product', quantity: 100 },
-          { _index: 'inventory', _id: 'new-1' }
-        )
+        .create({ id: 'new-1', name: 'New Product', quantity: 100 }, { _index: 'inventory', _id: 'new-1' })
         // Update stock levels
         .update({
           _index: 'inventory',
@@ -1794,10 +1734,7 @@ describe('Real-world Usage Examples', () => {
           doc: { quantity: 50 }
         })
         // Replace item entirely
-        .index(
-          { id: 'replace-1', name: 'Replaced Product', quantity: 25 },
-          { _index: 'inventory', _id: 'replace-1' }
-        )
+        .index({ id: 'replace-1', name: 'Replaced Product', quantity: 25 }, { _index: 'inventory', _id: 'replace-1' })
         // Remove discontinued items
         .delete({ _index: 'inventory', _id: 'discontinued-1' })
         .build();
@@ -1883,6 +1820,7 @@ describe('Real-world Usage Examples', () => {
             "instruments": {},
           },
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "brand": {
                 "type": "keyword",
@@ -1964,6 +1902,7 @@ describe('Real-world Usage Examples', () => {
       expect(indexConfig).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "category": {
                 "type": "keyword",
@@ -2024,6 +1963,7 @@ describe('Real-world Usage Examples', () => {
             },
           },
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "level": {
                 "type": "keyword",
@@ -2077,6 +2017,7 @@ describe('Real-world Usage Examples', () => {
       expect(indexConfig).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "author": {
                 "type": "keyword",
@@ -2140,6 +2081,7 @@ describe('Real-world Usage Examples', () => {
             },
           },
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "billing_rate": {
                 "type": "integer",
@@ -2178,6 +2120,7 @@ describe('Real-world Usage Examples', () => {
       yield_rate: float(),
       listed_date: date()
     });
+
     it('should aggregate fixed-income instruments by sector with yield metrics', () => {
       const result = query(portfolioMappings)
         .bool()
@@ -2186,9 +2129,7 @@ describe('Real-world Usage Examples', () => {
         .aggs((agg) =>
           agg
             .terms('by_sector', 'sector', { size: 10 })
-            .subAgg((sub) =>
-              sub.avg('avg_yield', 'yield_rate').max('max_price', 'price')
-            )
+            .subAgg((sub) => sub.avg('avg_yield', 'yield_rate').max('max_price', 'price'))
         )
         .size(0)
         .build();
@@ -2325,9 +2266,7 @@ describe('Real-world Usage Examples', () => {
       const townhouseSearch = query(listingMappings)
         .bool()
         .filter((q) => q.term('property_class', 'townhouse'))
-        .aggs((agg) =>
-          agg.avg('avg_price', 'list_price').min('min_price', 'list_price')
-        )
+        .aggs((agg) => agg.avg('avg_price', 'list_price').min('min_price', 'list_price'))
         .size(0)
         .build();
 
@@ -2352,6 +2291,7 @@ describe('Real-world Usage Examples', () => {
       practice_area: keyword(),
       name_suggest: completion()
     });
+
     it('should build a completion autocomplete request', () => {
       const result = suggest(attorneyMappings)
         .completion('autocomplete', 'kap', {

@@ -1,12 +1,4 @@
-import {
-  mappings,
-  keyword,
-  text,
-  long,
-  float,
-  date,
-  denseVector
-} from '../../index.js';
+import { mappings, keyword, text, long, float, date, denseVector } from '../../index.js';
 import type { Infer } from '../../index.js';
 
 export const instrumentMappings = mappings({
@@ -39,9 +31,7 @@ export const instrumentWithEmbeddingMappings = mappings({
   description: text()
 });
 
-export type InstrumentWithEmbedding = Infer<
-  typeof instrumentWithEmbeddingMappings
->;
+export type InstrumentWithEmbedding = Infer<typeof instrumentWithEmbeddingMappings>;
 
 export const scoredInstrumentMappings = mappings({
   isin: keyword(),
