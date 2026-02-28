@@ -1,7 +1,0 @@
-src/
-*.test.ts
-__tests__/
-tsconfig.json
-eslint.config.mjs
-.prettierrc
-coverage/
