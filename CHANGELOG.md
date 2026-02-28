@@ -4,6 +4,12 @@ All notable changes to elasticlink will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
+## [0.4.1-beta] - 2026-02-28
+
+### Fixed
+
+- Removed `.npmignore` — when present alongside `"files"` in `package.json`, npm ignores the allowlist and falls back to the denylist, which caused test files and other non-dist artifacts to be included in the published package. The `"files": ["dist"]` allowlist in `package.json` now exclusively controls what is published, reducing bundle size and removing test files from the npm tarball.
+
 ## [0.4.0-beta] - 2026-02-28
 
 ### Added
