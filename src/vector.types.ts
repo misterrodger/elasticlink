@@ -4,10 +4,7 @@
  * Requires Elasticsearch 8.0+
  */
 
-import type {
-  KnnSearch,
-  MappingDenseVectorProperty
-} from '@elastic/elasticsearch/lib/api/types';
+import type { KnnSearch, MappingDenseVectorProperty } from '@elastic/elasticsearch/lib/api/types';
 
 /**
  * Options for KNN (k-nearest neighbors) query (excludes 'field' and 'query_vector' which are handled by the builder)

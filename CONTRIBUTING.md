@@ -91,7 +91,7 @@ describe('Your Query Type', () => {
 
 ```bash
 npm run test:coverage        # Run tests with coverage report
-npm test -- --updateSnapshot # Update snapshots if output is intentionally changed
+npm test -- --update # Update snapshots if output is intentionally changed
 ```
 
 ## Integration Tests

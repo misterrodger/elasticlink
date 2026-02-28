@@ -26,11 +26,12 @@ export const createBulkBuilder = <T>(
   update: (meta) => {
     const { doc, script, upsert, doc_as_upsert, ...header } = meta;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateDoc: any = {};
-    if (doc) updateDoc.doc = doc;
-    if (script) updateDoc.script = script;
-    if (upsert) updateDoc.upsert = upsert;
-    if (doc_as_upsert !== undefined) updateDoc.doc_as_upsert = doc_as_upsert;
+    const updateDoc: any = {
+      ...(doc && { doc }),
+      ...(script && { script }),
+      ...(upsert && { upsert }),
+      ...(doc_as_upsert !== undefined && { doc_as_upsert })
+    };
 
     return createBulkBuilder<T>([...operations, { update: header }, updateDoc]);
   },
@@ -39,10 +40,12 @@ export const createBulkBuilder = <T>(
     return createBulkBuilder<T>([...operations, { delete: meta }]);
   },
 
+  // eslint-disable-next-line functional/functional-parameters
   build: () => {
-    return operations.map((op) => JSON.stringify(op)).join('\n') + '\n';
+    return `${operations.map((op) => JSON.stringify(op)).join('\n')}\n`;
   },
 
+  // eslint-disable-next-line functional/functional-parameters
   buildArray: () => operations
 });
 
@@ -51,13 +54,12 @@ export const createBulkBuilder = <T>(
  * `.build()` returns an NDJSON string (newline-delimited JSON) ready to POST to `/_bulk`.
  * `.buildArray()` returns the raw operation objects if you need to inspect or transform them.
  * @example
- * const ndjson = bulk<Product>()
+ * const ndjson = bulk(productMappings)
  *   .index({ id: '1', name: 'Product 1' }, { _index: 'products', _id: '1' })
  *   .create({ id: '2', name: 'Product 2' }, { _index: 'products', _id: '2' })
  *   .update({ _index: 'products', _id: '3', doc: { name: 'Updated' } })
  *   .delete({ _index: 'products', _id: '4' })
  *   .build(); // POST to /_bulk with Content-Type: application/x-ndjson
  */
-export const bulk = <M extends Record<string, FieldTypeString>>(
-  _schema: MappingsSchema<M>
-) => createBulkBuilder<Infer<MappingsSchema<M>>>();
+export const bulk = <M extends Record<string, FieldTypeString>>(_schema: MappingsSchema<M>) =>
+  createBulkBuilder<Infer<MappingsSchema<M>>>();

@@ -1,5 +1,6 @@
 import {
   indexBuilder,
+  mappings,
   text,
   keyword,
   float,
@@ -26,7 +27,13 @@ import {
   longRange,
   doubleRange,
   object,
-  alias
+  alias,
+  matchOnlyText,
+  searchAsYouType,
+  constantKeyword,
+  wildcardField,
+  flattened,
+  quantizedDenseVector
 } from '..';
 
 describe('Index Management', () => {
@@ -38,14 +45,12 @@ describe('Index Management', () => {
     });
 
     it('should replace mappings when called twice', () => {
-      const result = indexBuilder()
-        .mappings({ name: text() })
-        .mappings({ market_cap: float() })
-        .build();
+      const result = indexBuilder().mappings({ name: text() }).mappings({ market_cap: float() }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "market_cap": {
                 "type": "float",
@@ -57,10 +62,7 @@ describe('Index Management', () => {
     });
 
     it('should replace settings when called twice', () => {
-      const result = indexBuilder()
-        .settings({ number_of_shards: 3 })
-        .settings({ number_of_replicas: 2 })
-        .build();
+      const result = indexBuilder().settings({ number_of_shards: 3 }).settings({ number_of_replicas: 2 }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -85,6 +87,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "asset_class": {
                 "type": "keyword",
@@ -114,6 +117,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "name": {
                 "analyzer": "standard",
@@ -141,6 +145,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "name": {
                 "fields": {
@@ -173,6 +178,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "tranches": {
                 "properties": {
@@ -208,6 +214,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "embedding": {
                 "dims": 384,
@@ -245,9 +252,7 @@ describe('Index Management', () => {
     });
 
     it('should support date_range field type', () => {
-      const result = indexBuilder()
-        .mappings({ availability: dateRange() })
-        .build();
+      const result = indexBuilder().mappings({ availability: dateRange() }).build();
 
       expect(result.mappings?.properties.availability?.type).toBe('date_range');
     });
@@ -262,6 +267,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "score": {
                 "scaling_factor": 100,
@@ -291,6 +297,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "name": {
                 "boost": 2,
@@ -312,6 +319,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "asset_class": {
                 "doc_values": false,
@@ -334,6 +342,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "name": {
                 "index": false,
@@ -412,10 +421,7 @@ describe('Index Management', () => {
     });
 
     it('should add multiple aliases', () => {
-      const result = indexBuilder()
-        .alias('products_read')
-        .alias('products_write')
-        .build();
+      const result = indexBuilder().alias('products_read').alias('products_write').build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -450,9 +456,7 @@ describe('Index Management', () => {
     });
 
     it('should add alias with routing', () => {
-      const result = indexBuilder()
-        .alias('routed_alias', { routing: 'shard-1' })
-        .build();
+      const result = indexBuilder().alias('routed_alias', { routing: 'shard-1' }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -466,9 +470,7 @@ describe('Index Management', () => {
     });
 
     it('should add alias with is_write_index', () => {
-      const result = indexBuilder()
-        .alias('write_alias', { is_write_index: true })
-        .build();
+      const result = indexBuilder().alias('write_alias', { is_write_index: true }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -506,6 +508,7 @@ describe('Index Management', () => {
             "products_alias": {},
           },
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "asset_class": {
                 "type": "keyword",
@@ -580,6 +583,7 @@ describe('Index Management', () => {
             },
           },
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "asset_class": {
                 "type": "keyword",
@@ -647,6 +651,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "embedding": {
                 "dims": 768,
@@ -693,6 +698,7 @@ describe('Index Management', () => {
             "logs_current": {},
           },
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "level": {
                 "type": "keyword",
@@ -720,22 +726,24 @@ describe('Index Management', () => {
 
   describe('Field helpers', () => {
     it('should resolve field helpers to field mappings', () => {
-      const result = indexBuilder()
-        .mappings({ name: text(), count: integer() })
-        .build();
+      const result = indexBuilder().mappings({ name: text(), count: integer() }).build();
 
-      expect(result.mappings?.properties.name).toEqual({ type: 'text' });
-      expect(result.mappings?.properties.count).toEqual({ type: 'integer' });
+      expect(result.mappings?.properties.name).toStrictEqual({ type: 'text' });
+      expect(result.mappings?.properties.count).toStrictEqual({
+        type: 'integer'
+      });
     });
 
     it('should support helpers called with no options', () => {
-      const result = indexBuilder()
-        .mappings({ name: text(), price: float(), active: boolean() })
-        .build();
+      const result = indexBuilder().mappings({ name: text(), price: float(), active: boolean() }).build();
 
-      expect(result.mappings?.properties.name).toEqual({ type: 'text' });
-      expect(result.mappings?.properties.price).toEqual({ type: 'float' });
-      expect(result.mappings?.properties.active).toEqual({ type: 'boolean' });
+      expect(result.mappings?.properties.name).toStrictEqual({ type: 'text' });
+      expect(result.mappings?.properties.price).toStrictEqual({
+        type: 'float'
+      });
+      expect(result.mappings?.properties.active).toStrictEqual({
+        type: 'boolean'
+      });
     });
 
     it('should support helpers with and without options', () => {
@@ -748,22 +756,24 @@ describe('Index Management', () => {
         })
         .build();
 
-      expect(result.mappings?.properties.isin).toEqual({ type: 'keyword' });
-      expect(result.mappings?.properties.name).toEqual({
+      expect(result.mappings?.properties.isin).toStrictEqual({
+        type: 'keyword'
+      });
+      expect(result.mappings?.properties.name).toStrictEqual({
         type: 'text',
         analyzer: 'standard'
       });
-      expect(result.mappings?.properties.market_cap).toEqual({ type: 'float' });
-      expect(result.mappings?.properties.embedding).toEqual({
+      expect(result.mappings?.properties.market_cap).toStrictEqual({
+        type: 'float'
+      });
+      expect(result.mappings?.properties.embedding).toStrictEqual({
         type: 'dense_vector',
         dims: 384
       });
     });
 
     it('should support all numeric helpers', () => {
-      const result = indexBuilder()
-        .mappings({ a: long(), b: short(), c: byte(), d: double() })
-        .build();
+      const result = indexBuilder().mappings({ a: long(), b: short(), c: byte(), d: double() }).build();
 
       expect(result.mappings?.properties.a?.type).toBe('long');
       expect(result.mappings?.properties.b?.type).toBe('short');
@@ -779,10 +789,10 @@ describe('Index Management', () => {
         })
         .build();
 
-      expect(result.mappings?.properties.location).toEqual({
+      expect(result.mappings?.properties.location).toStrictEqual({
         type: 'geo_point'
       });
-      expect(result.mappings?.properties.suggest).toEqual({
+      expect(result.mappings?.properties.suggest).toStrictEqual({
         type: 'completion',
         analyzer: 'simple'
       });
@@ -793,18 +803,16 @@ describe('Index Management', () => {
         .mappings({ created: date({ format: 'yyyy-MM-dd' }) })
         .build();
 
-      expect(result.mappings?.properties.created).toEqual({
+      expect(result.mappings?.properties.created).toStrictEqual({
         type: 'date',
         format: 'yyyy-MM-dd'
       });
     });
 
     it('should support range type helpers', () => {
-      const result = indexBuilder()
-        .mappings({ availability: dateRange() })
-        .build();
+      const result = indexBuilder().mappings({ availability: dateRange() }).build();
 
-      expect(result.mappings?.properties.availability).toEqual({
+      expect(result.mappings?.properties.availability).toStrictEqual({
         type: 'date_range'
       });
     });
@@ -814,7 +822,7 @@ describe('Index Management', () => {
         .mappings({ count: integer({ store: true }) })
         .build();
 
-      expect(result.mappings?.properties.count).toEqual({
+      expect(result.mappings?.properties.count).toStrictEqual({
         type: 'integer',
         store: true
       });
@@ -826,6 +834,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "score": {
                 "type": "half_float",
@@ -844,6 +853,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "score": {
                 "index": false,
@@ -861,6 +871,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "blob": {
                 "type": "binary",
@@ -877,6 +888,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "remote_ip": {
                 "type": "ip",
@@ -895,6 +907,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "remote_ip": {
                 "store": true,
@@ -912,6 +925,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "boundary": {
                 "type": "geo_shape",
@@ -930,6 +944,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "boundary": {
                 "ignore_malformed": true,
@@ -942,13 +957,12 @@ describe('Index Management', () => {
     });
 
     it('should support integerRange helper', () => {
-      const result = indexBuilder()
-        .mappings({ age_range: integerRange() })
-        .build();
+      const result = indexBuilder().mappings({ age_range: integerRange() }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "age_range": {
                 "type": "integer_range",
@@ -960,13 +974,12 @@ describe('Index Management', () => {
     });
 
     it('should support floatRange helper', () => {
-      const result = indexBuilder()
-        .mappings({ price_range: floatRange() })
-        .build();
+      const result = indexBuilder().mappings({ price_range: floatRange() }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "price_range": {
                 "type": "float_range",
@@ -978,13 +991,12 @@ describe('Index Management', () => {
     });
 
     it('should support longRange helper', () => {
-      const result = indexBuilder()
-        .mappings({ timestamp_range: longRange() })
-        .build();
+      const result = indexBuilder().mappings({ timestamp_range: longRange() }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "timestamp_range": {
                 "type": "long_range",
@@ -996,13 +1008,12 @@ describe('Index Management', () => {
     });
 
     it('should support doubleRange helper', () => {
-      const result = indexBuilder()
-        .mappings({ score_range: doubleRange() })
-        .build();
+      const result = indexBuilder().mappings({ score_range: doubleRange() }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "score_range": {
                 "type": "double_range",
@@ -1021,6 +1032,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "availability": {
                 "store": true,
@@ -1038,6 +1050,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "metadata": {
                 "type": "object",
@@ -1058,6 +1071,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "address": {
                 "properties": {
@@ -1084,6 +1098,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "raw": {
                 "enabled": false,
@@ -1105,6 +1120,7 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "address": {
                 "enabled": true,
@@ -1129,25 +1145,10 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "full_name": {
                 "path": "name",
-                "type": "alias",
-              },
-            },
-          },
-        }
-      `);
-    });
-
-    it('should support alias helper with no options', () => {
-      const result = indexBuilder().mappings({ full_name: alias() }).build();
-
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "mappings": {
-            "properties": {
-              "full_name": {
                 "type": "alias",
               },
             },
@@ -1169,11 +1170,747 @@ describe('Index Management', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "mappings": {
+            "dynamic": "strict",
             "properties": {
               "name": {
                 "type": "text",
               },
-              "price": undefined,
+            },
+          },
+        }
+      `);
+    });
+  });
+
+  describe('Mapping options (dynamic, _source, _meta)', () => {
+    it('should default to dynamic strict when using mappings() factory', () => {
+      const schema = mappings({ name: text() });
+      const result = indexBuilder().mappings(schema).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "name": {
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should allow overriding dynamic to true', () => {
+      const schema = mappings({ name: text() }, { dynamic: true });
+      const result = indexBuilder().mappings(schema).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": true,
+            "properties": {
+              "name": {
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should allow overriding dynamic to runtime', () => {
+      const schema = mappings({ name: text() }, { dynamic: 'runtime' });
+      const result = indexBuilder().mappings(schema).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "runtime",
+            "properties": {
+              "name": {
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should default to dynamic strict for inline mappings (raw fields)', () => {
+      const result = indexBuilder().mappings({ name: text() }).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "name": {
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should allow overriding dynamic on inline mappings via options', () => {
+      const result = indexBuilder().mappings({ name: text() }, { dynamic: true }).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": true,
+            "properties": {
+              "name": {
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should allow _source and _meta on inline mappings via options', () => {
+      const result = indexBuilder()
+        .mappings(
+          { name: text(), embedding: denseVector({ dims: 384 }) },
+          { _source: { excludes: ['embedding'] }, _meta: { version: 2 } }
+        )
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "_meta": {
+              "version": 2,
+            },
+            "_source": {
+              "excludes": [
+                "embedding",
+              ],
+            },
+            "dynamic": "strict",
+            "properties": {
+              "embedding": {
+                "dims": 384,
+                "type": "dense_vector",
+              },
+              "name": {
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should allow inline options to override schema options', () => {
+      const schema = mappings({ name: text() }, { dynamic: 'strict', _meta: { version: 1 } });
+      const result = indexBuilder()
+        .mappings(schema, { _meta: { version: 2 } })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "_meta": {
+              "version": 2,
+            },
+            "dynamic": "strict",
+            "properties": {
+              "name": {
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should pass _source excludes through to index mappings', () => {
+      const schema = mappings(
+        { title: text(), embedding: denseVector({ dims: 768 }) },
+        { _source: { excludes: ['embedding'] } }
+      );
+      const result = indexBuilder().mappings(schema).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "_source": {
+              "excludes": [
+                "embedding",
+              ],
+            },
+            "dynamic": "strict",
+            "properties": {
+              "embedding": {
+                "dims": 768,
+                "type": "dense_vector",
+              },
+              "title": {
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should pass _source includes through to index mappings', () => {
+      const schema = mappings(
+        { title: text(), body: text(), tags: keyword() },
+        { _source: { includes: ['title', 'tags'] } }
+      );
+      const result = indexBuilder().mappings(schema).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "_source": {
+              "includes": [
+                "title",
+                "tags",
+              ],
+            },
+            "dynamic": "strict",
+            "properties": {
+              "body": {
+                "type": "text",
+              },
+              "tags": {
+                "type": "keyword",
+              },
+              "title": {
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should pass _meta through to index mappings', () => {
+      const schema = mappings({ name: text() }, { _meta: { version: '1.0', created_by: 'elasticlink' } });
+      const result = indexBuilder().mappings(schema).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "_meta": {
+              "created_by": "elasticlink",
+              "version": "1.0",
+            },
+            "dynamic": "strict",
+            "properties": {
+              "name": {
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+  });
+
+  describe('New field-level options', () => {
+    it('should support copy_to on text fields', () => {
+      const result = indexBuilder()
+        .mappings({
+          title: text({ copy_to: 'searchable' }),
+          body: text({ copy_to: ['searchable', 'all_text'] })
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "body": {
+                "copy_to": [
+                  "searchable",
+                  "all_text",
+                ],
+                "type": "text",
+              },
+              "title": {
+                "copy_to": "searchable",
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support index_prefixes and index_phrases on text fields', () => {
+      const result = indexBuilder()
+        .mappings({
+          name: text({
+            index_prefixes: { min_chars: 2, max_chars: 5 },
+            index_phrases: true
+          })
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "name": {
+                "index_phrases": true,
+                "index_prefixes": {
+                  "max_chars": 5,
+                  "min_chars": 2,
+                },
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support eager_global_ordinals on keyword fields', () => {
+      const result = indexBuilder()
+        .mappings({ status: keyword({ eager_global_ordinals: true }) })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "status": {
+                "eager_global_ordinals": true,
+                "type": "keyword",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support null_value on keyword fields', () => {
+      const result = indexBuilder()
+        .mappings({ status: keyword({ null_value: 'UNKNOWN' }) })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "status": {
+                "null_value": "UNKNOWN",
+                "type": "keyword",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support ignore_malformed on numeric fields', () => {
+      const result = indexBuilder()
+        .mappings({ price: float({ ignore_malformed: true }) })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "price": {
+                "ignore_malformed": true,
+                "type": "float",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support ignore_malformed on date fields', () => {
+      const result = indexBuilder()
+        .mappings({ created: date({ ignore_malformed: true }) })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "created": {
+                "ignore_malformed": true,
+                "type": "date",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support ignore_malformed on geo_point fields', () => {
+      const result = indexBuilder()
+        .mappings({ location: geoPoint({ ignore_malformed: true }) })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "location": {
+                "ignore_malformed": true,
+                "type": "geo_point",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support ignore_malformed on ip fields', () => {
+      const result = indexBuilder()
+        .mappings({ addr: ip({ ignore_malformed: true }) })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "addr": {
+                "ignore_malformed": true,
+                "type": "ip",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support term_vector on text fields', () => {
+      const result = indexBuilder()
+        .mappings({
+          content: text({ term_vector: 'with_positions_offsets' })
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "content": {
+                "term_vector": "with_positions_offsets",
+                "type": "text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support null_value on numeric fields', () => {
+      const result = indexBuilder()
+        .mappings({ count: integer({ null_value: 0 }) })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "count": {
+                "null_value": 0,
+                "type": "integer",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support ignore_above on keyword fields', () => {
+      const result = indexBuilder()
+        .mappings({ tag: keyword({ ignore_above: 256 }) })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "tag": {
+                "ignore_above": 256,
+                "type": "keyword",
+              },
+            },
+          },
+        }
+      `);
+    });
+  });
+
+  describe('New field types', () => {
+    it('should support matchOnlyText helper', () => {
+      const result = indexBuilder().mappings({ log_message: matchOnlyText() }).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "log_message": {
+                "type": "match_only_text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support matchOnlyText helper with options', () => {
+      const result = indexBuilder()
+        .mappings({
+          log_message: matchOnlyText({
+            copy_to: 'searchable'
+          })
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "log_message": {
+                "copy_to": "searchable",
+                "type": "match_only_text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support searchAsYouType helper', () => {
+      const result = indexBuilder().mappings({ name: searchAsYouType() }).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "name": {
+                "type": "search_as_you_type",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support searchAsYouType helper with options', () => {
+      const result = indexBuilder()
+        .mappings({
+          name: searchAsYouType({
+            analyzer: 'standard',
+            max_shingle_size: 4
+          })
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "name": {
+                "analyzer": "standard",
+                "max_shingle_size": 4,
+                "type": "search_as_you_type",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support constantKeyword helper', () => {
+      const result = indexBuilder()
+        .mappings({ doc_type: constantKeyword({ value: 'product' }) })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "doc_type": {
+                "type": "constant_keyword",
+                "value": "product",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support wildcardField helper', () => {
+      const result = indexBuilder().mappings({ path: wildcardField() }).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "path": {
+                "type": "wildcard",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support wildcardField helper with options', () => {
+      const result = indexBuilder()
+        .mappings({ path: wildcardField({ ignore_above: 512 }) })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "path": {
+                "ignore_above": 512,
+                "type": "wildcard",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support flattened helper', () => {
+      const result = indexBuilder().mappings({ labels: flattened() }).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "labels": {
+                "type": "flattened",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support flattened helper with options', () => {
+      const result = indexBuilder()
+        .mappings({
+          metadata: flattened({ depth_limit: 3, eager_global_ordinals: true })
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "metadata": {
+                "depth_limit": 3,
+                "eager_global_ordinals": true,
+                "type": "flattened",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support quantizedDenseVector helper', () => {
+      const result = indexBuilder()
+        .mappings({
+          embedding: quantizedDenseVector({ dims: 768, similarity: 'cosine' })
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "embedding": {
+                "dims": 768,
+                "index_options": {
+                  "type": "int8_hnsw",
+                },
+                "similarity": "cosine",
+                "type": "dense_vector",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support quantizedDenseVector with custom index_options', () => {
+      const result = indexBuilder()
+        .mappings({
+          embedding: quantizedDenseVector({
+            dims: 384,
+            similarity: 'dot_product',
+            index_options: { type: 'int8_hnsw', m: 32, ef_construction: 200 }
+          })
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "embedding": {
+                "dims": 384,
+                "index_options": {
+                  "ef_construction": 200,
+                  "m": 32,
+                  "type": "int8_hnsw",
+                },
+                "similarity": "dot_product",
+                "type": "dense_vector",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should support quantizedDenseVector with no options', () => {
+      const result = indexBuilder().mappings({ embedding: quantizedDenseVector() }).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "embedding": {
+                "index_options": {
+                  "type": "int8_hnsw",
+                },
+                "type": "dense_vector",
+              },
             },
           },
         }

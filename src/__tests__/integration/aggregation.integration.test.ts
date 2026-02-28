@@ -1,11 +1,5 @@
 import { query, indexBuilder } from '../../index.js';
-import {
-  createIndex,
-  deleteIndex,
-  indexDoc,
-  refreshIndex,
-  search
-} from './helpers.js';
+import { createIndex, deleteIndex, indexDoc, refreshIndex, search } from './helpers.js';
 import { matterMappings, MATTERS } from './fixtures/legal.js';
 
 const INDEX = 'int-aggregation';
@@ -58,9 +52,7 @@ describe('AggregationBuilder', () => {
         query(matterMappings)
           .matchAll()
           .aggs((agg) =>
-            agg
-              .terms('by_area', 'practice_area', { size: 2 })
-              .subAgg((sub) => sub.avg('avg_rate', 'billing_rate'))
+            agg.terms('by_area', 'practice_area', { size: 2 }).subAgg((sub) => sub.avg('avg_rate', 'billing_rate'))
           )
           .size(0)
           .build()
@@ -131,11 +123,7 @@ describe('AggregationBuilder', () => {
         INDEX,
         query(matterMappings)
           .matchAll()
-          .aggs((agg) =>
-            agg
-              .stats('rate_stats', 'billing_rate')
-              .cardinality('unique_areas', 'practice_area')
-          )
+          .aggs((agg) => agg.stats('rate_stats', 'billing_rate').cardinality('unique_areas', 'practice_area'))
           .size(0)
           .build()
       );
@@ -217,12 +205,10 @@ describe('AggregationBuilder', () => {
       );
 
       expect(
-        result.aggregations.by_year.buckets.map(
-          (b: { key_as_string: string; doc_count: number }) => ({
-            year: b.key_as_string,
-            doc_count: b.doc_count
-          })
-        )
+        result.aggregations.by_year.buckets.map((b: { key_as_string: string; doc_count: number }) => ({
+          year: b.key_as_string,
+          doc_count: b.doc_count
+        }))
       ).toMatchInlineSnapshot(`
         [
           {

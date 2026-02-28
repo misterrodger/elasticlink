@@ -1,13 +1,4 @@
-import {
-  mappings,
-  keyword,
-  text,
-  float,
-  long,
-  date,
-  geoPoint,
-  denseVector
-} from '../../index.js';
+import { mappings, keyword, text, float, long, date, geoPoint, denseVector } from '../../index.js';
 import type { Infer } from '../../index.js';
 
 export const listingMappings = mappings({

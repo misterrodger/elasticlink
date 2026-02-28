@@ -22,28 +22,20 @@ const esNdjson = (url: string, body: string): Promise<any> =>
     body
   }).then((r) => r.json());
 
-export const createIndex = (index: string, config: any) =>
-  esJson(`${ES_URL}/${index}`, 'PUT', config);
+export const createIndex = (index: string, config: any) => esJson(`${ES_URL}/${index}`, 'PUT', config);
 
-export const deleteIndex = (index: string) =>
-  esJson(`${ES_URL}/${index}`, 'DELETE');
+export const deleteIndex = (index: string) => esJson(`${ES_URL}/${index}`, 'DELETE');
 
-export const refreshIndex = (index: string) =>
-  esJson(`${ES_URL}/${index}/_refresh`, 'POST');
+export const refreshIndex = (index: string) => esJson(`${ES_URL}/${index}/_refresh`, 'POST');
 
-export const search = (index: string, body: any) =>
-  esJson(`${ES_URL}/${index}/_search`, 'POST', body);
+export const search = (index: string, body: any) => esJson(`${ES_URL}/${index}/_search`, 'POST', body);
 
-export const indexDoc = (index: string, body: any) =>
-  esJson(`${ES_URL}/${index}/_doc`, 'POST', body);
+export const indexDoc = (index: string, body: any) => esJson(`${ES_URL}/${index}/_doc`, 'POST', body);
 
-export const bulkRequest = (ndjson: string) =>
-  esNdjson(`${ES_URL}/_bulk`, ndjson);
+export const bulkRequest = (ndjson: string) => esNdjson(`${ES_URL}/_bulk`, ndjson);
 
-export const msearchRequest = (index: string, ndjson: string) =>
-  esNdjson(`${ES_URL}/${index}/_msearch`, ndjson);
+export const msearchRequest = (index: string, ndjson: string) => esNdjson(`${ES_URL}/${index}/_msearch`, ndjson);
 
 export const esGet = (path: string) => esJson(`${ES_URL}${path}`, 'GET');
 
-export const esPost = (path: string, body?: any) =>
-  esJson(`${ES_URL}${path}`, 'POST', body);
+export const esPost = (path: string, body?: any) => esJson(`${ES_URL}${path}`, 'POST', body);

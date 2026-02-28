@@ -22,18 +22,18 @@ export const createMSearchBuilder = <M extends Record<string, FieldTypeString>>(
     return createMSearchBuilder<M>([...searches, { header, body }]);
   },
 
+  // eslint-disable-next-line functional/functional-parameters
   build: () => {
-    return (
-      searches
-        .map(({ header, body }) => {
-          const headerLine = JSON.stringify(header || {});
-          const bodyLine = JSON.stringify(body);
-          return `${headerLine}\n${bodyLine}`;
-        })
-        .join('\n') + '\n'
-    );
+    return `${searches
+      .map(({ header, body }) => {
+        const headerLine = JSON.stringify(header || {});
+        const bodyLine = JSON.stringify(body);
+        return `${headerLine}\n${bodyLine}`;
+      })
+      .join('\n')}\n`;
   },
 
+  // eslint-disable-next-line functional/functional-parameters
   buildArray: () => {
     return searches.flatMap(({ header, body }) => [header || {}, body]);
   }
@@ -42,11 +42,10 @@ export const createMSearchBuilder = <M extends Record<string, FieldTypeString>>(
 /**
  * Create a new multi-search builder
  * @example
- * const ms = msearch<typeof productMappings._fieldTypes>()
+ * const ms = msearch(productMappings)
  *   .addQuery(query1.build(), { index: 'products' })
  *   .addQuery(query2.build(), { index: 'products' })
  *   .build();
  */
-export const msearch = <M extends Record<string, FieldTypeString>>(
-  _schema: MappingsSchema<M>
-) => createMSearchBuilder<M>();
+export const msearch = <M extends Record<string, FieldTypeString>>(_schema: MappingsSchema<M>) =>
+  createMSearchBuilder<M>();

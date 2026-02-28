@@ -37,10 +37,7 @@ describe('Index Management — full index config', () => {
   beforeAll(() =>
     createIndex(
       INDEX_FULL,
-      indexBuilder()
-        .mappings(fullDocMappings)
-        .settings({ number_of_shards: 1, number_of_replicas: 0 })
-        .build()
+      indexBuilder().mappings(fullDocMappings).settings({ number_of_shards: 1, number_of_replicas: 0 }).build()
     )
   );
 
@@ -49,8 +46,7 @@ describe('Index Management — full index config', () => {
   it('registers all field types in the mapping', async () => {
     const result = await esGet(`/${INDEX_FULL}/_mapping`);
 
-    expect(fieldTypes(result[INDEX_FULL].mappings.properties))
-      .toMatchInlineSnapshot(`
+    expect(fieldTypes(result[INDEX_FULL].mappings.properties)).toMatchInlineSnapshot(`
       {
         "active": "boolean",
         "category": "keyword",
@@ -68,8 +64,13 @@ describe('Index Management — full index config', () => {
 
   it('applies index settings', async () => {
     const result = await esGet(`/${INDEX_FULL}/_settings`);
-    const { number_of_shards, number_of_replicas } =
-      result[INDEX_FULL].settings.index;
+    const {
+      [INDEX_FULL]: {
+        settings: {
+          index: { number_of_shards, number_of_replicas }
+        }
+      }
+    } = result;
 
     expect({ number_of_shards, number_of_replicas }).toMatchInlineSnapshot(`
       {

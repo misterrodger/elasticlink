@@ -24,6 +24,7 @@ elasticlink simplifies building Elasticsearch queries and index management in Ty
 
 | elasticlink | Node.js     | Elasticsearch |
 |-------------|-------------|---------------|
+| 0.4.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
 | 0.3.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
 | 0.2.0-beta  | 20, 22      | 9.x (≥9.0.0)  |
 | 0.1.0-beta  | 20, 22      | 9.x (≥9.0.0)  |
@@ -76,7 +77,12 @@ const response = await client.search({ index: 'products', ...q });
 - `match(field, value, options?)` - Full-text search
 - `multiMatch(fields, query, options?)` - Search multiple fields
 - `matchPhrase(field, query)` - Exact phrase matching
-- `matchPhrasePrefix(field, query, options?)` - Prefix phrase matching (search-as-you-type)
+- `matchPhrasePrefix(field, query, options?)` - Prefix phrase matching
+- `matchBoolPrefix(field, value, options?)` - Analyze and build a bool query from query terms, with the last term as a prefix (search-as-you-type)
+- `combinedFields(fields, query, options?)` - Search across multiple fields treating them as one combined field
+- `queryString(query, options?)` - Lucene query string syntax
+- `simpleQueryString(query, options?)` - Simplified query string syntax with limited operators
+- `moreLikeThis(fields, like, options?)` - Find documents similar to a given document or text
 - `term(field, value)` - Exact term matching
 - `terms(field, values)` - Multiple exact values
 - `range(field, conditions)` - Range queries (gte, lte, gt, lt)
@@ -212,8 +218,6 @@ const standaloneAgg = aggregations(productMappings)
 
 ### Vector Search & Semantic Search
 
-**Requires Elasticsearch 8.0+**
-
 KNN (k-nearest neighbors) queries enable semantic search using vector embeddings from machine learning models.
 
 ```typescript
@@ -348,6 +352,8 @@ const customScored = query(scoredProductMappings)
 Percolate queries enable reverse search - match documents against stored queries. Perfect for alerting, content classification, and saved searches.
 
 ```typescript
+import { query, mappings, keyword, percolator } from 'elasticlink';
+
 const alertRuleMappings = mappings({
   query: percolator(),
   name: keyword(),
@@ -612,17 +618,18 @@ denseVector({ dims: 384, index: true, similarity: 'cosine' })
 
 #### Field Types (25+ supported)
 
-| Category    | Helpers                                                                                                 |
-| ----------- | ------------------------------------------------------------------------------------------------------- |
-| Text        | `text`, `keyword`, `constantKeyword`                                                                    |
-| Numeric     | `long`, `integer`, `short`, `byte`, `double`, `float`, `halfFloat`, `scaledFloat`                       |
-| Date        | `date`, `dateNanos`                                                                                     |
-| Boolean     | `boolean`                                                                                               |
-| Range       | `integerRange`, `floatRange`, `longRange`, `doubleRange`, `dateRange`                                   |
-| Objects     | `object`, `nested`, `flattened`                                                                         |
-| Spatial     | `geoPoint`, `geoShape`                                                                                  |
-| Specialized | `ip`, `completion`, `tokenCount`, `denseVector`, `rankFeature`, `rankFeatures`, `binary`, `percolator`  |
-| Alias       | `alias`                                                                                                 |
+| Category    | Helpers                                                                                                                       |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Text        | `text`, `keyword`, `constantKeyword`, `matchOnlyText`, `searchAsYouType`, `wildcardField`                                     |
+| Numeric     | `long`, `integer`, `short`, `byte`, `double`, `float`, `halfFloat`, `scaledFloat`                                             |
+| Date        | `date`                                                                                                                        |
+| Boolean     | `boolean`                                                                                                                     |
+| Range       | `integerRange`, `floatRange`, `longRange`, `doubleRange`, `dateRange`                                                         |
+| Objects     | `object`, `nested`, `flattened`                                                                                               |
+| Spatial     | `geoPoint`, `geoShape`                                                                                                        |
+| Vector      | `denseVector`, `quantizedDenseVector`                                                                                         |
+| Specialized | `ip`, `binary`, `completion`, `percolator`                                                                                    |
+| Alias       | `alias`                                                                                                                       |
 
 #### Mapping Properties
 
@@ -677,6 +684,46 @@ The `.alias()` method accepts an optional `IndicesAlias` object:
 | `index_routing`   | `string`  | Routing value for index operations only                           |
 | `search_routing`  | `string`  | Routing value for search operations only                          |
 | `is_hidden`       | `boolean` | Hide alias from wildcard expressions                              |
+
+### Settings Presets
+
+Ready-made index settings for common lifecycle stages. Use with `.settings()` on `indexBuilder()` or pass directly to the ES `_settings` API.
+
+```typescript
+import { productionSearchSettings, indexSortSettings, fastIngestSettings } from 'elasticlink';
+
+// Create index with production settings
+const indexConfig = indexBuilder()
+  .mappings(myMappings)
+  .settings(productionSearchSettings())
+  .build();
+
+// Index-time sort for compression and early termination
+const sortedConfig = indexBuilder()
+  .mappings(myMappings)
+  .settings({
+    ...productionSearchSettings(),
+    index: indexSortSettings({ timestamp: 'desc', status: 'asc' })
+  })
+  .build();
+
+// Before bulk ingest — disables refresh, removes replicas, async translog
+await client.indices.putSettings({ index: 'my-index', body: fastIngestSettings() });
+
+// Perform bulk ingest...
+
+// Restore production settings afterward
+await client.indices.putSettings({ index: 'my-index', body: productionSearchSettings() });
+await client.indices.refresh({ index: 'my-index' });
+```
+
+| Preset | Purpose |
+| ------ | ------- |
+| `productionSearchSettings(overrides?)` | Balanced production defaults — 1 replica, 5s refresh |
+| `indexSortSettings(fields)` | Configure index-time sort order for disk compression and early termination |
+| `fastIngestSettings(overrides?)` | Maximum indexing throughput — async translog, no replicas, refresh disabled |
+
+`fastIngestSettings` deep-merges the `translog` key so individual translog overrides don't clobber the other defaults. All presets accept an optional `overrides` argument typed as `Partial<IndicesIndexSettings>`.
 
 ## Examples
 

@@ -38,6 +38,7 @@ describe('Multi-Search API', () => {
   describe('Basic multi-search', () => {
     it('should build empty multi-search', () => {
       const result = msearch(matterMappings).build();
+
       expect(result).toBe('\n');
     });
 
@@ -54,9 +55,7 @@ describe('Multi-Search API', () => {
 
     it('should build multiple searches', () => {
       const q1 = query(matterMappings).match('title', 'acquisition').build();
-      const q2 = query(matterMappings)
-        .term('practice_area', 'corporate')
-        .build();
+      const q2 = query(matterMappings).term('practice_area', 'corporate').build();
 
       const result = msearch(matterMappings).addQuery(q1).addQuery(q2).build();
 
@@ -73,9 +72,7 @@ describe('Multi-Search API', () => {
   describe('Multi-search with headers', () => {
     it('should add index to header', () => {
       const q1 = query(matterMappings).matchAll().build();
-      const result = msearch(matterMappings)
-        .addQuery(q1, { index: 'matters' })
-        .build();
+      const result = msearch(matterMappings).addQuery(q1, { index: 'matters' }).build();
 
       expect(result).toMatchInlineSnapshot(`
         "{"index":"matters"}
@@ -99,9 +96,7 @@ describe('Multi-Search API', () => {
 
     it('should add routing', () => {
       const q1 = query(matterMappings).matchAll().build();
-      const result = msearch(matterMappings)
-        .addQuery(q1, { routing: 'user-123' })
-        .build();
+      const result = msearch(matterMappings).addQuery(q1, { routing: 'user-123' }).build();
 
       expect(result).toMatchInlineSnapshot(`
         "{"routing":"user-123"}
@@ -112,9 +107,7 @@ describe('Multi-Search API', () => {
 
     it('should add preference', () => {
       const q1 = query(matterMappings).matchAll().build();
-      const result = msearch(matterMappings)
-        .addQuery(q1, { preference: '_local' })
-        .build();
+      const result = msearch(matterMappings).addQuery(q1, { preference: '_local' }).build();
 
       expect(result).toMatchInlineSnapshot(`
         "{"preference":"_local"}
@@ -125,9 +118,7 @@ describe('Multi-Search API', () => {
 
     it('should add search_type', () => {
       const q1 = query(matterMappings).matchAll().build();
-      const result = msearch(matterMappings)
-        .addQuery(q1, { search_type: 'dfs_query_then_fetch' })
-        .build();
+      const result = msearch(matterMappings).addQuery(q1, { search_type: 'dfs_query_then_fetch' }).build();
 
       expect(result).toMatchInlineSnapshot(`
         "{"search_type":"dfs_query_then_fetch"}
@@ -138,9 +129,7 @@ describe('Multi-Search API', () => {
 
     it('should combine index and routing in header', () => {
       const q1 = query(matterMappings).matchAll().build();
-      const result = msearch(matterMappings)
-        .addQuery(q1, { index: 'matters', routing: 'tenant-1' })
-        .buildArray();
+      const result = msearch(matterMappings).addQuery(q1, { index: 'matters', routing: 'tenant-1' }).buildArray();
 
       expect(result).toMatchInlineSnapshot(`
         [
@@ -214,9 +203,7 @@ describe('Multi-Search API', () => {
 
     it('should alternate headers and bodies in array', () => {
       const q1 = query(matterMappings).match('title', 'acquisition').build();
-      const q2 = query(matterMappings)
-        .term('practice_area', 'corporate')
-        .build();
+      const q2 = query(matterMappings).term('practice_area', 'corporate').build();
 
       const result = msearch(matterMappings)
         .addQuery(q1, { index: 'matters-1' })
@@ -253,12 +240,8 @@ describe('Multi-Search API', () => {
   describe('Multi-search method chaining', () => {
     it('should support fluent chaining', () => {
       const q1 = query(matterMappings).match('title', 'acquisition').build();
-      const q2 = query(matterMappings)
-        .term('practice_area', 'corporate')
-        .build();
-      const q3 = query(matterMappings)
-        .range('billing_rate', { gte: 100 })
-        .build();
+      const q2 = query(matterMappings).term('practice_area', 'corporate').build();
+      const q3 = query(matterMappings).range('billing_rate', { gte: 100 }).build();
 
       const result = msearch(matterMappings)
         .addQuery(q1, { index: 'matters' })
@@ -288,9 +271,7 @@ describe('Multi-Search API', () => {
         .from(0)
         .build();
 
-      const result = msearch(matterMappings)
-        .addQuery(complexQuery, { index: 'matters' })
-        .buildArray();
+      const result = msearch(matterMappings).addQuery(complexQuery, { index: 'matters' }).buildArray();
 
       expect(result).toMatchInlineSnapshot(`
         [
@@ -329,19 +310,19 @@ describe('Multi-Search API', () => {
 
   describe('Real-world multi-search scenarios', () => {
     it('should search across multiple indices', () => {
-      const laptopQuery = query(matterMappings)
+      const acquisitionQuery = query(matterMappings)
         .match('title', 'acquisition')
         .range('billing_rate', { gte: 500, lte: 2000 })
         .build();
 
-      const phoneQuery = query(matterMappings)
+      const complianceQuery = query(matterMappings)
         .match('title', 'compliance')
         .range('billing_rate', { gte: 300, lte: 1000 })
         .build();
 
       const result = msearch(matterMappings)
-        .addQuery(laptopQuery, { index: 'matters' })
-        .addQuery(phoneQuery, { index: 'matters' })
+        .addQuery(acquisitionQuery, { index: 'matters' })
+        .addQuery(complianceQuery, { index: 'matters' })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
