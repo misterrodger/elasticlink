@@ -82,7 +82,10 @@ jobs:
         run: npm run build
 
       - name: Publish release
-        run: npm publish --tag latest --ignore-scripts
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          npm publish --tag latest --ignore-scripts
+          npm dist-tag add elasticlink@$VERSION beta
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

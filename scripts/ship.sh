@@ -14,8 +14,11 @@ npm run type-check
 echo "Running formatter..."
 npm run format
 
-echo "Running tests..."
+echo "Running unit tests..."
 npm run test:coverage
+
+echo "Running integration tests..."
+npm run test:integration
 
 echo "Staging all changes..."
 git add .

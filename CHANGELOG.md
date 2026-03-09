@@ -4,7 +4,13 @@ All notable changes to elasticlink will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
-## [0.5.0-beta] - Unreleased
+## [0.6.0-beta] - 2026-03-10
+
+### Fixed
+
+- **Query field-type narrowing for `object`/`nested` parent fields** — `sort()`, `collapse()`, `highlight()`, and `moreLikeThis()` previously accepted `object` and `nested` parent field names (e.g. `address`, `tags`) via the broad `string & keyof M` signature, producing invalid Elasticsearch requests at runtime. These methods are now constrained to semantically valid field types via new exported helper types: `SortableFields<M>`, `CollapsibleFields<M>`, and `HighlightableFields<M>`. Object sub-fields (e.g. `address.city`) remain valid wherever they were before.
+
+## [0.5.0-beta] - 2026-03-10
 
 ### Added
 
