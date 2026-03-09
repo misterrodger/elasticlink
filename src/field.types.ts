@@ -4,7 +4,7 @@
  * enabling compile-time field-type inference in the query builder.
  */
 
-import type { FieldMapping } from './index-management.types.js';
+import type { FieldMapping, FieldTypeString } from './index-management.types.js';
 
 /** Options for text fields */
 export type TextFieldOptions = {
@@ -215,6 +215,35 @@ export type FlattenedFieldOptions = {
 export type TypedFieldMapping<T extends string> = Omit<FieldMapping, 'type'> & {
   type: T;
 };
+
+// ---------------------------------------------------------------------------
+// FieldMappingWithLiteralType — any field mapping whose type is a known ES literal
+// Used by mappings() to constrain field helper inputs and enable compile-time inference
+// ---------------------------------------------------------------------------
+
+export type FieldMappingWithLiteralType = FieldMapping & { type: FieldTypeString };
+
+// ---------------------------------------------------------------------------
+// TypedNestedFieldMapping / TypedObjectFieldMapping
+// Returned by nested() and object() when called with typed sub-fields.
+// The phantom _subFields property carries sub-field type info for Infer<> and
+// dot-notation expansion in M — it is undefined at runtime and stripped by
+// JSON.stringify before reaching Elasticsearch.
+// ---------------------------------------------------------------------------
+
+/**
+ * Typed variant of `NestedFieldMapping` carrying sub-field type info at compile time.
+ * Produced when `nested()` is called with a typed field map.
+ */
+export type TypedNestedFieldMapping<F extends Record<string, FieldMappingWithLiteralType>> = NestedFieldMapping &
+  Readonly<{ _subFields: F }>;
+
+/**
+ * Typed variant of `ObjectFieldMapping` carrying sub-field type info at compile time.
+ * Produced when `object()` is called with a typed field map.
+ */
+export type TypedObjectFieldMapping<F extends Record<string, FieldMappingWithLiteralType>> = ObjectFieldMapping &
+  Readonly<{ _subFields: F }>;
 
 export type TextFieldMapping = TypedFieldMapping<'text'>;
 export type KeywordFieldMapping = TypedFieldMapping<'keyword'>;

@@ -33,6 +33,17 @@ describe('Multi-Search API', () => {
         ]
       `);
     });
+
+    it('should build NDJSON with empty header when header is omitted', () => {
+      const body = query(matterMappings).match('title', 'acquisition').build();
+      const result = msearch(matterMappings).add({ body }).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        "{}
+        {"query":{"match":{"title":"acquisition"}}}
+        "
+      `);
+    });
   });
 
   describe('Basic multi-search', () => {

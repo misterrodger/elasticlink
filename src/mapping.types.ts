@@ -5,6 +5,7 @@
  */
 
 import type { FieldMapping, FieldTypeString, SourceConfig } from './index-management.types.js';
+import type { FieldMappingWithLiteralType } from './field.types.js';
 
 // ---------------------------------------------------------------------------
 // MappingOptions — configuration for the mappings() factory
@@ -31,8 +32,12 @@ export type MappingOptions = {
 // MappingsSchema — the artifact produced by mappings()
 // ---------------------------------------------------------------------------
 
-export type MappingsSchema<M extends Record<string, FieldTypeString>> = Readonly<{
+export type MappingsSchema<
+  M extends Record<string, FieldTypeString>,
+  F extends Record<string, FieldMappingWithLiteralType> = Record<string, FieldMappingWithLiteralType>
+> = Readonly<{
   _fieldTypes: M;
+  _fields?: F;
   properties: Record<string, FieldMapping>;
   _mappingOptions?: MappingOptions;
 }>;
@@ -76,12 +81,17 @@ type ESTypeToTS = {
   date_range: { gte?: string; lte?: string; gt?: string; lt?: string };
 };
 
-export type Infer<S> =
-  S extends MappingsSchema<infer M>
-    ? {
-        [K in keyof M]: M[K] extends keyof ESTypeToTS ? ESTypeToTS[M[K]] : unknown;
-      }
-    : never;
+type InferSubFields<F extends Record<string, FieldMappingWithLiteralType>> = {
+  [K in keyof F]: F[K] extends { _subFields: infer Sub extends Record<string, FieldMappingWithLiteralType> }
+    ? F[K] extends { type: 'nested' }
+      ? Array<InferSubFields<Sub>>
+      : InferSubFields<Sub>
+    : F[K]['type'] extends keyof ESTypeToTS
+      ? ESTypeToTS[F[K]['type']]
+      : unknown;
+};
+
+export type Infer<S> = S extends MappingsSchema<infer _M, infer F> ? InferSubFields<F> : never;
 
 // ---------------------------------------------------------------------------
 // Field group filter types — extract field names by ES type
@@ -91,27 +101,69 @@ export type FieldsOfType<M extends Record<string, FieldTypeString>, Types extend
   [K in keyof M]: M[K] extends Types ? K : never;
 }[keyof M];
 
+/**
+ * Removes keys from M that are sub-fields of a `nested` parent.
+ * For example, if `variants` is a nested field, `variants.color` is excluded.
+ * Used to prevent root-level query methods from accepting nested descendants —
+ * those fields must be queried inside a `.nested()` callback instead.
+ */
+type ExcludeNestedDescendants<M extends Record<string, FieldTypeString>> = {
+  [K in keyof M as K extends `${FieldsOfType<M, 'nested'> & string}.${string}` ? never : K]: M[K];
+};
+
 export type TextFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
-  M,
+  ExcludeNestedDescendants<M>,
   'text' | 'match_only_text' | 'search_as_you_type'
 >;
 
 export type KeywordFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
-  M,
+  ExcludeNestedDescendants<M>,
   'keyword' | 'constant_keyword' | 'wildcard'
 >;
 
 export type NumericFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
-  M,
+  ExcludeNestedDescendants<M>,
   'long' | 'integer' | 'short' | 'byte' | 'double' | 'float' | 'half_float' | 'scaled_float'
 >;
 
-export type DateFields<M extends Record<string, FieldTypeString>> = FieldsOfType<M, 'date'>;
+export type DateFields<M extends Record<string, FieldTypeString>> = FieldsOfType<ExcludeNestedDescendants<M>, 'date'>;
 
-export type BooleanFields<M extends Record<string, FieldTypeString>> = FieldsOfType<M, 'boolean'>;
+export type BooleanFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
+  ExcludeNestedDescendants<M>,
+  'boolean'
+>;
 
-export type GeoPointFields<M extends Record<string, FieldTypeString>> = FieldsOfType<M, 'geo_point'>;
+export type GeoPointFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
+  ExcludeNestedDescendants<M>,
+  'geo_point'
+>;
 
-export type VectorFields<M extends Record<string, FieldTypeString>> = FieldsOfType<M, 'dense_vector'>;
+export type VectorFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
+  ExcludeNestedDescendants<M>,
+  'dense_vector'
+>;
 
-export type IpFields<M extends Record<string, FieldTypeString>> = FieldsOfType<M, 'ip'>;
+export type IpFields<M extends Record<string, FieldTypeString>> = FieldsOfType<ExcludeNestedDescendants<M>, 'ip'>;
+
+/** Maps a single FieldTypeString to its TypeScript value type. Used by Val<M,K> in query constraints. */
+export type FieldValueType<T extends FieldTypeString> = T extends keyof ESTypeToTS ? ESTypeToTS[T] : unknown;
+
+// ---------------------------------------------------------------------------
+// Nested query helpers — for typed .nested() path and inner clause builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Extracts field names from M that have type `'nested'`.
+ * Used to constrain the `path` argument of `.nested()` to valid nested field names.
+ */
+export type NestedPathFields<M extends Record<string, FieldTypeString>> = FieldsOfType<M, 'nested'>;
+
+/**
+ * Given a parent field path (e.g. `'tags'`), extracts the sub-fields of that path
+ * from the flat expanded M map. Keys like `'tags.label'` become `'label'` in the result.
+ *
+ * Used to provide a typed `ClauseBuilder` for the inner callback of `.nested()`.
+ */
+export type SubFieldsOf<M extends Record<string, FieldTypeString>, Path extends string> = {
+  [K in keyof M as K extends `${Path}.${infer Rest}` ? Rest : never]: M[K] & FieldTypeString;
+};

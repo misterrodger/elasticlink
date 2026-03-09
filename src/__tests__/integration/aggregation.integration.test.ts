@@ -1,12 +1,12 @@
 import { query, indexBuilder } from '../../index.js';
-import { createIndex, deleteIndex, indexDoc, refreshIndex, search } from './helpers.js';
+import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from './helpers.js';
 import { matterMappings, MATTERS } from './fixtures/legal.js';
 
 const INDEX = 'int-aggregation';
 
 describe('AggregationBuilder', () => {
   beforeAll(async () => {
-    await createIndex(INDEX, indexBuilder().mappings(matterMappings).build());
+    await ensureIndex(INDEX, indexBuilder().mappings(matterMappings).build());
     for (const doc of MATTERS) await indexDoc(INDEX, doc);
     await refreshIndex(INDEX);
   });

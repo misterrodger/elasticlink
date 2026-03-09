@@ -8,6 +8,9 @@ npm run audit
 echo "Running linter..."
 npm run lint
 
+echo "Running type check..."
+npm run type-check
+
 echo "Running formatter..."
 npm run format
 

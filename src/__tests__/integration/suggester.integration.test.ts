@@ -1,12 +1,12 @@
 import { query, indexBuilder } from '../../index.js';
-import { createIndex, deleteIndex, indexDoc, refreshIndex, search } from './helpers.js';
+import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from './helpers.js';
 import { attorneyMappings, ATTORNEYS } from './fixtures/legal.js';
 
 const INDEX = 'int-suggester';
 
 describe('SuggesterBuilder', () => {
   beforeAll(async () => {
-    await createIndex(INDEX, indexBuilder().mappings(attorneyMappings).build());
+    await ensureIndex(INDEX, indexBuilder().mappings(attorneyMappings).build());
     for (const doc of ATTORNEYS) await indexDoc(INDEX, doc);
     await refreshIndex(INDEX);
   });

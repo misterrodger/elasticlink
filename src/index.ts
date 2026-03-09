@@ -63,6 +63,7 @@ export type {
   VectorFields,
   IpFields
 } from './mapping.types.js';
+export type { FieldMappingWithLiteralType, TypedNestedFieldMapping, TypedObjectFieldMapping } from './field.types.js';
 
 // Multi-search API
 export { msearch } from './multi-search.builder.js';

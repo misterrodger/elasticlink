@@ -20,6 +20,7 @@ import {
   completion,
   percolator
 } from '..';
+import { productMappings } from './fixtures/ecommerce.js';
 
 /**
  * Real-world usage examples demonstrating elasticlink's capabilities.
@@ -48,8 +49,13 @@ const articleMappings = mappings({
   published_date: date(),
   updated_date: date(),
   tags: keyword(),
-  comments: nested()
+  comments: nested({
+    author: keyword(),
+    body: text(),
+    upvotes: integer()
+  })
 });
+
 const documentMappings = mappings({
   id: keyword(),
   content: text(),
@@ -233,29 +239,24 @@ describe('Real-world Usage Examples', () => {
 
       const result = query(instrumentMappings)
         .bool()
-        .must(
-          (q) =>
-            q.when(searchTerm, (q2) =>
-              q2.match('name', searchTerm, {
-                operator: 'and',
-                boost: 2
-              })
-            ) || q.matchAll()
+        .when(searchTerm, (q) =>
+          q.must((q2) =>
+            q2.match('name', searchTerm, {
+              operator: 'and',
+              boost: 2
+            })
+          )
         )
-        .filter((q) => q.when(selectedCategory, (q2) => q2.term('asset_class', selectedCategory)) || q.matchAll())
-        .filter(
-          (q) =>
-            q.when(minPrice && maxPrice, (q2) =>
-              q2.range('market_cap', {
-                gte: minPrice!,
-                lte: maxPrice!
-              })
-            ) || q.matchAll()
+        .when(selectedCategory, (q) => q.filter((q2) => q2.term('asset_class', selectedCategory)))
+        .when(minPrice != null || maxPrice != null, (q) =>
+          q.filter((q2) =>
+            q2.range('market_cap', {
+              ...(minPrice != null && { gte: minPrice }),
+              ...(maxPrice != null && { lte: maxPrice })
+            })
+          )
         )
-        .filter(
-          (q) =>
-            q.when(selectedTags && selectedTags.length > 0, (q2) => q2.terms('tags', selectedTags!)) || q.matchAll()
-        )
+        .when(selectedTags.length > 0, (q) => q.filter((q2) => q2.terms('tags', selectedTags)))
         .timeout('5s')
         .from(0)
         .size(20)
@@ -271,9 +272,6 @@ describe('Real-world Usage Examples', () => {
                   "term": {
                     "asset_class": "technology",
                   },
-                },
-                {
-                  "match_all": {},
                 },
                 {
                   "terms": {
@@ -521,13 +519,12 @@ describe('Real-world Usage Examples', () => {
       const result = query(documentMappings)
         .bool()
         .must((q) => q.ids(documentIds))
-        .should(
-          (q) =>
-            q.when(searchTerm, (q2) =>
-              q2.multiMatch(['title', 'content'], searchTerm, {
-                operator: 'and'
-              })
-            ) || q.matchAll()
+        .when(Boolean(searchTerm), (q) =>
+          q.should((q2) =>
+            q2.multiMatch(['title', 'content'], searchTerm, {
+              operator: 'and'
+            })
+          )
         )
         .minimumShouldMatch(0)
         .highlight(['title', 'content'], {
@@ -593,23 +590,21 @@ describe('Real-world Usage Examples', () => {
 
       const result = query(documentMappings)
         .bool()
-        .must(
-          (q) =>
-            q.when(searchTerm, (q2) =>
-              q2.match('content', searchTerm, {
-                operator: 'and'
-              })
-            ) || q.matchAll()
+        .when(Boolean(searchTerm), (q) =>
+          q.must((q2) =>
+            q2.match('content', searchTerm, {
+              operator: 'and'
+            })
+          )
         )
-        .filter((q) => q.when(true, (q2) => q2.terms('tags', ['finance'])) || q.matchAll())
-        .filter(
-          (q) =>
-            q.when(startDate && endDate, (q2) =>
-              q2.range('published_date', {
-                gte: startDate,
-                lte: endDate
-              })
-            ) || q.matchAll()
+        .filter((q) => q.terms('tags', ['finance']))
+        .when(Boolean(startDate) && Boolean(endDate), (q) =>
+          q.filter((q2) =>
+            q2.range('published_date', {
+              gte: startDate!,
+              lte: endDate!
+            })
+          )
         )
         .filter((q) => q.matchAll())
         .explain(true)
@@ -632,9 +627,6 @@ describe('Real-world Usage Examples', () => {
                       "finance",
                     ],
                   },
-                },
-                {
-                  "match_all": {},
                 },
                 {
                   "match_all": {},
@@ -2364,6 +2356,142 @@ describe('Real-world Usage Examples', () => {
                 "size": 3,
               },
               "text": "wiliams",
+            },
+          },
+        }
+      `);
+    });
+  });
+
+  describe('Object and Nested Field Queries', () => {
+    it('should query an object sub-field with dot-notation — no wrapper needed', () => {
+      const city = 'Portland';
+
+      const result = query(productMappings)
+        .bool()
+        .filter((q) => q.term('address.city', city))
+        .filter((q) => q.term('address.country', 'US'))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "filter": [
+                {
+                  "term": {
+                    "address.city": "Portland",
+                  },
+                },
+                {
+                  "term": {
+                    "address.country": "US",
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('should query a nested field with the .nested() wrapper', () => {
+      const result = query(productMappings)
+        .nested('variants', (q) => q.term('color', 'black'))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "nested": {
+              "path": "variants",
+              "query": {
+                "term": {
+                  "variants.color": "black",
+                },
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should query a nested field with a range clause and score_mode', () => {
+      const result = query(productMappings)
+        .nested('variants', (q) => q.range('price', { lte: 150 }), { score_mode: 'min' })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "nested": {
+              "path": "variants",
+              "query": {
+                "range": {
+                  "variants.price": {
+                    "lte": 150,
+                  },
+                },
+              },
+              "score_mode": "min",
+            },
+          },
+        }
+      `);
+    });
+
+    it('should query article comments nested field with typed inner builder', () => {
+      const result = query(articleMappings)
+        .nested('comments', (q) => q.term('author', 'alice'))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "nested": {
+              "path": "comments",
+              "query": {
+                "term": {
+                  "comments.author": "alice",
+                },
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('should combine object dot-notation and nested queries in a bool', () => {
+      const result = query(productMappings)
+        .bool()
+        .must((q) => q.match('name', 'shoe'))
+        .filter((q) => q.term('address.country', 'US'))
+        .filter((q) => q.term('in_stock', true))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "filter": [
+                {
+                  "term": {
+                    "address.country": "US",
+                  },
+                },
+                {
+                  "term": {
+                    "in_stock": true,
+                  },
+                },
+              ],
+              "must": [
+                {
+                  "match": {
+                    "name": "shoe",
+                  },
+                },
+              ],
             },
           },
         }

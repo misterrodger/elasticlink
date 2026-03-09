@@ -134,22 +134,24 @@ query(productMappings)
 
 ### Conditional Building
 
-Build queries dynamically based on runtime values:
+Build queries dynamically based on runtime values. `.when(condition, fn)` — the chain is never broken. When the condition is falsy, the builder is returned unchanged, so no extra clauses or arrays are added. If you already called `.bool()`, that empty wrapper is preserved.
+
+`condition` resolves as: functions are called, booleans are used as-is, and any other value uses a nullish check (`!= null`) — so numeric `0` and empty string `''` are treated as truthy.
 
 ```typescript
-const searchTerm = getUserInput();
-const minPrice = getMinPrice();
+const searchTerm: string | undefined = param.searchTerm;
+const minPrice: number | undefined = param.minPrice;
 
 query(productMappings)
   .bool()
-  .must(q =>
-    q.when(searchTerm, q => q.match('name', searchTerm)) || q.matchAll()
-  )
-  .filter(q =>
-    q.when(minPrice, q => q.range('price', { gte: minPrice })) || q.matchAll()
-  )
+  .when(searchTerm, q => q.must(q2 => q2.match('name', searchTerm!)))
+  .when(minPrice, q => q.filter(q2 => q2.range('price', { gte: minPrice! })))
   .build();
 ```
+
+> **Note:** TypeScript cannot narrow closure variables inside callbacks. Even though `.when(searchTerm, fn)` guarantees the value is defined inside `fn`, you still need a non-null assertion (`!`) to satisfy the type checker.
+>
+> **Note:** When the condition is false, any already-introduced `.bool()` wrapper is preserved. A `.bool().when(false, fn)` chain produces `{ query: { bool: {} } }` — not an error, just an empty bool clause.
 
 ### Query Parameters
 
@@ -602,6 +604,89 @@ Produces:
 }
 ```
 
+#### Object and Nested Fields
+
+Use `object()` for structured sub-documents queried with dot-notation — the common case for addresses, names, and similar JSON-like objects. Use `nested()` for arrays of objects where cross-field queries within the same element must be accurate.
+
+```typescript
+import { mappings, text, keyword, float, integer, boolean, object, nested, type Infer } from 'elasticlink';
+
+const productMappings = mappings({
+  name: text(),
+  in_stock: boolean(),
+
+  // object() — single structured value, queried with dot-notation (no wrapper needed)
+  address: object({
+    street: text(),
+    city: keyword(),
+    country: keyword(),
+  }),
+
+  // nested() — array of objects; cross-field queries require the .nested() wrapper
+  variants: nested({
+    sku: keyword(),
+    color: keyword(),
+    price: float(),
+    stock: integer(),
+  }),
+});
+
+// Infer<> produces the correct nested TypeScript types:
+type Product = Infer<typeof productMappings>;
+// {
+//   name: string;
+//   in_stock: boolean;
+//   address: { street: string; city: string; country: string };
+//   variants: Array<{ sku: string; color: string; price: number; stock: number }>;
+// }
+
+// object sub-fields — query with dot-notation directly
+query(productMappings)
+  .bool()
+  .filter(q => q.term('address.country', 'US'))   // ✅ 'address.country' is a keyword field
+  .filter(q => q.match('address.street', 'Main'))  // ✅ 'address.street' is a text field
+  .build();
+
+// nested sub-fields — must use .nested() wrapper; inner builder is fully typed
+query(productMappings)
+  .nested('variants', q => q.term('color', 'black'))  // ✅ 'color' is typed as keyword
+  .build();
+
+query(productMappings)
+  .nested('variants', q => q.range('price', { lte: 150 }), { score_mode: 'min' })
+  .build();
+```
+
+> **Inner field names are relative.** Inside a `.nested()` callback, you write field names relative to the nested path (e.g. `'color'`, not `'variants.color'`). The library automatically qualifies them to the correct full path in the generated DSL.
+
+Object and nested fields can be composed to any depth. A 2-level deep mapping works the same way:
+
+```typescript
+const orderMappings = mappings({
+  title: text(),
+  shipments: nested({
+    tracking: keyword(),
+    address: object({     // object() inside nested()
+      city: keyword(),
+      country: keyword(),
+    }),
+  }),
+});
+
+// Root-level fields are queried directly
+query(orderMappings)
+  .term('title', 'urgent')
+  .build();
+
+// Nested sub-fields use .nested(); dot-notation inside is relative to the nested path
+query(orderMappings)
+  .nested('shipments', q => q.term('address.city', 'London'))  // ✅ 'address.city' relative to 'shipments'
+  .build();
+```
+
+> **Why the difference?**
+> `object` fields are stored inline in the parent document — Elasticsearch flattens their sub-fields and you query them directly. `nested` fields are stored as separate hidden documents to preserve the relationship between sub-fields within each array element. Without the `.nested()` wrapper, a query like `color=black AND price<50` could incorrectly match a product where different variants have those values.
+
 **Field Helpers** (shorthand for common field types):
 
 ```typescript
@@ -967,20 +1052,10 @@ Produces:
 const buildDynamicQuery = (filters: SearchFilters) => {
   return query(productMappings)
     .bool()
-    .must(q =>
-      q.when(filters.searchTerm,
-        q => q.match('name', filters.searchTerm, { boost: 2 })
-      ) || q.matchAll()
-    )
-    .filter(q =>
-      q.when(filters.minPrice && filters.maxPrice,
-        q => q.range('price', { gte: filters.minPrice, lte: filters.maxPrice })
-      ) || q.matchAll()
-    )
-    .filter(q =>
-      q.when(filters.category,
-        q => q.term('category', filters.category)
-      ) || q.matchAll()
+    .when(filters.searchTerm, q => q.must(q2 => q2.match('name', filters.searchTerm!, { boost: 2 })))
+    .when(filters.category,   q => q.filter(q2 => q2.term('category', filters.category!)))
+    .when(filters.minPrice != null && filters.maxPrice != null,
+      q => q.filter(q2 => q2.range('price', { gte: filters.minPrice!, lte: filters.maxPrice! }))
     )
     .from(filters.offset || 0)
     .size(filters.limit || 20)

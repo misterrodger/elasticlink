@@ -4,6 +4,69 @@ All notable changes to elasticlink will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
+## [0.5.0-beta] - Unreleased
+
+### Added
+
+- **Typed `object()` and `nested()` sub-fields** — pass a typed field map to `object()` or `nested()` and the type system now sees the full sub-field tree. Sub-field names and value types are checked at compile time throughout the query builder.
+
+  ```ts
+  const m = mappings({
+    address: object({
+      street: text(),
+      city:   keyword(),
+      zip:    keyword(),
+    }),
+    tags: nested({
+      label:  keyword(),
+      weight: float(),
+    }),
+  });
+
+  // dot-notation on object fields — no wrapper needed
+  query(m).term('address.city', 'Portland').build();
+
+  // typed inner ClauseBuilder on nested fields
+  query(m).nested('tags', q => q.term('label', 'sale')).build();
+  //                            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  //                            'label' and its value type are checked at compile time
+  ```
+
+- **`Infer<>` now produces nested TypeScript types** — `object()` fields infer as plain nested objects, `nested()` fields infer as `Array<{...}>` (matching Elasticsearch semantics).
+
+  ```ts
+  type Product = Infer<typeof m>;
+  // {
+  //   address: { street: string; city: string; zip: string };
+  //   tags: Array<{ label: string; weight: number }>;
+  // }
+  ```
+
+- **New exported types**: `NestedPathFields<M>`, `SubFieldsOf<M, Path>`, `FieldValueType<T>`, `FieldMappingWithLiteralType`, `TypedNestedFieldMapping<F>`, `TypedObjectFieldMapping<F>`.
+
+### Changed
+
+- **`QueryBuilder.when()` no longer breaks the chain** — previously returned `R | undefined`, requiring `?.build()` or `!.build()` at the call site. It now always returns `QueryBuilder<M>`: the `thenFn` result when the condition is truthy, or the current builder unchanged when falsy.
+- **`QueryBuilder.when()` drops `elseFn`** — the optional third argument has been removed. Use two `.when()` calls for if/else behaviour.
+- **`ClauseBuilder.when()` drops `elseFn`** — aligned with the QueryBuilder change.
+- **Bool methods no longer emit empty arrays** — when a `ClauseBuilder.when()` returns `undefined` (falsy condition), the parent `must()` / `filter()` / `should()` / `mustNot()` call is a no-op: it returns the current builder unchanged instead of appending an empty array to the DSL.
+
+### Fixed
+
+- **Nested query field qualification** — inner field names in `.nested()` callbacks are now automatically prefixed with the nested path in the generated DSL. For example, `q.term('color', 'black')` inside a `variants` nested callback now emits `"variants.color"` instead of `"color"`, which is required by Elasticsearch. The callback API is unchanged — you still write relative field names, and the library qualifies them.
+
+- **Deep `object()` and `nested()` nesting** — mappings with two levels of sub-fields (e.g. `address: object({ billing: object({ city: keyword() }) })`) now work correctly end-to-end. Dot-notation paths like `address.billing.city` are accepted by all query methods, and `nested()` inner builders correctly expose and qualify 2-level paths such as `address.city` within the callback.
+
+### Note
+
+TypeScript cannot narrow closure variables inside callbacks. Even when `.when(value, fn)` guarantees `value` is defined inside `fn`, a non-null assertion (`!`) is still required at the call site:
+
+```ts
+query(m).bool()
+  .when(searchTerm, q => q.must(q2 => q2.match('name', searchTerm!)))
+  .build()
+```
+
 ## [0.4.1-beta] - 2026-02-28
 
 ### Fixed
