@@ -24,6 +24,18 @@ const esNdjson = (url: string, body: string): Promise<any> =>
 
 export const createIndex = (index: string, config: any) => esJson(`${ES_URL}/${index}`, 'PUT', config);
 
+export const indexExists = (index: string): Promise<boolean> =>
+  fetch(`${ES_URL}/${index}`, { method: 'HEAD' }).then((r) => r.ok);
+
+export const deleteIndexDocs = (index: string) =>
+  esJson(`${ES_URL}/${index}/_delete_by_query`, 'POST', { query: { match_all: {} } });
+
+export const ensureIndex = async (index: string, config: any): Promise<void> => {
+  const exists = await indexExists(index);
+  if (!exists) await createIndex(index, config);
+  else await deleteIndexDocs(index);
+};
+
 export const deleteIndex = (index: string) => esJson(`${ES_URL}/${index}`, 'DELETE');
 
 export const refreshIndex = (index: string) => esJson(`${ES_URL}/${index}/_refresh`, 'POST');

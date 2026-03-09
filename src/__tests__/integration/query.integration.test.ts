@@ -1,12 +1,12 @@
 import { query, indexBuilder } from '../../index.js';
-import { createIndex, deleteIndex, indexDoc, refreshIndex, search } from './helpers.js';
+import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from './helpers.js';
 import { instrumentMappings, INSTRUMENTS } from './fixtures/finance.js';
 
 const INDEX = 'int-query';
 
 describe('QueryBuilder', () => {
   beforeAll(async () => {
-    await createIndex(INDEX, indexBuilder().mappings(instrumentMappings).build());
+    await ensureIndex(INDEX, indexBuilder().mappings(instrumentMappings).build());
     for (const doc of INSTRUMENTS) await indexDoc(INDEX, doc);
     await refreshIndex(INDEX);
   });
@@ -138,6 +138,114 @@ describe('QueryBuilder', () => {
       const result = await search(INDEX, query(instrumentMappings).ids(ids).build());
 
       expect(result.hits.total.value).toBe(2);
+    });
+  });
+
+  describe('Query — conditional .when()', () => {
+    it('applies filter when condition is true', async () => {
+      const assetClass: string | undefined = 'equity';
+
+      const result = await search(
+        INDEX,
+        query(instrumentMappings)
+          .bool()
+          .when(assetClass, (q) => q.filter((q2) => q2.term('asset_class', assetClass!)))
+          .build()
+      );
+
+      expect(result.hits.total.value).toBe(2);
+
+      result.hits.hits.forEach((h: { _source: { asset_class: string } }) => {
+        expect(h._source.asset_class).toBe('equity');
+      });
+    });
+
+    it('returns all documents when condition is false', async () => {
+      const assetClass: string | undefined = undefined;
+
+      const result = await search(
+        INDEX,
+        query(instrumentMappings)
+          .bool()
+          .when(assetClass, (q) => q.filter((q2) => q2.term('asset_class', assetClass!)))
+          .build()
+      );
+
+      expect(result.hits.total.value).toBe(4);
+    });
+
+    it('applies only truthy conditions in a chain', async () => {
+      const assetClass: string | undefined = 'fixed-income';
+      const minPrice: number | undefined = undefined;
+      const maxPrice: number | undefined = 200;
+
+      const result = await search(
+        INDEX,
+        query(instrumentMappings)
+          .bool()
+          .when(assetClass, (q) => q.filter((q2) => q2.term('asset_class', assetClass!)))
+          .when(minPrice, (q) => q.filter((q2) => q2.range('price', { gte: minPrice! })))
+          .when(maxPrice, (q) => q.filter((q2) => q2.range('price', { lte: maxPrice! })))
+          .build()
+      );
+
+      // fixed-income (2 docs): prices 98 and 112, both <= 200 — minPrice filter skipped
+      expect(result.hits.total.value).toBe(2);
+    });
+
+    it('treats numeric zero as truthy — filter fires, not skipped', async () => {
+      // Boolean(0) is false, but 0 != null is true — the filter must be applied
+      const maxPrice: number = 0;
+
+      const result = await search(
+        INDEX,
+        query(instrumentMappings)
+          .bool()
+          .when(maxPrice, (q) => q.filter((q2) => q2.range('price', { lte: maxPrice })))
+          .build()
+      );
+
+      // No documents have price <= 0, so filter applied = 0 results.
+      // If zero were treated as falsy the filter would be skipped and return 4.
+      expect(result.hits.total.value).toBe(0);
+    });
+
+    it('returns all documents when all conditions are false', async () => {
+      const assetClass: string | undefined = undefined;
+      const minPrice: number | undefined = undefined;
+
+      const result = await search(
+        INDEX,
+        query(instrumentMappings)
+          .bool()
+          .when(assetClass, (q) => q.filter((q2) => q2.term('asset_class', assetClass!)))
+          .when(minPrice, (q) => q.filter((q2) => q2.range('price', { gte: minPrice! })))
+          .build()
+      );
+
+      expect(result.hits.total.value).toBe(4);
+    });
+
+    it('complex: conditional must with nested conditional range filter', async () => {
+      const searchTerm: string | undefined = 'Fund';
+      const minPrice: number | undefined = 100;
+      const maxPrice: number | undefined = undefined;
+
+      const result = await search(
+        INDEX,
+        query(instrumentMappings)
+          .bool()
+          .when(Boolean(searchTerm), (q) =>
+            q
+              .must((q2) => q2.match('name', searchTerm!))
+              .when(minPrice, (q2) => q2.filter((q3) => q3.range('price', { gte: minPrice! })))
+              .when(maxPrice, (q2) => q2.filter((q3) => q3.range('price', { lte: maxPrice! })))
+          )
+          .build()
+      );
+
+      expect(result.hits.total.value).toBe(1);
+      expect(result.hits.hits[0]._source.price).toBe(479);
     });
   });
 });

@@ -5,6 +5,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/__tests__/**/*.test.ts'],
+    testTimeout: 30000,
+    hookTimeout: 30000,
     coverage: {
       include: ['src/**/*.ts'],
       exclude: [
@@ -12,10 +14,10 @@ export default defineConfig({
         'src/**/*.test.ts',
         'src/**/*.types.ts',
         'src/__tests__/fixtures/**',
-        'src/__tests__/integration/fixtures/**',
+        'src/__tests__/integration/**',
       ],
       thresholds: {
-        branches: 95,
+        branches: 97,
         functions: 99,
         lines: 99,
         statements: 99,

@@ -1,12 +1,12 @@
 import { query, msearch, indexBuilder } from '../../index.js';
-import { createIndex, deleteIndex, indexDoc, refreshIndex, msearchRequest } from './helpers.js';
+import { ensureIndex, deleteIndex, indexDoc, refreshIndex, msearchRequest } from './helpers.js';
 import { listingMappings, LISTINGS } from './fixtures/real-estate.js';
 
 const INDEX = 'int-msearch';
 
 describe('MSearchBuilder', () => {
   beforeAll(async () => {
-    await createIndex(INDEX, indexBuilder().mappings(listingMappings).build());
+    await ensureIndex(INDEX, indexBuilder().mappings(listingMappings).build());
     for (const doc of LISTINGS) await indexDoc(INDEX, doc);
     await refreshIndex(INDEX);
   });

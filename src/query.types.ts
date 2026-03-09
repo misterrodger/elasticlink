@@ -24,8 +24,6 @@ import type {
 } from '@elastic/elasticsearch/lib/api/types';
 import type { FieldTypeString } from './index-management.types.js';
 import type {
-  Infer,
-  MappingsSchema,
   TextFields,
   KeywordFields,
   NumericFields,
@@ -33,7 +31,10 @@ import type {
   BooleanFields,
   GeoPointFields,
   VectorFields,
-  IpFields
+  IpFields,
+  NestedPathFields,
+  SubFieldsOf,
+  FieldValueType
 } from './mapping.types.js';
 import type { AggregationBuilder, AggregationState } from './aggregation.types.js';
 import type { KnnOptions } from './vector.types.js';
@@ -96,7 +97,7 @@ type RangeableFields<M extends Record<string, FieldTypeString>> =
 type FuzzyableFields<M extends Record<string, FieldTypeString>> = TextFields<M> | KeywordFields<M>;
 
 // Infer value type for a field
-type Val<M extends Record<string, FieldTypeString>, K extends keyof M> = Infer<MappingsSchema<M>>[K];
+type Val<M extends Record<string, FieldTypeString>, K extends keyof M> = FieldValueType<M[K]>;
 
 // ---------------------------------------------------------------------------
 // QueryState
@@ -199,7 +200,32 @@ export type ClauseBuilder<M extends Record<string, FieldTypeString>> = {
     options?: MoreLikeThisOptions
   ) => any;
   matchBoolPrefix: <K extends TextFields<M> & string>(field: K, value: string, options?: MatchBoolPrefixOptions) => any;
-  when: <R>(condition: any, thenFn: (q: ClauseBuilder<M>) => R, elseFn?: (q: ClauseBuilder<M>) => R) => R | undefined;
+  /**
+   * Conditionally execute a clause. Returns the clause DSL when `condition` is truthy, `undefined` otherwise.
+   * The parent bool method (`must`, `filter`, etc.) treats `undefined` as a no-op — no empty arrays are emitted.
+   *
+   * `condition` is resolved as follows: functions are called, booleans are used as-is,
+   * and any other value is checked for nullishness (`!= null`) — so `0` and `''` are truthy.
+   *
+   * **Note:** TypeScript cannot narrow closure variables inside callbacks, so values typed as `T | undefined`
+   * still require a non-null assertion (`!`) inside the callback even when `condition` guarantees they are defined:
+   * ```ts
+   * .must(q => q.when(searchTerm, q => q.match('name', searchTerm!)))
+   * ```
+   */
+  /**
+   * Nested query inside a clause context — use inside `must`, `filter`, `should`, or `mustNot`.
+   *
+   * ```ts
+   * query(m).bool().filter(q => q.nested('variants', qn => qn.term('color', 'red')))
+   * ```
+   */
+  nested: <K extends NestedPathFields<M> & string>(
+    path: K,
+    fn: (q: ClauseBuilder<SubFieldsOf<M, K>>) => any,
+    options?: { score_mode?: 'avg' | 'sum' | 'min' | 'max' | 'none' }
+  ) => any;
+  when: (condition: unknown, thenFn: (q: ClauseBuilder<M>) => any) => any | undefined;
 };
 
 // ---------------------------------------------------------------------------
@@ -244,9 +270,22 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
   wildcard: <K extends KeywordFields<M> & string>(field: K, value: string) => QueryBuilder<M>;
   fuzzy: <K extends FuzzyableFields<M> & string>(field: K, value: string, options?: FuzzyOptions) => QueryBuilder<M>;
   ids: (values: string[]) => QueryBuilder<M>;
-  nested: (
-    path: string,
-    fn: (q: ClauseBuilder<any>) => any,
+  /**
+   * Nested query — for querying fields mapped as `nested()`.
+   *
+   * Each nested object is stored as a separate hidden document. The `.nested()` wrapper
+   * is required for Elasticsearch to search those hidden documents correctly. Without it,
+   * queries against nested sub-fields will return no results.
+   *
+   * The inner callback receives a typed `ClauseBuilder` constrained to the sub-fields of
+   * `path`, so field names and value types are checked at compile time.
+   *
+   * For `object()` fields, no wrapper is needed — query sub-fields directly with dot-notation
+   * (e.g. `.term('address.city', 'NYC')`).
+   */
+  nested: <K extends NestedPathFields<M> & string>(
+    path: K,
+    fn: (q: ClauseBuilder<SubFieldsOf<M, K>>) => any,
     options?: { score_mode?: 'avg' | 'sum' | 'min' | 'max' | 'none' }
   ) => QueryBuilder<M>;
 
@@ -260,7 +299,23 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
   ) => QueryBuilder<M>;
   percolate: (options: PercolateOptions) => QueryBuilder<M>;
 
-  when: <R>(condition: any, thenFn: (q: QueryBuilder<M>) => R, elseFn?: (q: QueryBuilder<M>) => R) => R | undefined;
+  /**
+   * Conditionally apply a branch to the query chain. Returns the result of `thenFn` when `condition` is truthy,
+   * otherwise returns the current builder unchanged — the chain is never broken.
+   *
+   * `condition` is resolved as follows: functions are called, booleans are used as-is,
+   * and any other value is checked for nullishness (`!= null`) — so `0` and `''` are truthy.
+   *
+   * **Note:** TypeScript cannot narrow closure variables inside callbacks, so values typed as `T | undefined`
+   * still require a non-null assertion (`!`) inside the callback even when `condition` guarantees they are defined:
+   * ```ts
+   * query(m).bool()
+   *   .when(searchTerm, q => q.must(q2 => q2.match('name', searchTerm!)))
+   *   .when(minPrice, q => q.filter(q2 => q2.range('price', { gte: minPrice! })))
+   *   .build()
+   * ```
+   */
+  when: (condition: unknown, thenFn: (q: QueryBuilder<M>) => QueryBuilder<M>) => QueryBuilder<M>;
 
   aggs: (fn: (agg: AggregationBuilder<M>) => AggregationBuilder<M>) => QueryBuilder<M>;
 

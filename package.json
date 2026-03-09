@@ -1,6 +1,6 @@
 {
   "name": "elasticlink",
-  "version": "0.4.1-beta",
+  "version": "0.5.0-beta",
   "description": "Type-safe, lightweight Elasticsearch query builder with fluent API",
   "type": "module",
   "main": "dist/index.js",
@@ -19,7 +19,6 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "test": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",

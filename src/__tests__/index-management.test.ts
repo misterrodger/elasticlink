@@ -1044,23 +1044,6 @@ describe('Index Management', () => {
       `);
     });
 
-    it('should support object helper with no arguments', () => {
-      const result = indexBuilder().mappings({ metadata: object() }).build();
-
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "mappings": {
-            "dynamic": "strict",
-            "properties": {
-              "metadata": {
-                "type": "object",
-              },
-            },
-          },
-        }
-      `);
-    });
-
     it('should support object helper with fields', () => {
       const result = indexBuilder()
         .mappings({
@@ -1082,26 +1065,6 @@ describe('Index Management', () => {
                     "type": "text",
                   },
                 },
-                "type": "object",
-              },
-            },
-          },
-        }
-      `);
-    });
-
-    it('should support object helper with enabled: false', () => {
-      const result = indexBuilder()
-        .mappings({ raw: object(undefined, { enabled: false }) })
-        .build();
-
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "mappings": {
-            "dynamic": "strict",
-            "properties": {
-              "raw": {
-                "enabled": false,
                 "type": "object",
               },
             },

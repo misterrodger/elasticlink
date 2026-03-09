@@ -25,19 +25,41 @@
  * });
  */
 
-import type { FieldMapping, FieldTypeString } from './index-management.types.js';
+import type { FieldMapping } from './index-management.types.js';
 import type { MappingOptions, MappingsSchema } from './mapping.types.js';
+import type { FieldMappingWithLiteralType } from './field.types.js';
 
-type FieldMappingWithLiteralType = FieldMapping & { type: FieldTypeString };
+type UnionToIntersection<U> = (U extends unknown ? (x: U) => never : never) extends (x: infer I) => never ? I : never;
+
+type FlattenSubFields<
+  Prefix extends string,
+  F extends Record<string, FieldMappingWithLiteralType>
+> = UnionToIntersection<
+  {
+    [K in keyof F & string]: { [Key in `${Prefix}.${K}`]: F[K]['type'] } & (F[K] extends {
+      _subFields: infer Sub extends Record<string, FieldMappingWithLiteralType>;
+    }
+      ? FlattenSubFields<`${Prefix}.${K}`, Sub>
+      : Record<never, never>);
+  }[keyof F & string]
+>;
 
 type ExtractFieldTypes<F extends Record<string, FieldMappingWithLiteralType>> = {
   [K in keyof F]: F[K]['type'];
-};
+} & UnionToIntersection<
+  {
+    [K in keyof F & string]: F[K] extends {
+      _subFields: infer Sub extends Record<string, FieldMappingWithLiteralType>;
+    }
+      ? FlattenSubFields<K, Sub>
+      : Record<never, never>;
+  }[keyof F & string]
+>;
 
 export const mappings = <F extends Record<string, FieldMappingWithLiteralType>>(
   fields: F,
   options?: MappingOptions
-): MappingsSchema<ExtractFieldTypes<F>> => {
+): MappingsSchema<ExtractFieldTypes<F>, F> => {
   const properties: Record<string, FieldMapping> = { ...fields };
 
   const mappingOptions: MappingOptions = {
@@ -47,6 +69,7 @@ export const mappings = <F extends Record<string, FieldMappingWithLiteralType>>(
 
   return {
     _fieldTypes: undefined as unknown as ExtractFieldTypes<F>,
+    _fields: undefined as unknown as F,
     properties,
     _mappingOptions: mappingOptions
   };

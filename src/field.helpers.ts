@@ -22,7 +22,6 @@ import type {
   DateFieldOptions,
   BooleanFieldOptions,
   DenseVectorFieldOptions,
-  NestedFields,
   ObjectFieldOptions,
   CompletionFieldOptions,
   GeoPointFieldOptions,
@@ -35,6 +34,7 @@ import type {
   ConstantKeywordFieldOptions,
   WildcardFieldOptions,
   FlattenedFieldOptions,
+  FieldMappingWithLiteralType,
   TextFieldMapping,
   KeywordFieldMapping,
   LongFieldMapping,
@@ -53,8 +53,8 @@ import type {
   GeoPointFieldMapping,
   GeoShapeFieldMapping,
   CompletionFieldMapping,
-  NestedFieldMapping,
-  ObjectFieldMapping,
+  TypedNestedFieldMapping,
+  TypedObjectFieldMapping,
   AliasFieldMapping,
   PercolatorFieldMapping,
   IntegerRangeFieldMapping,
@@ -193,15 +193,61 @@ export const completion = (options?: CompletionFieldOptions): CompletionFieldMap
 });
 
 // Structured
-export const nested = (fields?: NestedFields): NestedFieldMapping => ({
-  type: 'nested',
-  ...(fields && { properties: fields })
-});
-export const object = (fields?: NestedFields, options?: ObjectFieldOptions): ObjectFieldMapping => ({
-  type: 'object',
-  ...(options && options),
-  ...(fields && { properties: fields })
-});
+
+/**
+ * Object field — for JSON-like structured documents where sub-fields are queried with dot-notation.
+ *
+ * The most common way to model structured data (e.g. `{ address: { city, zip } }`).
+ * Sub-fields are indexed inline within the parent document — no special query wrapper needed.
+ * Query sub-fields directly using dot-notation: `.term('address.city', 'NYC')`.
+ *
+ * Use `nested()` instead when you have **arrays of objects** and need cross-field queries
+ * within each element to be accurate (e.g. tags with both a label and weight).
+ *
+ * @example
+ * const m = mappings({
+ *   address: object({
+ *     street: text(),
+ *     city: keyword(),
+ *     zip: keyword(),
+ *   }),
+ * });
+ * query(m).term('address.city', 'NYC').build();
+ */
+export function object<F extends Record<string, FieldMappingWithLiteralType>>(
+  fields: F,
+  options?: ObjectFieldOptions
+): TypedObjectFieldMapping<F> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return { type: 'object', ...(options ?? {}), properties: fields } as any;
+}
+
+/**
+ * Nested field — for **arrays of objects** where cross-field queries within each element must be accurate.
+ *
+ * Each nested object is stored as a separate hidden Elasticsearch document, preserving the
+ * relationship between sub-fields within each element. Without `nested`, Elasticsearch flattens
+ * array sub-fields and loses which values belong to the same element.
+ *
+ * Queries on nested fields **must** use the `.nested()` query builder method — direct dot-notation
+ * queries will not find nested documents.
+ *
+ * Use `object()` instead for single structured objects (addresses, names, etc.) — it is simpler,
+ * more efficient, and does not require a query wrapper.
+ *
+ * @example
+ * const m = mappings({
+ *   tags: nested({
+ *     label: keyword(),
+ *     weight: float(),
+ *   }),
+ * });
+ * query(m).nested('tags', q => q.term('label', 'sale')).build();
+ */
+export function nested<F extends Record<string, FieldMappingWithLiteralType>>(fields: F): TypedNestedFieldMapping<F> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return { type: 'nested', properties: fields } as any;
+}
 
 // Alias
 export const alias = (options: AliasFieldOptions): AliasFieldMapping => ({

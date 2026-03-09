@@ -1,11 +1,23 @@
-import { query, mappings, keyword, percolator } from '..';
+import { query, mappings, keyword, text, nested, float, percolator } from '..';
+import type { Infer } from '..';
 import { listingMappings, listingDetailMappings } from './fixtures/real-estate.js';
 import { instrumentWithEmbeddingMappings, scoredInstrumentMappings } from './fixtures/finance.js';
+import { productMappings } from './fixtures/ecommerce.js';
+import { deepObjectMappings, deepNestedMappings } from './fixtures/logistics.js';
 
 const percolatorDocMappings = mappings({
   query: percolator(),
   category: keyword(),
   property_class: keyword()
+});
+
+const reviewMappings = mappings({
+  title: text(),
+  comments: nested({
+    author: text(),
+    status: keyword(),
+    rating: float()
+  })
 });
 
 describe('QueryBuilder', () => {
@@ -1383,17 +1395,16 @@ describe('QueryBuilder', () => {
     });
 
     describe('Nested queries', () => {
-      it('should build a nested query with single clause', () => {
-        const result = query(listingMappings)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .nested('property_class' as any, (q) => q.match('comments.author', 'john'))
+      it('should build a nested query with a match clause', () => {
+        const result = query(reviewMappings)
+          .nested('comments', (q) => q.match('author', 'john'))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
           {
             "query": {
               "nested": {
-                "path": "property_class",
+                "path": "comments",
                 "query": {
                   "match": {
                     "comments.author": "john",
@@ -1405,20 +1416,19 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('should build a nested query with multiple term queries', () => {
-        const result = query(listingMappings)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .nested('address' as any, (q) => q.term('status', 'approved'))
+      it('should build a nested query with a term clause', () => {
+        const result = query(reviewMappings)
+          .nested('comments', (q) => q.term('status', 'approved'))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
           {
             "query": {
               "nested": {
-                "path": "address",
+                "path": "comments",
                 "query": {
                   "term": {
-                    "status": "approved",
+                    "comments.status": "approved",
                   },
                 },
               },
@@ -1427,21 +1437,16 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('should build a nested query with score_mode option', () => {
-        const result = query(listingMappings)
-          .nested(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            'type' as any,
-            (q) => q.match('comments.author', 'john'),
-            { score_mode: 'sum' }
-          )
+      it('should build a nested query with sum score_mode', () => {
+        const result = query(reviewMappings)
+          .nested('comments', (q) => q.match('author', 'john'), { score_mode: 'sum' })
           .build();
 
         expect(result).toMatchInlineSnapshot(`
           {
             "query": {
               "nested": {
-                "path": "type",
+                "path": "comments",
                 "query": {
                   "match": {
                     "comments.author": "john",
@@ -1455,23 +1460,18 @@ describe('QueryBuilder', () => {
       });
 
       it('should build a nested query with avg score_mode', () => {
-        const result = query(listingMappings)
-          .nested(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            'address' as any,
-            (q) => q.term('status', 'approved'),
-            { score_mode: 'avg' }
-          )
+        const result = query(reviewMappings)
+          .nested('comments', (q) => q.term('status', 'approved'), { score_mode: 'avg' })
           .build();
 
         expect(result).toMatchInlineSnapshot(`
           {
             "query": {
               "nested": {
-                "path": "address",
+                "path": "comments",
                 "query": {
                   "term": {
-                    "status": "approved",
+                    "comments.status": "approved",
                   },
                 },
                 "score_mode": "avg",
@@ -1482,23 +1482,18 @@ describe('QueryBuilder', () => {
       });
 
       it('should build a nested query with min score_mode', () => {
-        const result = query(listingMappings)
-          .nested(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            'type' as any,
-            (q) => q.term('status', 'pending'),
-            { score_mode: 'min' }
-          )
+        const result = query(reviewMappings)
+          .nested('comments', (q) => q.term('status', 'pending'), { score_mode: 'min' })
           .build();
 
         expect(result).toMatchInlineSnapshot(`
           {
             "query": {
               "nested": {
-                "path": "type",
+                "path": "comments",
                 "query": {
                   "term": {
-                    "status": "pending",
+                    "comments.status": "pending",
                   },
                 },
                 "score_mode": "min",
@@ -1508,13 +1503,12 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('should build nested query with pagination', () => {
-        const result = query(listingMappings)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .nested('property_class' as any, (q: any) => q.match('author', 'john'))
+      it('should build a nested query combined with pagination and sort', () => {
+        const result = query(reviewMappings)
+          .nested('comments', (q) => q.match('author', 'john'))
           .from(0)
           .size(10)
-          .sort('list_price', 'asc')
+          .sort('title', 'asc')
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -1522,10 +1516,10 @@ describe('QueryBuilder', () => {
             "from": 0,
             "query": {
               "nested": {
-                "path": "property_class",
+                "path": "comments",
                 "query": {
                   "match": {
-                    "author": "john",
+                    "comments.author": "john",
                   },
                 },
               },
@@ -1533,7 +1527,7 @@ describe('QueryBuilder', () => {
             "size": 10,
             "sort": [
               {
-                "list_price": "asc",
+                "title": "asc",
               },
             ],
           }
@@ -1542,10 +1536,10 @@ describe('QueryBuilder', () => {
     });
 
     describe('Conditional building (when)', () => {
-      it('should execute thenFn when condition is truthy', () => {
+      it('executes thenFn when condition is true', () => {
         const searchTerm = 'test';
         const result = query(listingMappings)
-          .when(searchTerm, (q) => q.match('address', searchTerm))!
+          .when(searchTerm, (q) => q.match('address', searchTerm))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -1559,43 +1553,20 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('should not add query when condition is falsy', () => {
-        const searchTerm = undefined;
+      it('returns identity (empty state) when condition is false', () => {
+        const searchTerm: string | undefined = undefined;
         const result = query(listingMappings)
-          .when(
-            searchTerm,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (q) => q.match('address', searchTerm as any)
-          )
-          ?.build();
-
-        expect(result).toMatchInlineSnapshot(`undefined`);
-      });
-
-      it('should execute elseFn when condition is falsy', () => {
-        const searchTerm = undefined;
-        const result = query(listingMappings)
-          .when(
-            searchTerm,
-            (q) => q.match('address', 'fallback'),
-            (q) => q.matchAll()
-          )!
+          .when(searchTerm, (q) => q.match('address', searchTerm!))
           .build();
 
-        expect(result).toMatchInlineSnapshot(`
-          {
-            "query": {
-              "match_all": {},
-            },
-          }
-        `);
+        expect(result).toMatchInlineSnapshot(`{}`);
       });
 
-      it('should use when in bool must context with truthy condition', () => {
+      it('uses when in bool must context — truthy', () => {
         const type = 'test';
         const result = query(listingMappings)
           .bool()
-          .must((q) => q.when(type, (q2) => q2.term('property_class', type)) || q.matchAll())
+          .when(type, (q) => q.must((q2) => q2.term('property_class', type)))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -1615,11 +1586,27 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('should use when in bool filter context', () => {
+      it('uses when in bool must context — false leaves bool intact with no must array', () => {
+        const type: string | undefined = undefined;
+        const result = query(listingMappings)
+          .bool()
+          .when(type, (q) => q.must((q2) => q2.term('property_class', type!)))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {},
+            },
+          }
+        `);
+      });
+
+      it('uses when in bool filter context — truthy', () => {
         const minPrice = 100;
         const result = query(listingMappings)
           .bool()
-          .filter((q) => q.when(minPrice, (q2) => q2.range('list_price', { gte: minPrice })) || q.matchAll())
+          .when(minPrice, (q) => q.filter((q2) => q2.range('list_price', { gte: minPrice })))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -1641,16 +1628,41 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('should chain multiple when conditions', () => {
+      it('uses when in bool filter context — false leaves no filter array', () => {
+        const minPrice: number | undefined = undefined;
+        const result = query(listingMappings)
+          .bool()
+          .must((q) => q.match('address', 'laptop'))
+          .when(minPrice, (q) => q.filter((q2) => q2.range('list_price', { gte: minPrice! })))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "must": [
+                  {
+                    "match": {
+                      "address": "laptop",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('chains multiple when conditions — all truthy', () => {
         const searchTerm = 'test';
         const type = 'test';
         const minPrice = 500;
 
         const result = query(listingMappings)
           .bool()
-          .must((q) => q.when(searchTerm, (q2) => q2.match('address', searchTerm)) || q.matchAll())
-          .filter((q) => q.when(type, (q2) => q2.term('property_class', type)) || q.matchAll())
-          .filter((q) => q.when(minPrice, (q2) => q2.range('list_price', { gte: minPrice })) || q.matchAll())
+          .when(searchTerm, (q) => q.must((q2) => q2.match('address', searchTerm)))
+          .when(type, (q) => q.filter((q2) => q2.term('property_class', type)))
+          .when(minPrice, (q) => q.filter((q2) => q2.range('list_price', { gte: minPrice })))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -1684,37 +1696,40 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('should use when with empty string (falsy)', () => {
-        const searchTerm = '';
-        const result = query(listingMappings)
-          .when(searchTerm, (q) => q.match('address', searchTerm))
-          ?.build();
+      it('chains multiple when conditions — all false produces empty bool', () => {
+        const searchTerm: string | undefined = undefined;
+        const type: string | undefined = undefined;
+        const minPrice: number | undefined = undefined;
 
-        expect(result).toMatchInlineSnapshot(`undefined`);
+        const result = query(listingMappings)
+          .bool()
+          .when(searchTerm, (q) => q.must((q2) => q2.match('address', searchTerm!)))
+          .when(type, (q) => q.filter((q2) => q2.term('property_class', type!)))
+          .when(minPrice, (q) => q.filter((q2) => q2.range('list_price', { gte: minPrice! })))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {},
+            },
+          }
+        `);
       });
 
-      it('should use when with 0 (falsy)', () => {
-        const minPrice = 0;
-        const result = query(listingMappings)
-          .when(minPrice, (q) => q.range('list_price', { gte: minPrice }))
-          ?.build();
-
-        expect(result).toMatchInlineSnapshot(`undefined`);
-      });
-
-      it('should use when with empty array (falsy)', () => {
+      it('returns identity when condition is false — derived from empty array', () => {
         const ids: string[] = [];
         const result = query(listingMappings)
           .when(ids.length > 0, (q) => q.ids(ids))
-          ?.build();
+          .build();
 
-        expect(result).toMatchInlineSnapshot(`undefined`);
+        expect(result).toMatchInlineSnapshot(`{}`);
       });
 
-      it('should use when with non-empty array (truthy)', () => {
+      it('executes when condition is true — derived from non-empty array', () => {
         const ids = ['id1', 'id2'];
         const result = query(listingMappings)
-          .when(ids.length > 0, (q) => q.ids(ids))!
+          .when(ids.length > 0, (q) => q.ids(ids))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -1724,6 +1739,54 @@ describe('QueryBuilder', () => {
                 "values": [
                   "id1",
                   "id2",
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('complex: conditional must with multiple inner conditional clauses', () => {
+        const searchTerm: string | undefined = 'laptop';
+        const minPrice: number | undefined = 200;
+        const maxPrice: number | undefined = undefined;
+        const type: string | undefined = 'residential';
+
+        const result = query(listingMappings)
+          .bool()
+          .when(searchTerm, (q) =>
+            q
+              .must((q2) => q2.match('address', searchTerm!))
+              .when(minPrice, (q2) => q2.filter((q3) => q3.range('list_price', { gte: minPrice! })))
+              .when(maxPrice, (q2) => q2.filter((q3) => q3.range('list_price', { lte: maxPrice! })))
+          )
+          .when(type, (q) => q.filter((q2) => q2.term('property_class', type!)))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "range": {
+                      "list_price": {
+                        "gte": 200,
+                      },
+                    },
+                  },
+                  {
+                    "term": {
+                      "property_class": "residential",
+                    },
+                  },
+                ],
+                "must": [
+                  {
+                    "match": {
+                      "address": "laptop",
+                    },
+                  },
                 ],
               },
             },
@@ -3661,7 +3724,7 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('should use when in ClauseBuilder context (truthy)', () => {
+      it('uses when in ClauseBuilder filter context — true adds clause', () => {
         const category = 'electronics';
         const result = query(listingMappings)
           .bool()
@@ -3685,8 +3748,8 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('should use when in ClauseBuilder context (falsy)', () => {
-        const category = undefined;
+      it('uses when in ClauseBuilder filter context — false emits no filter array', () => {
+        const category: string | undefined = undefined;
         const result = query(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
@@ -3697,7 +3760,83 @@ describe('QueryBuilder', () => {
           {
             "query": {
               "bool": {
-                "filter": [],
+                "must": [
+                  {
+                    "match": {
+                      "address": "laptop",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('uses when in ClauseBuilder must context — false emits no must array', () => {
+        const searchTerm: string | undefined = undefined;
+        const result = query(listingMappings)
+          .bool()
+          .filter((q) => q.range('list_price', { gte: 100 }))
+          .must((q) => q.when(searchTerm, (q) => q.match('address', searchTerm!)))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "range": {
+                      "list_price": {
+                        "gte": 100,
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('uses when in ClauseBuilder should context — false emits no should array', () => {
+        const tag: string | undefined = undefined;
+        const result = query(listingMappings)
+          .bool()
+          .must((q) => q.match('address', 'laptop'))
+          .should((q) => q.when(tag, (q) => q.term('property_class', tag!)))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "must": [
+                  {
+                    "match": {
+                      "address": "laptop",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('uses when in ClauseBuilder mustNot context — false emits no must_not array', () => {
+        const excluded: string | undefined = undefined;
+        const result = query(listingMappings)
+          .bool()
+          .must((q) => q.match('address', 'laptop'))
+          .mustNot((q) => q.when(excluded, (q) => q.term('property_class', excluded!)))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
                 "must": [
                   {
                     "match": {
@@ -3713,28 +3852,51 @@ describe('QueryBuilder', () => {
     });
 
     describe('when() edge cases', () => {
-      it('should handle null condition (falsy)', () => {
-        const value = null;
+      it('returns identity on false', () => {
         const result = query(listingMappings)
-          .when(value, (q) => q.match('address', 'test'))
-          ?.build();
+          .when(false, (q) => q.match('address', 'test'))
+          .build();
 
-        expect(result).toBeUndefined();
+        expect(result).toMatchInlineSnapshot(`{}`);
       });
 
-      it('should handle boolean false condition', () => {
-        const condition = false;
+      it('executes on 0 — non-null falsy value is truthy', () => {
         const result = query(listingMappings)
-          .when(condition, (q) => q.match('address', 'test'))
-          ?.build();
+          .when(0, (q) => q.range('list_price', { gte: 0 }))
+          .build();
 
-        expect(result).toBeUndefined();
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "range": {
+                "list_price": {
+                  "gte": 0,
+                },
+              },
+            },
+          }
+        `);
       });
 
-      it('should handle boolean true condition', () => {
-        const condition = true;
+      it("executes on '' — non-null falsy value is truthy", () => {
         const result = query(listingMappings)
-          .when(condition, (q) => q.match('address', 'test'))!
+          .when('', (q) => q.term('property_class', ''))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "term": {
+                "property_class": "",
+              },
+            },
+          }
+        `);
+      });
+
+      it('executes on true', () => {
+        const result = query(listingMappings)
+          .when(true, (q) => q.match('address', 'test'))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -3748,29 +3910,11 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('should handle object condition (truthy)', () => {
-        const filters = { category: 'electronics' };
-        const result = query(listingMappings)
-          .when(filters, (q) => q.term('property_class', filters.category))!
-          .build();
-
-        expect(result).toMatchInlineSnapshot(`
-          {
-            "query": {
-              "term": {
-                "property_class": "electronics",
-              },
-            },
-          }
-        `);
-      });
-
-      it('should handle when in bool should context', () => {
-        const hasFeatured = true;
+      it('handles when in bool should context — true adds clause', () => {
         const result = query(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
-          .should((q) => q.when(hasFeatured, (q2) => q2.term('property_class', 'featured')) || q.matchAll())
+          .when(true, (q) => q.should((q2) => q2.term('property_class', 'featured')))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -3797,37 +3941,11 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('should handle when with else clause in bool context', () => {
-        const searchTerm: string | undefined = undefined;
-        const result = query(listingMappings)
-          .bool()
-          .must(
-            (q) =>
-              q.when(
-                searchTerm,
-                (q2) => q2.match('address', searchTerm!),
-                (q2) => q2.matchAll()
-              )!
-          )
-          .build();
-
-        expect(result.query?.bool?.must?.[0]?.match_all).toStrictEqual({});
-      });
-
-      it('should handle nested when conditionals', () => {
+      it('handles nested when — outer true, inner true', () => {
         const searchTerm = 'laptop';
-        const useBoost = true;
 
         const result = query(listingMappings)
-          .when(
-            searchTerm,
-            (q) =>
-              q.when(
-                useBoost,
-                (q2) => q2.match('address', searchTerm, { boost: 2 }),
-                (q2) => q2.match('address', searchTerm)
-              )!
-          )!
+          .when(searchTerm, (q) => q.when(true, (q2) => q2.match('address', searchTerm, { boost: 2 })))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -3844,16 +3962,22 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('should use when in bool mustNot context', () => {
-        const excludeRefurbished = true;
+      it('handles nested when — outer true, inner false produces empty state', () => {
+        const searchTerm = 'laptop';
+        const applyBoost = false;
+
+        const result = query(listingMappings)
+          .when(searchTerm, (q) => q.when(applyBoost, (q2) => q2.match('address', searchTerm, { boost: 2 })))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`{}`);
+      });
+
+      it('handles when in bool mustNot context — true adds clause', () => {
         const result = query(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
-          .mustNot(
-            (q) =>
-              q.when(excludeRefurbished, (q2) => q2.term('property_class', 'refurbished')) ||
-              q.term('property_class', '__impossible__')
-          )
+          .when(true, (q) => q.mustNot((q2) => q2.term('property_class', 'refurbished')))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -4059,35 +4183,24 @@ describe('QueryBuilder', () => {
 
     describe('Nested query edge cases', () => {
       it('should build nested with range query inside', () => {
-        const result = query(listingMappings)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .nested('property_class' as any, (q) => q.range('nested.price', { gte: 100, lte: 500 }))
+        const result = query(reviewMappings)
+          .nested('comments', (q) => q.range('rating', { gte: 4, lte: 5 }))
           .build();
 
         expect(result.query?.nested?.query?.range).toBeDefined();
       });
 
       it('should build nested with max score_mode', () => {
-        const result = query(listingMappings)
-          .nested(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            'type' as any,
-            (q) => q.match('nested.name', 'test'),
-            { score_mode: 'max' }
-          )
+        const result = query(reviewMappings)
+          .nested('comments', (q) => q.match('author', 'alice'), { score_mode: 'max' })
           .build();
 
         expect(result.query?.nested?.score_mode).toBe('max');
       });
 
       it('should build nested with none score_mode', () => {
-        const result = query(listingMappings)
-          .nested(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            'type' as any,
-            (q) => q.term('nested.status', 'active'),
-            { score_mode: 'none' }
-          )
+        const result = query(reviewMappings)
+          .nested('comments', (q) => q.term('status', 'active'), { score_mode: 'none' })
           .build();
 
         expect(result.query?.nested?.score_mode).toBe('none');
@@ -4660,22 +4773,17 @@ describe('QueryBuilder', () => {
       });
 
       it('should build conditional search with all optional filters', () => {
-        // Simulate a search where all filters might be optional
         const filters = {
           searchTerm: 'laptop' as string | undefined,
           category: undefined as string | undefined,
-          minPrice: 500 as number | undefined,
-          maxPrice: undefined as number | undefined,
-          inStock: true as boolean | undefined
+          minPrice: 500 as number | undefined
         };
 
         const result = query(listingDetailMappings)
           .bool()
-          .must((q) => q.when(filters.searchTerm, (q2) => q2.match('title', filters.searchTerm!)) || q.matchAll())
-          .filter((q) => q.when(filters.category, (q2) => q2.term('property_class', filters.category!)) || q.matchAll())
-          .filter(
-            (q) => q.when(filters.minPrice, (q2) => q2.range('list_price', { gte: filters.minPrice! })) || q.matchAll()
-          )
+          .when(filters.searchTerm, (q) => q.must((q2) => q2.match('title', filters.searchTerm!)))
+          .when(filters.category, (q) => q.filter((q2) => q2.term('property_class', filters.category!)))
+          .when(filters.minPrice, (q) => q.filter((q2) => q2.range('list_price', { gte: filters.minPrice! })))
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -4683,9 +4791,6 @@ describe('QueryBuilder', () => {
             "query": {
               "bool": {
                 "filter": [
-                  {
-                    "match_all": {},
-                  },
                   {
                     "range": {
                       "list_price": {
@@ -6106,6 +6211,392 @@ describe('QueryBuilder', () => {
           expect(result.query?.percolate?.routing).toBe('user-789');
           expect(result._source).toContain('query');
         });
+      });
+    });
+  });
+
+  describe('Object and nested field type safety', () => {
+    describe('object() fields — dot-notation queries without a wrapper', () => {
+      it('should term-query an object sub-field via dot-notation', () => {
+        const result = query(productMappings).term('address.city', 'Portland').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "term": {
+                "address.city": "Portland",
+              },
+            },
+          }
+        `);
+      });
+
+      it('should match-query a text object sub-field via dot-notation', () => {
+        const result = query(productMappings).match('address.street', '1 Main St').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "match": {
+                "address.street": "1 Main St",
+              },
+            },
+          }
+        `);
+      });
+
+      it('should filter on multiple object sub-fields in a bool', () => {
+        const result = query(productMappings)
+          .bool()
+          .filter((q) => q.term('address.country', 'US'))
+          .filter((q) => q.term('address.city', 'Portland'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "term": {
+                      "address.country": "US",
+                    },
+                  },
+                  {
+                    "term": {
+                      "address.city": "Portland",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+    });
+
+    describe('nested() fields — typed inner ClauseBuilder', () => {
+      it('should build a typed nested query with a term clause', () => {
+        const result = query(productMappings)
+          .nested('variants', (q) => q.term('color', 'black'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "nested": {
+                "path": "variants",
+                "query": {
+                  "term": {
+                    "variants.color": "black",
+                  },
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build a typed nested query with a range clause', () => {
+        const result = query(productMappings)
+          .nested('variants', (q) => q.range('price', { lte: 120 }))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "nested": {
+                "path": "variants",
+                "query": {
+                  "range": {
+                    "variants.price": {
+                      "lte": 120,
+                    },
+                  },
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build a typed nested query with a match clause', () => {
+        const result = query(productMappings)
+          .nested('variants', (q) => q.term('sku', 'RS-BLK-10'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "nested": {
+                "path": "variants",
+                "query": {
+                  "term": {
+                    "variants.sku": "RS-BLK-10",
+                  },
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build a nested query with score_mode', () => {
+        const result = query(productMappings)
+          .nested('variants', (q) => q.range('price', { lte: 100 }), { score_mode: 'avg' })
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "nested": {
+                "path": "variants",
+                "query": {
+                  "range": {
+                    "variants.price": {
+                      "lte": 100,
+                    },
+                  },
+                },
+                "score_mode": "avg",
+              },
+            },
+          }
+        `);
+      });
+    });
+
+    describe('Infer<> — nested and object types produce correct TS types', () => {
+      it('should infer object sub-fields as a plain nested object', () => {
+        type Inferred = Infer<typeof productMappings>;
+        type AddressType = Inferred['address'];
+        const addr: AddressType = { street: '1 Main', city: 'Portland', country: 'US', zip: '97201' };
+
+        expect(addr.city).toBe('Portland');
+      });
+
+      it('should infer nested sub-fields as Array<object>', () => {
+        type Inferred = Infer<typeof productMappings>;
+        type VariantsType = Inferred['variants'];
+        const variants: VariantsType = [{ sku: 'X', color: 'red', size: 'M', price: 99, stock: 1 }];
+
+        expect(variants[0].color).toBe('red');
+      });
+    });
+
+    describe('object-within-object — 2-level dot-notation queries', () => {
+      it('should term-query a 2-level deep object sub-field via dot-notation', () => {
+        const result = query(deepObjectMappings).term('address.billing.city', 'Austin').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "term": {
+                "address.billing.city": "Austin",
+              },
+            },
+          }
+        `);
+      });
+
+      it('should filter on sibling 2-level deep fields in a bool', () => {
+        const result = query(deepObjectMappings)
+          .bool()
+          .filter((q) => q.term('address.billing.city', 'Austin'))
+          .filter((q) => q.term('address.shipping.country', 'US'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "term": {
+                      "address.billing.city": "Austin",
+                    },
+                  },
+                  {
+                    "term": {
+                      "address.shipping.country": "US",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+    });
+
+    describe('nested-with-object-sub-field — 2-level inner dot-notation queries', () => {
+      it('should build a nested query where the inner clause uses a dot-notation object sub-field', () => {
+        const result = query(deepNestedMappings)
+          .nested('shipments', (q) => q.term('address.city', 'London'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "nested": {
+                "path": "shipments",
+                "query": {
+                  "term": {
+                    "shipments.address.city": "London",
+                  },
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('should build a nested query using a sibling 2-level dot-notation object sub-field', () => {
+        const result = query(deepNestedMappings)
+          .nested('shipments', (q) => q.term('address.country', 'DE'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "nested": {
+                "path": "shipments",
+                "query": {
+                  "term": {
+                    "shipments.address.country": "DE",
+                  },
+                },
+              },
+            },
+          }
+        `);
+      });
+    });
+
+    describe('ClauseBuilder.nested() — composable inside bool contexts', () => {
+      it('builds a nested clause inside filter', () => {
+        const result = query(productMappings)
+          .bool()
+          .filter((q) => q.nested('variants', (qn) => qn.term('color', 'black')))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "nested": {
+                      "path": "variants",
+                      "query": {
+                        "term": {
+                          "variants.color": "black",
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('builds a nested clause inside must', () => {
+        const result = query(productMappings)
+          .bool()
+          .must((q) => q.nested('variants', (qn) => qn.range('price', { lte: 100 })))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "must": [
+                  {
+                    "nested": {
+                      "path": "variants",
+                      "query": {
+                        "range": {
+                          "variants.price": {
+                            "lte": 100,
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('passes score_mode option through to DSL', () => {
+        const result = query(productMappings)
+          .bool()
+          .filter((q) => q.nested('variants', (qn) => qn.term('color', 'red'), { score_mode: 'avg' }))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "filter": [
+                  {
+                    "nested": {
+                      "path": "variants",
+                      "query": {
+                        "term": {
+                          "variants.color": "red",
+                        },
+                      },
+                      "score_mode": "avg",
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('when() returning undefined inside nested callback is a no-op — filter array omitted', () => {
+        const flag = false;
+        const result = query(productMappings)
+          .bool()
+          .filter((q) => q.nested('variants', (qn) => qn.when(flag, (q2) => q2.term('color', 'red'))))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {},
+            },
+          }
+        `);
+      });
+    });
+
+    describe('Infer<> — 2-level deep types', () => {
+      it('should infer 2-level deep object sub-fields as nested plain objects', () => {
+        type DeepInferred = Infer<typeof deepObjectMappings>;
+        type BillingType = DeepInferred['address']['billing'];
+        const billing: BillingType = { city: 'Austin', zip: '78701' };
+
+        expect(billing.city).toBe('Austin');
+      });
+
+      it('should infer nested-with-object as Array containing the object shape', () => {
+        type DeepInferred = Infer<typeof deepNestedMappings>;
+        type ShipmentType = DeepInferred['shipments'][number];
+        const shipment: ShipmentType = {
+          tracking: 'TRK-001',
+          price: 99.99,
+          address: { city: 'Berlin', country: 'DE' }
+        };
+
+        expect(shipment.address.city).toBe('Berlin');
       });
     });
   });
