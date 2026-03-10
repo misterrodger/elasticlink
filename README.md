@@ -24,6 +24,8 @@ elasticlink simplifies building Elasticsearch queries and index management in Ty
 
 | elasticlink | Node.js     | Elasticsearch |
 |-------------|-------------|---------------|
+| 0.6.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
+| 0.5.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
 | 0.4.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
 | 0.3.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
 | 0.2.0-beta  | 20, 22      | 9.x (≥9.0.0)  |
@@ -1089,9 +1091,10 @@ const result = query(restaurantMappings)
 
 elasticlink provides mapping-aware TypeScript safety:
 
-- **Field-Type Constraints**: `match()` only accepts text fields, `term()` only keyword fields — enforced at compile time
+- **Field-Type Constraints**: enforced at compile time across all methods — `match()` only accepts text fields, `term()` only keyword/numeric fields, `sort()` only sortable fields (keyword, numeric, date, boolean, ip), `collapse()` only keyword/numeric fields, `highlight()` only text/keyword fields
 - **Field Autocomplete**: IntelliSense knows your field names and their types
 - **`Infer<S>`**: Derive TS document types from your mappings schema
+- **Exported Field Group Types**: `SortableFields<M>`, `CollapsibleFields<M>`, `HighlightableFields<M>`, `TextFields<M>`, `KeywordFields<M>`, and others are exported for use in your own typed utilities
 
 ```typescript
 import { query, mappings, text, keyword, integer, type Infer } from 'elasticlink';

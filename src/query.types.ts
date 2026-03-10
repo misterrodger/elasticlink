@@ -34,7 +34,10 @@ import type {
   IpFields,
   NestedPathFields,
   SubFieldsOf,
-  FieldValueType
+  FieldValueType,
+  SortableFields,
+  CollapsibleFields,
+  HighlightableFields
 } from './mapping.types.js';
 import type { AggregationBuilder, AggregationState } from './aggregation.types.js';
 import type { KnnOptions } from './vector.types.js';
@@ -195,7 +198,7 @@ export type ClauseBuilder<M extends Record<string, FieldTypeString>> = {
   queryString: (query: string, options?: QueryStringOptions) => any;
   simpleQueryString: (query: string, options?: SimpleQueryStringOptions) => any;
   moreLikeThis: (
-    fields: Array<string & keyof M>,
+    fields: Array<(TextFields<M> | KeywordFields<M>) & string>,
     like: string | Array<string | { _index: string; _id: string }>,
     options?: MoreLikeThisOptions
   ) => any;
@@ -321,7 +324,7 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
 
   suggest: (fn: (s: SuggesterBuilder<M>) => SuggesterBuilder<M>) => QueryBuilder<M>;
 
-  sort: (field: (string & keyof M) | '_score' | '_doc', direction: 'asc' | 'desc') => QueryBuilder<M>;
+  sort: (field: (SortableFields<M> & string) | '_score' | '_doc', direction: 'asc' | 'desc') => QueryBuilder<M>;
   from: (from: number) => QueryBuilder<M>;
   size: (size: number) => QueryBuilder<M>;
   _source: (fields: Array<string & keyof M>) => QueryBuilder<M>;
@@ -332,7 +335,7 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
   version: (version: boolean) => QueryBuilder<M>;
   seqNoPrimaryTerm: (enabled: boolean) => QueryBuilder<M>;
   trackTotalHits: (value: boolean | number) => QueryBuilder<M>;
-  highlight: (fields: Array<string & keyof M>, options?: HighlightOptions) => QueryBuilder<M>;
+  highlight: (fields: Array<HighlightableFields<M> & string>, options?: HighlightOptions) => QueryBuilder<M>;
 
   geoDistance: <K extends GeoPointFields<M> & string>(
     field: K,
@@ -353,7 +356,7 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
   queryString: (query: string, options?: QueryStringOptions) => QueryBuilder<M>;
   simpleQueryString: (query: string, options?: SimpleQueryStringOptions) => QueryBuilder<M>;
   moreLikeThis: (
-    fields: Array<string & keyof M>,
+    fields: Array<(TextFields<M> | KeywordFields<M>) & string>,
     like: string | Array<string | { _index: string; _id: string }>,
     options?: MoreLikeThisOptions
   ) => QueryBuilder<M>;
@@ -366,7 +369,7 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
   searchAfter: (values: unknown[]) => QueryBuilder<M>;
   preference: (value: string) => QueryBuilder<M>;
   collapse: (
-    field: string & keyof M,
+    field: CollapsibleFields<M> & string,
     options?: {
       inner_hits?: any;
       max_concurrent_group_searches?: number;

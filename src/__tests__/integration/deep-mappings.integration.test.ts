@@ -65,6 +65,48 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     });
   });
 
+  describe('sort and highlight on object mappings', () => {
+    it('sorts documents by a 2-level deep object sub-field (keyword)', async () => {
+      const result = await search(
+        OBJECT_INDEX,
+        query(deepObjectMappings).matchAll().sort('address.billing.city', 'asc').build()
+      );
+
+      const cities = result.hits.hits.map(
+        (h: { _source: { address: { billing: { city: string } } } }) => h._source.address.billing.city
+      );
+
+      expect(cities).toStrictEqual(['Austin', 'London', 'Portland']);
+    });
+
+    it('sorts documents by a nested 2-level shipping country (keyword)', async () => {
+      const result = await search(
+        OBJECT_INDEX,
+        query(deepObjectMappings).matchAll().sort('address.shipping.country', 'asc').build()
+      );
+
+      const countries = result.hits.hits.map(
+        (h: { _source: { address: { shipping: { country: string } } } }) => h._source.address.shipping.country
+      );
+
+      expect(countries).toStrictEqual(['DE', 'US', 'US']);
+    });
+
+    it('highlights text sub-field matches in query results', async () => {
+      const result = await search(
+        OBJECT_INDEX,
+        query(deepObjectMappings).match('name', 'Widget').highlight(['name']).build()
+      );
+
+      expect(result.hits.total.value).toBe(3);
+
+      result.hits.hits.forEach((h: { highlight?: { name?: string[] } }) => {
+        expect(h.highlight?.name).toBeDefined();
+        expect(h.highlight?.name?.[0]).toMatch(/Widget/);
+      });
+    });
+  });
+
   describe('nested-with-object-sub-field', () => {
     it('finds a document by a direct nested sub-field', async () => {
       const result = await search(
@@ -119,6 +161,23 @@ describe('Deep object/nested mappings — 2-level field access', () => {
         NESTED_INDEX,
         query(deepNestedMappings)
           .nested('shipments', (q) => q.term('address.country', 'DE'))
+          .build()
+      );
+
+      expect(result.hits.total.value).toBe(1);
+      expect(result.hits.hits[0]._source.title).toBe('Order 1');
+    });
+
+    it('nested isolation: outer bool with two nested clauses evaluates each per nested object independently', async () => {
+      // Order 1 shipments: TRK-001 → GB, TRK-002 → DE
+      // Each .nested() clause is satisfied independently across any shipment in Order 1,
+      // so both conditions are met even though no single shipment satisfies both.
+      const result = await search(
+        NESTED_INDEX,
+        query(deepNestedMappings)
+          .bool()
+          .must((q) => q.nested('shipments', (qn) => qn.term('tracking', 'TRK-001')))
+          .must((q) => q.nested('shipments', (qn) => qn.term('address.country', 'DE')))
           .build()
       );
 

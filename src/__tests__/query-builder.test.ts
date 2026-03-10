@@ -13,6 +13,7 @@ const percolatorDocMappings = mappings({
 
 const reviewMappings = mappings({
   title: text(),
+  score: float(),
   comments: nested({
     author: text(),
     status: keyword(),
@@ -1508,7 +1509,7 @@ describe('QueryBuilder', () => {
           .nested('comments', (q) => q.match('author', 'john'))
           .from(0)
           .size(10)
-          .sort('title', 'asc')
+          .sort('score', 'asc')
           .build();
 
         expect(result).toMatchInlineSnapshot(`
@@ -1527,7 +1528,7 @@ describe('QueryBuilder', () => {
             "size": 10,
             "sort": [
               {
-                "title": "asc",
+                "score": "asc",
               },
             ],
           }
@@ -1992,17 +1993,13 @@ describe('QueryBuilder', () => {
       });
 
       it('should add highlight with multiple fields', () => {
-        const result = query(listingMappings)
-          .match('address', 'test')
-          .highlight(['property_class', 'address', 'list_price'])
-          .build();
+        const result = query(listingMappings).match('address', 'test').highlight(['property_class', 'address']).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
             "highlight": {
               "fields": {
                 "address": {},
-                "list_price": {},
                 "property_class": {},
               },
             },
@@ -6575,6 +6572,95 @@ describe('QueryBuilder', () => {
             },
           }
         `);
+      });
+    });
+
+    describe('field-type narrowing — sort, collapse, highlight', () => {
+      it('should accept keyword object sub-field for sort', () => {
+        const result = query(productMappings).matchAll().sort('address.city', 'asc').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "match_all": {},
+            },
+            "sort": [
+              {
+                "address.city": "asc",
+              },
+            ],
+          }
+        `);
+      });
+
+      it('should accept top-level keyword field for collapse', () => {
+        const result = query(productMappings).matchAll().collapse('category').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "collapse": {
+              "field": "category",
+            },
+            "query": {
+              "match_all": {},
+            },
+          }
+        `);
+      });
+
+      it('should accept text object sub-field for highlight', () => {
+        const result = query(productMappings).match('name', 'shoe').highlight(['address.street']).build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "highlight": {
+              "fields": {
+                "address.street": {},
+              },
+            },
+            "query": {
+              "match": {
+                "name": "shoe",
+              },
+            },
+          }
+        `);
+      });
+
+      // eslint-disable-next-line vitest/expect-expect
+      it('rejects object parent field for sort — @ts-expect-error', () => {
+        // @ts-expect-error — 'address' (object parent) is not in SortableFields<M>
+        query(productMappings).sort('address', 'asc');
+      });
+
+      // eslint-disable-next-line vitest/expect-expect
+      it('rejects nested parent field for sort — @ts-expect-error', () => {
+        // @ts-expect-error — 'variants' (nested parent) is not in SortableFields<M>
+        query(productMappings).sort('variants', 'asc');
+      });
+
+      // eslint-disable-next-line vitest/expect-expect
+      it('rejects object parent field for collapse — @ts-expect-error', () => {
+        // @ts-expect-error — 'address' (object parent) is not in CollapsibleFields<M>
+        query(productMappings).collapse('address');
+      });
+
+      // eslint-disable-next-line vitest/expect-expect
+      it('rejects nested parent field for collapse — @ts-expect-error', () => {
+        // @ts-expect-error — 'variants' (nested parent) is not in CollapsibleFields<M>
+        query(productMappings).collapse('variants');
+      });
+
+      // eslint-disable-next-line vitest/expect-expect
+      it('rejects object parent field for highlight — @ts-expect-error', () => {
+        // @ts-expect-error — 'address' (object parent) is not in HighlightableFields<M>
+        query(productMappings).highlight(['address']);
+      });
+
+      // eslint-disable-next-line vitest/expect-expect
+      it('rejects nested sub-field at root level for match — @ts-expect-error', () => {
+        // @ts-expect-error — 'variants.color' is a nested descendant and excluded at root
+        query(productMappings).match('variants.color', 'red');
       });
     });
 

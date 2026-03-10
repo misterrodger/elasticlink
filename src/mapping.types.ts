@@ -145,6 +145,55 @@ export type VectorFields<M extends Record<string, FieldTypeString>> = FieldsOfTy
 
 export type IpFields<M extends Record<string, FieldTypeString>> = FieldsOfType<ExcludeNestedDescendants<M>, 'ip'>;
 
+/**
+ * Fields valid for sorting in Elasticsearch.
+ * Excludes `object`, `nested`, `dense_vector`, `binary`, `geo_shape`, `geo_point`, and other non-sortable types.
+ * Note: `geo_point` fields require the special `_geo_distance` sort syntax, not a plain field sort.
+ */
+export type SortableFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
+  ExcludeNestedDescendants<M>,
+  | 'keyword'
+  | 'constant_keyword'
+  | 'long'
+  | 'integer'
+  | 'short'
+  | 'byte'
+  | 'double'
+  | 'float'
+  | 'half_float'
+  | 'scaled_float'
+  | 'date'
+  | 'boolean'
+  | 'ip'
+>;
+
+/**
+ * Fields valid for field collapsing in Elasticsearch.
+ * Collapse requires a keyword or numeric field.
+ */
+export type CollapsibleFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
+  ExcludeNestedDescendants<M>,
+  | 'keyword'
+  | 'constant_keyword'
+  | 'long'
+  | 'integer'
+  | 'short'
+  | 'byte'
+  | 'double'
+  | 'float'
+  | 'half_float'
+  | 'scaled_float'
+>;
+
+/**
+ * Fields valid for highlighting in Elasticsearch.
+ * Highlighting applies to text-like and keyword fields only.
+ */
+export type HighlightableFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
+  ExcludeNestedDescendants<M>,
+  'text' | 'match_only_text' | 'search_as_you_type' | 'keyword' | 'constant_keyword' | 'wildcard'
+>;
+
 /** Maps a single FieldTypeString to its TypeScript value type. Used by Val<M,K> in query constraints. */
 export type FieldValueType<T extends FieldTypeString> = T extends keyof ESTypeToTS ? ESTypeToTS[T] : unknown;
 
