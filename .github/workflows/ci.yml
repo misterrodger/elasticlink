@@ -48,8 +48,11 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Test
+      - name: Unit tests
         run: npm run test:coverage
+
+      - name: Integration tests
+        run: npm run test:integration
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5.5.2
@@ -83,9 +86,9 @@ jobs:
 
       - name: Publish release
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION="$(node -p "require('./package.json').version")"
           npm publish --tag latest --ignore-scripts
-          npm dist-tag add elasticlink@$VERSION beta
+          npm dist-tag add "elasticlink@$VERSION" beta
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

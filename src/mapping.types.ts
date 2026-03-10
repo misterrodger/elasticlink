@@ -147,7 +147,8 @@ export type IpFields<M extends Record<string, FieldTypeString>> = FieldsOfType<E
 
 /**
  * Fields valid for sorting in Elasticsearch.
- * Excludes `object`, `nested`, `dense_vector`, `binary`, `geo_shape`, and other non-sortable types.
+ * Excludes `object`, `nested`, `dense_vector`, `binary`, `geo_shape`, `geo_point`, and other non-sortable types.
+ * Note: `geo_point` fields require the special `_geo_distance` sort syntax, not a plain field sort.
  */
 export type SortableFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
   ExcludeNestedDescendants<M>,
@@ -164,7 +165,6 @@ export type SortableFields<M extends Record<string, FieldTypeString>> = FieldsOf
   | 'date'
   | 'boolean'
   | 'ip'
-  | 'geo_point'
 >;
 
 /**
