@@ -31,6 +31,7 @@ describe('QueryBuilder — knn (vector search)', () => {
     );
 
     const titles = result.hits.hits.map((h: { _source: { title: string } }) => h._source.title);
+    
     expect(titles[0]).toBe('beta');
     expect(titles).toHaveLength(3);
   });
