@@ -1029,6 +1029,77 @@ describe('Real-world Usage Examples', () => {
     });
   });
 
+  describe('Conditional Queries — when()', () => {
+    it('skips a filter clause when its value is undefined', () => {
+      const assetClass: string | undefined = undefined;
+
+      const result = query(instrumentMappings)
+        .bool()
+        .when(assetClass, (q) => q.filter((q2) => q2.term('asset_class', assetClass!)))
+        .build();
+
+      // No filter emitted — bool clause present as empty object
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {},
+          },
+        }
+      `);
+    });
+
+    it('applies only truthy conditions in a multi-filter chain', () => {
+      const assetClass = 'equity';
+      const minCap: number | undefined = 1_000_000;
+      const maxCap: number | undefined = undefined;
+      const tags: string[] = [];
+
+      const result = query(instrumentMappings)
+        .bool()
+        .when(assetClass, (q) => q.filter((q2) => q2.term('asset_class', assetClass)))
+        .when(minCap, (q) => q.filter((q2) => q2.range('market_cap', { gte: minCap! })))
+        .when(maxCap, (q) => q.filter((q2) => q2.range('market_cap', { lte: maxCap! })))
+        .when(tags.length > 0, (q) => q.filter((q2) => q2.terms('tags', tags)))
+        .build();
+
+      // assetClass + minCap filters fire; maxCap and tags are skipped
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "filter": [
+                {
+                  "term": {
+                    "asset_class": "equity",
+                  },
+                },
+                {
+                  "range": {
+                    "market_cap": {
+                      "gte": 1000000,
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('accepts a function condition — condition resolved at .when() invocation time', () => {
+      const result = query(instrumentMappings)
+        .bool()
+        .when(
+          () => new Date().getFullYear() >= 2020,
+          (q) => q.filter((q2) => q2.range('listed_date', { gte: '2020-01-01' }))
+        )
+        .build();
+
+      expect(result.query?.bool?.filter).toHaveLength(1);
+    });
+  });
+
   describe('Vector Search & Semantic Search', () => {
     it('should build a basic semantic product search', () => {
       // Simulated embedding vector for "wireless headphones"

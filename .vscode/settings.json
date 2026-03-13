@@ -3,7 +3,9 @@
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "cSpell.words": [
     "aggs",
+    "depcheck",
     "determinized",
+    "ecommerce",
     "elasticlink",
     "elastiq",
     "Geospatial",
@@ -15,6 +17,7 @@
     "mgmt",
     "misterrodger",
     "Multisearch",
+    "skus",
     "translog",
     "xpack"
   ]

@@ -18,10 +18,12 @@ import type {
   TextFieldOptions,
   KeywordFieldOptions,
   NumericFieldOptions,
+  UnsignedLongFieldOptions,
   ScaledFloatFieldOptions,
   DateFieldOptions,
   BooleanFieldOptions,
   DenseVectorFieldOptions,
+  SemanticTextFieldOptions,
   ObjectFieldOptions,
   CompletionFieldOptions,
   GeoPointFieldOptions,
@@ -50,6 +52,9 @@ import type {
   BinaryFieldMapping,
   IpFieldMapping,
   DenseVectorFieldMapping,
+  SparseVectorFieldMapping,
+  SemanticTextFieldMapping,
+  UnsignedLongFieldMapping,
   GeoPointFieldMapping,
   GeoShapeFieldMapping,
   CompletionFieldMapping,
@@ -174,6 +179,40 @@ export const quantizedDenseVector = (options?: DenseVectorFieldOptions): DenseVe
   type: 'dense_vector',
   ...options,
   index_options: { type: 'int8_hnsw', ...options?.index_options }
+});
+
+/**
+ * Sparse vector field — stores token-weight pairs for sparse retrieval (e.g. ELSER/BM25-style models).
+ * Complement to `denseVector()`. Query with the `sparse_vector` query.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/sparse-vector.html
+ */
+// eslint-disable-next-line functional/functional-parameters
+export const sparseVector = (): SparseVectorFieldMapping => ({ type: 'sparse_vector' });
+
+/**
+ * Semantic text field (ES 9.x) — ML-powered text field for semantic and hybrid search.
+ * Automatically generates and stores embeddings at index time using the configured inference endpoint.
+ *
+ * @example
+ * const schema = mappings({
+ *   title: text(),
+ *   body: semanticText({ inference_id: 'my-elser-endpoint' }),
+ * });
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/semantic-text.html
+ */
+export const semanticText = (options?: SemanticTextFieldOptions): SemanticTextFieldMapping => ({
+  type: 'semantic_text',
+  ...options
+});
+
+/**
+ * Unsigned long field (ES 9.0+) — stores unsigned 64-bit integer values (0 to 2^64-1).
+ * Use when values exceed the `long` range.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/number.html
+ */
+export const unsignedLong = (options?: UnsignedLongFieldOptions): UnsignedLongFieldMapping => ({
+  type: 'unsigned_long',
+  ...options
 });
 
 // Geo

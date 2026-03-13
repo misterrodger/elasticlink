@@ -30,6 +30,7 @@ import type {
   DateFields,
   BooleanFields,
   GeoPointFields,
+  GeoShapeFields,
   VectorFields,
   IpFields,
   NestedPathFields,
@@ -39,7 +40,7 @@ import type {
   CollapsibleFields,
   HighlightableFields
 } from './mapping.types.js';
-import type { AggregationBuilder, AggregationState } from './aggregation.types.js';
+import type { RootAggregationBuilder, AggregationState } from './aggregation.types.js';
 import type { KnnOptions } from './vector.types.js';
 import type { SuggesterBuilder, SuggesterState } from './suggester.types.js';
 
@@ -68,6 +69,12 @@ export type GeoBoundingBoxOptions = {
 
 export type GeoPolygonOptions = {
   points: Array<{ lat: number; lon: number }>;
+};
+
+export type GeoShapeQueryOptions = {
+  relation?: 'intersects' | 'disjoint' | 'within' | 'contains';
+  boost?: number;
+  ignore_unmapped?: boolean;
 };
 
 export type ScriptOptions = Script;
@@ -153,8 +160,9 @@ export type QueryState<M extends Record<string, FieldTypeString>> = {
       score_mode?: 'total' | 'multiply' | 'avg' | 'max' | 'min';
     };
   };
-  stored_fields?: string[];
+  stored_fields?: Array<string>;
   terminate_after?: number;
+  pit?: { id: string; keep_alive: string };
   indices_boost?: Array<Record<string, number>>;
 };
 
@@ -164,6 +172,7 @@ export type QueryState<M extends Record<string, FieldTypeString>> = {
 
 export type ClauseBuilder<M extends Record<string, FieldTypeString>> = {
   matchAll: () => any;
+  matchNone: () => any;
   match: <K extends TextFields<M> & string>(field: K, value: string, options?: MatchOptions) => any;
   multiMatch: <K extends TextFields<M> & string>(fields: K[], value: string, options?: MultiMatchOptions) => any;
   matchPhrase: <K extends TextFields<M> & string>(field: K, value: string) => any;
@@ -189,13 +198,32 @@ export type ClauseBuilder<M extends Record<string, FieldTypeString>> = {
   fuzzy: <K extends FuzzyableFields<M> & string>(field: K, value: string, options?: FuzzyOptions) => any;
   ids: (values: string[]) => any;
   knn: <K extends VectorFields<M> & string>(field: K, queryVector: number[], options: KnnOptions) => any;
+  /**
+   * Script query — executes a Painless script to filter documents.
+   *
+   * **Security:** the `source` string is executed as Painless on the Elasticsearch cluster.
+   * Never derive `source` from untrusted user input — use `params` to pass runtime values safely instead.
+   */
   script: (options: ScriptQueryOptions) => any;
   combinedFields: <K extends TextFields<M> & string>(
     fields: K[],
     query: string,
     options?: CombinedFieldsOptions
   ) => any;
+  /**
+   * Query string query — parses a Lucene query syntax string.
+   *
+   * **Security:** if `query` is derived from untrusted user input, field-level access control and
+   * syntax errors may expose internal field names or cause unexpected query behaviour.
+   * Prefer `simpleQueryString` for user-facing search boxes — it silently ignores invalid syntax.
+   */
   queryString: (query: string, options?: QueryStringOptions) => any;
+  /**
+   * Simple query string query — a safer Lucene subset for user-facing search.
+   *
+   * **Security:** invalid syntax is silently ignored rather than returning an error.
+   * Still constrain which fields are searched via `options.fields` to avoid exposing sensitive fields.
+   */
   simpleQueryString: (query: string, options?: SimpleQueryStringOptions) => any;
   moreLikeThis: (
     fields: Array<(TextFields<M> | KeywordFields<M>) & string>,
@@ -244,6 +272,7 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
   minimumShouldMatch: (n: number) => QueryBuilder<M>;
 
   matchAll: () => QueryBuilder<M>;
+  matchNone: () => QueryBuilder<M>;
   match: <K extends TextFields<M> & string>(field: K, value: string, options?: MatchOptions) => QueryBuilder<M>;
   multiMatch: <K extends TextFields<M> & string>(
     fields: K[],
@@ -294,7 +323,19 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
 
   knn: <K extends VectorFields<M> & string>(field: K, queryVector: number[], options: KnnOptions) => QueryBuilder<M>;
 
+  /**
+   * Script query — executes a Painless script to filter documents.
+   *
+   * **Security:** the `source` string is executed as Painless on the Elasticsearch cluster.
+   * Never derive `source` from untrusted user input — use `params` to pass runtime values safely instead.
+   */
   script: (options: ScriptQueryOptions) => QueryBuilder<M>;
+  /**
+   * Script score query — wraps an inner query and rescores results using a Painless script.
+   *
+   * **Security:** the `source` string is executed as Painless on the Elasticsearch cluster.
+   * Never derive `source` from untrusted user input — use `params` to pass runtime values safely instead.
+   */
   scriptScore: (
     query: (q: ClauseBuilder<M>) => any,
     script: ScriptOptions,
@@ -320,7 +361,7 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
    */
   when: (condition: unknown, thenFn: (q: QueryBuilder<M>) => QueryBuilder<M>) => QueryBuilder<M>;
 
-  aggs: (fn: (agg: AggregationBuilder<M>) => AggregationBuilder<M>) => QueryBuilder<M>;
+  aggs: (fn: (agg: RootAggregationBuilder<M>) => RootAggregationBuilder<M>) => QueryBuilder<M>;
 
   suggest: (fn: (s: SuggesterBuilder<M>) => SuggesterBuilder<M>) => QueryBuilder<M>;
 
@@ -344,6 +385,11 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
   ) => QueryBuilder<M>;
   geoBoundingBox: <K extends GeoPointFields<M> & string>(field: K, options: GeoBoundingBoxOptions) => QueryBuilder<M>;
   geoPolygon: <K extends GeoPointFields<M> & string>(field: K, options: GeoPolygonOptions) => QueryBuilder<M>;
+  geoShape: <K extends GeoShapeFields<M> & string>(
+    field: K,
+    shape: Record<string, unknown>,
+    options?: GeoShapeQueryOptions
+  ) => QueryBuilder<M>;
 
   regexp: <K extends KeywordFields<M> & string>(field: K, value: string, options?: RegexpOptions) => QueryBuilder<M>;
   constantScore: (fn: (q: ClauseBuilder<M>) => any, options?: ConstantScoreOptions) => QueryBuilder<M>;
@@ -353,7 +399,20 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
     query: string,
     options?: CombinedFieldsOptions
   ) => QueryBuilder<M>;
+  /**
+   * Query string query — parses a Lucene query syntax string.
+   *
+   * **Security:** if `query` is derived from untrusted user input, field-level access control and
+   * syntax errors may expose internal field names or cause unexpected query behaviour.
+   * Prefer `simpleQueryString` for user-facing search boxes — it silently ignores invalid syntax.
+   */
   queryString: (query: string, options?: QueryStringOptions) => QueryBuilder<M>;
+  /**
+   * Simple query string query — a safer Lucene subset for user-facing search.
+   *
+   * **Security:** invalid syntax is silently ignored rather than returning an error.
+   * Still constrain which fields are searched via `options.fields` to avoid exposing sensitive fields.
+   */
   simpleQueryString: (query: string, options?: SimpleQueryStringOptions) => QueryBuilder<M>;
   moreLikeThis: (
     fields: Array<(TextFields<M> | KeywordFields<M>) & string>,
@@ -384,8 +443,9 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
       score_mode?: 'total' | 'multiply' | 'avg' | 'max' | 'min';
     }
   ) => QueryBuilder<M>;
-  storedFields: (fields: string[]) => QueryBuilder<M>;
+  storedFields: (fields: Array<string>) => QueryBuilder<M>;
   terminateAfter: (count: number) => QueryBuilder<M>;
+  pit: (id: string, keepAlive: string) => QueryBuilder<M>;
   indicesBoost: (boosts: Array<Record<string, number>>) => QueryBuilder<M>;
 
   build: () => QueryState<M>;
