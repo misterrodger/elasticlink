@@ -688,16 +688,40 @@ describe('AggregationBuilder', () => {
         });
       });
 
+      // eslint-disable-next-line vitest/expect-expect
+      it('rejects text fields in terms() — only keyword/numeric/boolean/ip allowed', () => {
+        // @ts-expect-error — 'title' is a text field; terms() only accepts keyword/numeric/boolean/ip
+        aggregations(listingDetailMappings).terms('by_title', 'title');
+        // @ts-expect-error — 'embedding' is dense_vector; not valid in terms()
+        aggregations(listingDetailMappings).terms('by_embedding', 'embedding');
+        // valid: keyword
+        aggregations(listingDetailMappings).terms('by_class', 'property_class');
+        // valid: numeric
+        aggregations(listingDetailMappings).terms('by_price', 'list_price');
+      });
+
+      // eslint-disable-next-line vitest/expect-expect
+      it('rejects text/vector fields in range() — only numeric/date allowed', () => {
+        // @ts-expect-error — 'title' is a text field; range() only accepts numeric/date
+        aggregations(listingDetailMappings).range('r', 'title', { ranges: [] });
+        // @ts-expect-error — 'property_class' is keyword; not valid in range()
+        aggregations(listingDetailMappings).range('r', 'property_class', { ranges: [] });
+        // valid: numeric
+        aggregations(listingDetailMappings).range('r', 'list_price', { ranges: [] });
+        // valid: date
+        aggregations(listingDetailMappings).range('r', 'listed_date', { ranges: [] });
+      });
+
       it('should create multiple bucket aggregations at same level', () => {
         const result = aggregations(listingDetailMappings)
           .terms('by_property_class', 'property_class', { size: 10 })
-          .terms('by_title', 'title', { size: 5 })
+          .terms('by_cap_rate', 'cap_rate', { size: 5 })
           .dateHistogram('by_date', 'listed_date', { interval: 'week' })
           .build();
 
         expect(result).toMatchObject({
           by_property_class: { terms: { field: 'property_class', size: 10 } },
-          by_title: { terms: { field: 'title', size: 5 } },
+          by_cap_rate: { terms: { field: 'cap_rate', size: 5 } },
           by_date: {
             date_histogram: { field: 'listed_date', interval: 'week' }
           }

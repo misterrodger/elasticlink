@@ -81,7 +81,9 @@ const createClauseBuilder = <M extends Record<string, FieldTypeString>>(prefix?:
     nested: (path: string, fn: (q: any) => any, options?: Record<string, unknown>) => {
       const nestedPath = prefix ? `${prefix}.${path}` : path;
       const nestedQuery = fn(createClauseBuilder(nestedPath));
-      return nestedQuery === undefined ? undefined : { nested: { path, query: nestedQuery, ...(options && options) } };
+      return nestedQuery === undefined
+        ? undefined
+        : { nested: { path: nestedPath, query: nestedQuery, ...(options && options) } };
     },
     when: (condition, thenFn) => (resolveCondition(condition) ? thenFn(createClauseBuilder(prefix)) : undefined)
   };

@@ -1,5 +1,5 @@
 import type { FieldTypeString } from './index-management.types.js';
-import type { MappingsSchema } from './mapping.types.js';
+import type { MappingsSchema, KeywordFields, NumericFields, BooleanFields, IpFields, DateFields } from './mapping.types.js';
 import {
   AggregationBuilder,
   AggregationState,
@@ -21,7 +21,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
   state: AggregationState = {}
 ): AggregationBuilder<M> => ({
   // Bucket aggregations
-  terms: <K extends string & keyof M>(name: string, field: K, options?: TermsAggOptions) => {
+  terms: <K extends (KeywordFields<M> | NumericFields<M> | BooleanFields<M> | IpFields<M>) & string>(name: string, field: K, options?: TermsAggOptions) => {
     return createAggregationBuilder<M>({
       ...state,
       [name]: {
@@ -45,7 +45,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
     });
   },
 
-  range: <K extends string & keyof M>(name: string, field: K, options?: RangeAggOptions) => {
+  range: <K extends (NumericFields<M> | DateFields<M>) & string>(name: string, field: K, options?: RangeAggOptions) => {
     return createAggregationBuilder<M>({
       ...state,
       [name]: {

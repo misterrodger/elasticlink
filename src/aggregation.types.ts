@@ -20,7 +20,7 @@ import type {
   AggregationsCalendarInterval
 } from '@elastic/elasticsearch/lib/api/types';
 import type { FieldTypeString } from './index-management.types.js';
-import type { DateFields, NumericFields } from './mapping.types.js';
+import type { DateFields, NumericFields, KeywordFields, BooleanFields, IpFields } from './mapping.types.js';
 
 /**
  * Options for terms aggregation (excludes 'field' which is handled by the builder)
@@ -113,7 +113,11 @@ export type AggregationState = {
  */
 export type AggregationBuilder<M extends Record<string, FieldTypeString>> = {
   /** Terms aggregation - group by field values */
-  terms: <K extends string & keyof M>(name: string, field: K, options?: TermsAggOptions) => AggregationBuilder<M>;
+  terms: <K extends (KeywordFields<M> | NumericFields<M> | BooleanFields<M> | IpFields<M>) & string>(
+    name: string,
+    field: K,
+    options?: TermsAggOptions
+  ) => AggregationBuilder<M>;
 
   /** Date histogram aggregation - group by time intervals */
   dateHistogram: <K extends DateFields<M> & string>(
@@ -123,7 +127,11 @@ export type AggregationBuilder<M extends Record<string, FieldTypeString>> = {
   ) => AggregationBuilder<M>;
 
   /** Range aggregation - group by numeric/date ranges */
-  range: <K extends string & keyof M>(name: string, field: K, options?: RangeAggOptions) => AggregationBuilder<M>;
+  range: <K extends (NumericFields<M> | DateFields<M>) & string>(
+    name: string,
+    field: K,
+    options?: RangeAggOptions
+  ) => AggregationBuilder<M>;
 
   /** Histogram aggregation - group by numeric intervals */
   histogram: <K extends NumericFields<M> & string>(

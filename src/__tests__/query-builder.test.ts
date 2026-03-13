@@ -1534,6 +1534,87 @@ describe('QueryBuilder', () => {
           }
         `);
       });
+      
+      it('uses fully-qualified path for nested-within-nested clause queries', () => {
+        const threadMappings = mappings({
+          board: text(),
+          posts: nested({
+            author: keyword(),
+            replies: nested({
+              author: keyword(),
+              body: text()
+            })
+          })
+        });
+
+        const result = query(threadMappings)
+          .nested('posts', (q) => q.nested('replies', (qr) => qr.match('body', 'hello')))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "nested": {
+                "path": "posts",
+                "query": {
+                  "nested": {
+                    "path": "posts.replies",
+                    "query": {
+                      "match": {
+                        "posts.replies.body": "hello",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('uses fully-qualified path for nested-within-nested in a bool clause', () => {
+        const threadMappings = mappings({
+          board: text(),
+          posts: nested({
+            author: keyword(),
+            replies: nested({
+              author: keyword(),
+              body: text()
+            })
+          })
+        });
+
+        const result = query(threadMappings)
+          .bool()
+          .must((q) => q.nested('posts', (qp) => qp.nested('replies', (qr) => qr.term('author', 'alice'))))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "bool": {
+                "must": [
+                  {
+                    "nested": {
+                      "path": "posts",
+                      "query": {
+                        "nested": {
+                          "path": "posts.replies",
+                          "query": {
+                            "term": {
+                              "posts.replies.author": "alice",
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
     });
 
     describe('Conditional building (when)', () => {
