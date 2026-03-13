@@ -26,7 +26,10 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "audit": "better-npm-audit audit --level=high",
     "prepublishOnly": "npm run build",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "depcheck": "depcheck",
+    "jscpd": "jscpd src/ --min-lines 5 --min-tokens 50",
+    "license-check": "license-checker --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;Python-2.0;Unlicense'"
   },
   "engines": {
     "node": ">=20.0.0"

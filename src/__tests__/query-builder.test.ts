@@ -178,6 +178,18 @@ describe('QueryBuilder', () => {
       `);
     });
 
+    it('builds a match_none query', () => {
+      const result = query(listingMappings).matchNone().build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "match_none": {},
+          },
+        }
+      `);
+    });
+
     it('should build a match query', () => {
       const result = query(listingMappings).match('address', 'test type').build();
 
@@ -1269,6 +1281,36 @@ describe('QueryBuilder', () => {
             "track_scores": true,
           }
         `);
+      });
+    });
+
+    describe('pit()', () => {
+      it('emits a pit object with id and keep_alive', () => {
+        const result = query(listingMappings).matchAll().pit('abc123', '1m').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "pit": {
+              "id": "abc123",
+              "keep_alive": "1m",
+            },
+            "query": {
+              "match_all": {},
+            },
+          }
+        `);
+      });
+
+      it('combines pit with search_after for deep pagination', () => {
+        const result = query(listingMappings)
+          .matchAll()
+          .sort('list_price', 'asc')
+          .pit('pit_token', '5m')
+          .searchAfter([1_250_000, 'tiebreaker-id'])
+          .build();
+
+        expect(result.pit).toStrictEqual({ id: 'pit_token', keep_alive: '5m' });
+        expect(result.search_after).toStrictEqual([1_250_000, 'tiebreaker-id']);
       });
     });
 

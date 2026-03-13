@@ -27,7 +27,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
       [name]: {
         terms: {
           field,
-          ...(options && options)
+          ...(options ?? {})
         }
       }
     });
@@ -39,7 +39,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
       [name]: {
         date_histogram: {
           field,
-          ...(options && options)
+          ...(options ?? {})
         }
       }
     });
@@ -51,7 +51,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
       [name]: {
         range: {
           field,
-          ...(options && options)
+          ...(options ?? {})
         }
       }
     });
@@ -63,7 +63,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
       [name]: {
         histogram: {
           field,
-          ...(options && options)
+          ...(options ?? {})
         }
       }
     });
@@ -76,7 +76,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
       [name]: {
         avg: {
           field,
-          ...(options && options)
+          ...(options ?? {})
         }
       }
     });
@@ -88,7 +88,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
       [name]: {
         sum: {
           field,
-          ...(options && options)
+          ...(options ?? {})
         }
       }
     });
@@ -100,7 +100,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
       [name]: {
         min: {
           field,
-          ...(options && options)
+          ...(options ?? {})
         }
       }
     });
@@ -112,7 +112,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
       [name]: {
         max: {
           field,
-          ...(options && options)
+          ...(options ?? {})
         }
       }
     });
@@ -124,7 +124,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
       [name]: {
         cardinality: {
           field,
-          ...(options && options)
+          ...(options ?? {})
         }
       }
     });
@@ -136,7 +136,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
       [name]: {
         percentiles: {
           field,
-          ...(options && options)
+          ...(options ?? {})
         }
       }
     });
@@ -148,7 +148,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
       [name]: {
         stats: {
           field,
-          ...(options && options)
+          ...(options ?? {})
         }
       }
     });
@@ -160,7 +160,7 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
       [name]: {
         value_count: {
           field,
-          ...(options && options)
+          ...(options ?? {})
         }
       }
     });
