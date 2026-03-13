@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 
 set -e
 
@@ -35,6 +35,11 @@ echo "Committing changes..."
 git commit -m "$commit_message"
 
 echo "Pushing to remote..."
-git push
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+if git ls-remote --exit-code --heads origin "$current_branch" > /dev/null 2>&1; then
+    git push
+else
+    git push --set-upstream origin "$current_branch"
+fi
 
 echo "✅ Done!"

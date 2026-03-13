@@ -1,6 +1,6 @@
 {
   "name": "elasticlink",
-  "version": "0.6.0-beta",
+  "version": "0.7.0-beta",
   "description": "Type-safe, lightweight Elasticsearch query builder with fluent API",
   "type": "module",
   "main": "dist/index.js",
@@ -64,20 +64,20 @@
     "@elastic/elasticsearch": ">=9.0.0"
   },
   "devDependencies": {
-    "@elastic/elasticsearch": "^9.3.2",
+    "@elastic/elasticsearch": "^9.3.4",
     "@eslint/js": "^10.0.1",
-    "@types/node": "^22",
+    "@types/node": "^24.12.0",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
-    "@typescript-eslint/parser": "^8.56.1",
-    "@vitest/coverage-v8": "^4.0.18",
-    "@vitest/eslint-plugin": "^1.6.9",
+    "@typescript-eslint/parser": "^8.57.0",
+    "@vitest/coverage-v8": "^4.1.0",
+    "@vitest/eslint-plugin": "^1.6.11",
     "better-npm-audit": "^3.11.0",
-    "eslint": "^10.0.2",
+    "eslint": "^10.0.3",
     "eslint-plugin-functional": "^9.0.4",
-    "globals": "^17.3.0",
+    "globals": "^17.4.0",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.56.1",
-    "vitest": "^4.0.18"
+    "typescript-eslint": "^8.57.0",
+    "vitest": "^4.1.0"
   }
 }
