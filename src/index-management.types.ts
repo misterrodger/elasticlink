@@ -42,6 +42,9 @@ export type FieldTypeString =
   | 'completion'
   | 'search_as_you_type'
   | 'dense_vector'
+  | 'sparse_vector'
+  | 'semantic_text'
+  | 'unsigned_long'
   | 'percolator';
 
 /**
@@ -122,6 +125,33 @@ export type CreateIndexOptions = {
 };
 
 /**
+ * Custom analyzer definition for index analysis settings.
+ */
+export type AnalysisAnalyzerConfig = {
+  type?: string;
+  tokenizer?: string;
+  filter?: string[];
+  char_filter?: string[];
+  [key: string]: unknown;
+};
+
+/**
+ * Token filter, char filter, and tokenizer configuration — open record to support all ES built-in and plugin types.
+ */
+export type AnalysisComponentConfig = { type: string; [key: string]: unknown };
+
+/**
+ * Analysis settings for an index — configures custom analyzers, tokenizers, token filters, and char filters.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis.html
+ */
+export type AnalysisConfig = {
+  analyzer?: Record<string, AnalysisAnalyzerConfig>;
+  tokenizer?: Record<string, AnalysisComponentConfig>;
+  filter?: Record<string, AnalysisComponentConfig>;
+  char_filter?: Record<string, AnalysisComponentConfig>;
+};
+
+/**
  * Index builder interface
  */
 export type IndexBuilder = {
@@ -130,6 +160,8 @@ export type IndexBuilder = {
     options?: MappingOptions
   ) => IndexBuilder;
   settings: (settings: IndexSettings) => IndexBuilder;
+  /** Configure custom analyzers, tokenizers, token filters, and char filters for this index. */
+  analysis: (config: AnalysisConfig) => IndexBuilder;
   alias: (name: string, options?: IndicesAlias) => IndexBuilder;
   build: () => CreateIndexOptions;
 };

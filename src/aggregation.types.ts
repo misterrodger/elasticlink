@@ -17,10 +17,15 @@ import type {
   AggregationsPercentilesAggregation,
   AggregationsStatsAggregation,
   AggregationsValueCountAggregation,
-  AggregationsCalendarInterval
+  AggregationsCalendarInterval,
+  AggregationsExtendedStatsAggregation,
+  AggregationsTopHitsAggregation,
+  AggregationsAutoDateHistogramAggregation,
+  AggregationsCompositeAggregation,
+  AggregationsCompositeAggregationSource
 } from '@elastic/elasticsearch/lib/api/types';
 import type { FieldTypeString } from './index-management.types.js';
-import type { DateFields, NumericFields, KeywordFields, BooleanFields, IpFields } from './mapping.types.js';
+import type { DateFields, NumericFields, KeywordFields, BooleanFields, IpFields, NestedPathFields } from './mapping.types.js';
 
 /**
  * Options for terms aggregation (excludes 'field' which is handled by the builder)
@@ -101,6 +106,35 @@ export type StatsAggOptions = Omit<AggregationsStatsAggregation, 'field'>;
 export type ValueCountAggOptions = Omit<AggregationsValueCountAggregation, 'field'>;
 
 /**
+ * Options for extended_stats aggregation (excludes 'field' which is handled by the builder)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-extendedstats-aggregation.html
+ */
+export type ExtendedStatsAggOptions = Omit<AggregationsExtendedStatsAggregation, 'field'>;
+
+/**
+ * Options for top_hits aggregation
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-top-hits-aggregation.html
+ */
+export type TopHitsAggOptions = AggregationsTopHitsAggregation;
+
+/**
+ * Options for auto_date_histogram aggregation (excludes 'field' which is handled by the builder)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-autodatehistogram-aggregation.html
+ */
+export type AutoDateHistogramAggOptions = Omit<AggregationsAutoDateHistogramAggregation, 'field'>;
+
+/**
+ * Source entry for composite aggregation — a named single-value source definition
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-composite-aggregation.html
+ */
+export type CompositeAggSource = Record<string, AggregationsCompositeAggregationSource>;
+
+/**
+ * Options for composite aggregation (excludes 'sources' which is handled by the builder)
+ */
+export type CompositeAggOptions = Omit<AggregationsCompositeAggregation, 'sources'>;
+
+/**
  * Aggregation state for build output
  */
 export type AggregationState = {
@@ -179,6 +213,42 @@ export type AggregationBuilder<M extends Record<string, FieldTypeString>> = {
     field: K,
     options?: ValueCountAggOptions
   ) => AggregationBuilder<M>;
+
+  /** Extended stats aggregation (count, min, max, avg, sum, std deviation, variance) */
+  extendedStats: <K extends NumericFields<M> & string>(
+    name: string,
+    field: K,
+    options?: ExtendedStatsAggOptions
+  ) => AggregationBuilder<M>;
+
+  /** Top hits aggregation — returns the most relevant documents per bucket */
+  topHits: (name: string, options?: TopHitsAggOptions) => AggregationBuilder<M>;
+
+  /** Auto date histogram aggregation — automatically selects interval to produce the target number of buckets */
+  autoDateHistogram: <K extends DateFields<M> & string>(
+    name: string,
+    field: K,
+    options?: AutoDateHistogramAggOptions
+  ) => AggregationBuilder<M>;
+
+  /**
+   * Composite aggregation — pageable multi-level grouping across multiple value sources.
+   * `sources` is an array of `{ [name]: { terms | date_histogram | histogram | geotile_grid: { field, ... } } }` objects.
+   */
+  composite: (name: string, sources: CompositeAggSource[], options?: CompositeAggOptions) => AggregationBuilder<M>;
+
+  /** Filter aggregation — narrows documents in a bucket by a raw query DSL filter */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  filter: (name: string, query: Record<string, any>) => AggregationBuilder<M>;
+
+  /** Global aggregation — escapes the current filter context to aggregate across all documents */
+  global: (name: string) => AggregationBuilder<M>;
+
+  /** Nested aggregation — enters a nested document context for aggregating nested fields */
+  nested: <K extends NestedPathFields<M> & string>(name: string, path: K) => AggregationBuilder<M>;
+
+  /** Reverse nested aggregation — returns from a nested context back to the root document */
+  reverseNested: (name: string, path?: string) => AggregationBuilder<M>;
 
   /** Add sub-aggregation to parent bucket aggregation */
   subAgg: (fn: (agg: AggregationBuilder<M>) => AggregationBuilder<M>) => AggregationBuilder<M>;

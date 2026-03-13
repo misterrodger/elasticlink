@@ -1,5 +1,6 @@
 import { aggregations } from '..';
 import { listingDetailMappings } from './fixtures/real-estate.js';
+import { productMappings } from './fixtures/ecommerce.js';
 
 describe('AggregationBuilder', () => {
   describe('Builder behavior', () => {
@@ -710,6 +711,201 @@ describe('AggregationBuilder', () => {
         aggregations(listingDetailMappings).range('r', 'list_price', { ranges: [] });
         // valid: date
         aggregations(listingDetailMappings).range('r', 'listed_date', { ranges: [] });
+      });
+
+      it('extended_stats emits correct DSL', () => {
+        const result = aggregations(listingDetailMappings).extendedStats('price_stats', 'list_price').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "price_stats": {
+              "extended_stats": {
+                "field": "list_price",
+              },
+            },
+          }
+        `);
+      });
+
+      it('top_hits emits correct DSL with options', () => {
+        const result = aggregations(listingDetailMappings)
+          .terms('by_class', 'property_class')
+          .subAgg((sub) => sub.topHits('sample', { size: 3 }))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "by_class": {
+              "aggs": {
+                "sample": {
+                  "top_hits": {
+                    "size": 3,
+                  },
+                },
+              },
+              "terms": {
+                "field": "property_class",
+              },
+            },
+          }
+        `);
+      });
+
+      it('auto_date_histogram emits correct DSL', () => {
+        const result = aggregations(listingDetailMappings)
+          .autoDateHistogram('over_time', 'listed_date', { buckets: 10 })
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "over_time": {
+              "auto_date_histogram": {
+                "buckets": 10,
+                "field": "listed_date",
+              },
+            },
+          }
+        `);
+      });
+
+      it('composite emits correct DSL with multiple sources', () => {
+        const result = aggregations(listingDetailMappings)
+          .composite('paged', [
+            { by_class: { terms: { field: 'property_class' } } },
+            { by_date: { date_histogram: { field: 'listed_date', calendar_interval: 'month' } } }
+          ])
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "paged": {
+              "composite": {
+                "sources": [
+                  {
+                    "by_class": {
+                      "terms": {
+                        "field": "property_class",
+                      },
+                    },
+                  },
+                  {
+                    "by_date": {
+                      "date_histogram": {
+                        "calendar_interval": "month",
+                        "field": "listed_date",
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('composite emits after cursor for pagination', () => {
+        const result = aggregations(listingDetailMappings)
+          .composite('paged', [{ by_class: { terms: { field: 'property_class' } } }], {
+            after: { by_class: 'condo' }
+          })
+          .build();
+
+        expect(result.paged.composite.after).toStrictEqual({ by_class: 'condo' });
+      });
+
+      it('filter emits correct DSL wrapping a raw query', () => {
+        const result = aggregations(listingDetailMappings)
+          .filter('condos_only', { term: { property_class: 'condo' } })
+          .subAgg((sub) => sub.avg('avg_price', 'list_price'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "condos_only": {
+              "aggs": {
+                "avg_price": {
+                  "avg": {
+                    "field": "list_price",
+                  },
+                },
+              },
+              "filter": {
+                "term": {
+                  "property_class": "condo",
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('global emits correct DSL', () => {
+        const result = aggregations(listingDetailMappings).global('all_listings').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "all_listings": {
+              "global": {},
+            },
+          }
+        `);
+      });
+
+      it('nested emits correct DSL for a nested path', () => {
+        const result = aggregations(productMappings).nested('by_variants', 'variants').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "by_variants": {
+              "nested": {
+                "path": "variants",
+              },
+            },
+          }
+        `);
+      });
+
+      it('nested with sub-aggregation aggregates inside nested context', () => {
+        const result = aggregations(productMappings)
+          .nested('by_variants', 'variants')
+          .subAgg((sub) => sub.terms('colors', 'variants.color'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "by_variants": {
+              "aggs": {
+                "colors": {
+                  "terms": {
+                    "field": "variants.color",
+                  },
+                },
+              },
+              "nested": {
+                "path": "variants",
+              },
+            },
+          }
+        `);
+      });
+
+      it('reverseNested emits correct DSL without path', () => {
+        const result = aggregations(productMappings)
+          .nested('by_variants', 'variants')
+          .subAgg((sub) =>
+            sub
+              .terms('colors', 'variants.color')
+              .subAgg((inner) => inner.reverseNested('back_to_root'))
+          )
+          .build();
+
+        expect(result.by_variants.aggs.colors.aggs.back_to_root).toStrictEqual({ reverse_nested: {} });
+      });
+
+      it('reverseNested emits correct DSL with path', () => {
+        const result = aggregations(productMappings).reverseNested('back', 'variants').build();
+
+        expect(result.back).toStrictEqual({ reverse_nested: { path: 'variants' } });
       });
 
       it('should create multiple bucket aggregations at same level', () => {

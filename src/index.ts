@@ -48,7 +48,10 @@ export {
   constantKeyword,
   wildcardField,
   flattened,
-  quantizedDenseVector
+  quantizedDenseVector,
+  sparseVector,
+  semanticText,
+  unsignedLong
 } from './field.helpers.js';
 export type {
   MappingsSchema,
@@ -60,6 +63,7 @@ export type {
   DateFields,
   BooleanFields,
   GeoPointFields,
+  GeoShapeFields,
   VectorFields,
   IpFields
 } from './mapping.types.js';
@@ -75,7 +79,7 @@ export type { BulkBuilder } from './bulk.types.js';
 
 // Index Management API
 export { indexBuilder } from './index-management.builder.js';
-export type { IndexBuilder } from './index-management.types.js';
+export type { IndexBuilder, AnalysisConfig, AnalysisAnalyzerConfig, AnalysisComponentConfig } from './index-management.types.js';
 
 // Suggester API
 export { suggest } from './suggester.builder.js';

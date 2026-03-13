@@ -222,6 +222,11 @@ export const createQueryBuilder = <M extends Record<string, FieldTypeString>>(
       ...state,
       query: { geo_polygon: { [field]: options } }
     }),
+  geoShape: (field, shape, options) =>
+    createQueryBuilder<M>({
+      ...state,
+      query: { geo_shape: { [field]: { shape, ...(options ?? {}) } } }
+    }),
   regexp: (field, value, options) =>
     createQueryBuilder<M>({
       ...state,

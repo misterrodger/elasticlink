@@ -30,6 +30,7 @@ import type {
   DateFields,
   BooleanFields,
   GeoPointFields,
+  GeoShapeFields,
   VectorFields,
   IpFields,
   NestedPathFields,
@@ -68,6 +69,12 @@ export type GeoBoundingBoxOptions = {
 
 export type GeoPolygonOptions = {
   points: Array<{ lat: number; lon: number }>;
+};
+
+export type GeoShapeQueryOptions = {
+  relation?: 'intersects' | 'disjoint' | 'within' | 'contains';
+  boost?: number;
+  ignore_unmapped?: boolean;
 };
 
 export type ScriptOptions = Script;
@@ -378,6 +385,11 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
   ) => QueryBuilder<M>;
   geoBoundingBox: <K extends GeoPointFields<M> & string>(field: K, options: GeoBoundingBoxOptions) => QueryBuilder<M>;
   geoPolygon: <K extends GeoPointFields<M> & string>(field: K, options: GeoPolygonOptions) => QueryBuilder<M>;
+  geoShape: <K extends GeoShapeFields<M> & string>(
+    field: K,
+    shape: Record<string, unknown>,
+    options?: GeoShapeQueryOptions
+  ) => QueryBuilder<M>;
 
   regexp: <K extends KeywordFields<M> & string>(field: K, value: string, options?: RegexpOptions) => QueryBuilder<M>;
   constantScore: (fn: (q: ClauseBuilder<M>) => any, options?: ConstantScoreOptions) => QueryBuilder<M>;

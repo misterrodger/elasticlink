@@ -1,6 +1,6 @@
 import { query, mappings, keyword, text, nested, float, percolator } from '..';
 import type { Infer } from '..';
-import { listingMappings, listingDetailMappings } from './fixtures/real-estate.js';
+import { listingMappings, listingDetailMappings, geoListingMappings } from './fixtures/real-estate.js';
 import { instrumentWithEmbeddingMappings, scoredInstrumentMappings } from './fixtures/finance.js';
 import { productMappings } from './fixtures/ecommerce.js';
 import { deepObjectMappings, deepNestedMappings } from './fixtures/logistics.js';
@@ -4187,6 +4187,63 @@ describe('QueryBuilder', () => {
         const result = query(listingDetailMappings).geoPolygon('location', { points }).build();
 
         expect(result.query?.geo_polygon?.location?.points).toHaveLength(6);
+      });
+
+      it('build a geo_shape query with polygon shape', () => {
+        const shape = {
+          type: 'polygon',
+          coordinates: [[[-74.1, 40.7], [-73.9, 40.7], [-73.9, 40.8], [-74.1, 40.8], [-74.1, 40.7]]]
+        };
+
+        const result = query(geoListingMappings).geoShape('boundary', shape).build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "geo_shape": {
+                "boundary": {
+                  "shape": {
+                    "coordinates": [
+                      [
+                        [
+                          -74.1,
+                          40.7,
+                        ],
+                        [
+                          -73.9,
+                          40.7,
+                        ],
+                        [
+                          -73.9,
+                          40.8,
+                        ],
+                        [
+                          -74.1,
+                          40.8,
+                        ],
+                        [
+                          -74.1,
+                          40.7,
+                        ],
+                      ],
+                    ],
+                    "type": "polygon",
+                  },
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('build a geo_shape query with relation option', () => {
+        const shape = { type: 'envelope', coordinates: [[-74.1, 40.8], [-73.9, 40.7]] };
+        const result = query(geoListingMappings)
+          .geoShape('boundary', shape, { relation: 'within' })
+          .build();
+
+        expect(result.query?.geo_shape?.boundary?.relation).toBe('within');
+        expect(result.query?.geo_shape?.boundary?.shape?.type).toBe('envelope');
       });
     });
 

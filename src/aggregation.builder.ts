@@ -1,5 +1,5 @@
 import type { FieldTypeString } from './index-management.types.js';
-import type { MappingsSchema, KeywordFields, NumericFields, BooleanFields, IpFields, DateFields } from './mapping.types.js';
+import type { MappingsSchema, KeywordFields, NumericFields, BooleanFields, IpFields, DateFields, NestedPathFields } from './mapping.types.js';
 import {
   AggregationBuilder,
   AggregationState,
@@ -14,7 +14,12 @@ import {
   CardinalityAggOptions,
   PercentilesAggOptions,
   StatsAggOptions,
-  ValueCountAggOptions
+  ValueCountAggOptions,
+  ExtendedStatsAggOptions,
+  TopHitsAggOptions,
+  AutoDateHistogramAggOptions,
+  CompositeAggSource,
+  CompositeAggOptions
 } from './aggregation.types.js';
 
 export const createAggregationBuilder = <M extends Record<string, FieldTypeString>>(
@@ -163,6 +168,63 @@ export const createAggregationBuilder = <M extends Record<string, FieldTypeStrin
           ...(options ?? {})
         }
       }
+    });
+  },
+
+  extendedStats: <K extends string & keyof M>(name: string, field: K, options?: ExtendedStatsAggOptions) => {
+    return createAggregationBuilder<M>({
+      ...state,
+      [name]: { extended_stats: { field, ...(options ?? {}) } }
+    });
+  },
+
+  topHits: (name: string, options?: TopHitsAggOptions) => {
+    return createAggregationBuilder<M>({
+      ...state,
+      [name]: { top_hits: { ...(options ?? {}) } }
+    });
+  },
+
+  autoDateHistogram: <K extends string & keyof M>(name: string, field: K, options?: AutoDateHistogramAggOptions) => {
+    return createAggregationBuilder<M>({
+      ...state,
+      [name]: { auto_date_histogram: { field, ...(options ?? {}) } }
+    });
+  },
+
+  composite: (name: string, sources: CompositeAggSource[], options?: CompositeAggOptions) => {
+    return createAggregationBuilder<M>({
+      ...state,
+      [name]: { composite: { sources, ...(options ?? {}) } }
+    });
+  },
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  filter: (name: string, query: Record<string, any>) => {
+    return createAggregationBuilder<M>({
+      ...state,
+      [name]: { filter: query }
+    });
+  },
+
+  global: (name: string) => {
+    return createAggregationBuilder<M>({
+      ...state,
+      [name]: { global: {} }
+    });
+  },
+
+  nested: <K extends string & keyof M>(name: string, path: K) => {
+    return createAggregationBuilder<M>({
+      ...state,
+      [name]: { nested: { path } }
+    });
+  },
+
+  reverseNested: (name: string, path?: string) => {
+    return createAggregationBuilder<M>({
+      ...state,
+      [name]: { reverse_nested: path ? { path } : {} }
     });
   },
 

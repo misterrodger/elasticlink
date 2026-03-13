@@ -3,7 +3,7 @@
  * Create and configure Elasticsearch indices
  */
 
-import type { FieldMapping, FieldTypeString, IndexBuilder, CreateIndexOptions } from './index-management.types.js';
+import type { FieldMapping, FieldTypeString, IndexBuilder, CreateIndexOptions, AnalysisConfig } from './index-management.types.js';
 import type { MappingsSchema, MappingOptions } from './mapping.types.js';
 
 const isMappingsSchema = (
@@ -36,6 +36,13 @@ export const createIndexBuilder = (state: CreateIndexOptions = {}): IndexBuilder
   },
 
   settings: (settings) => createIndexBuilder({ ...state, settings }),
+
+  analysis: (config: AnalysisConfig) =>
+    createIndexBuilder({
+      ...state,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      settings: { ...state.settings, analysis: config as any }
+    }),
 
   alias: (name, options = {}) => {
     const aliases = state.aliases || {};
