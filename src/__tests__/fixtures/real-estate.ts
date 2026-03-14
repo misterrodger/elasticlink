@@ -1,4 +1,4 @@
-import { mappings, keyword, text, float, long, date, geoPoint, denseVector } from '../../index.js';
+import { mappings, keyword, text, float, long, date, geoPoint, geoShape, denseVector } from '../../index.js';
 import type { Infer } from '../../index.js';
 
 export const listingMappings = mappings({
@@ -24,6 +24,14 @@ export const listingDetailMappings = mappings({
 });
 
 export type ListingDetail = Infer<typeof listingDetailMappings>;
+
+export const geoListingMappings = mappings({
+  address: text(),
+  property_class: keyword(),
+  boundary: geoShape()
+});
+
+export type GeoListing = Infer<typeof geoListingMappings>;
 
 export const LISTINGS: Listing[] = [
   {

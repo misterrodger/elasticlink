@@ -39,11 +39,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check
-        run: npm run type-check
+      - name: Audit dependencies
+        if: matrix.node-version == '24.x'
+        run: npm run audit
+
+      - name: Check for unused dependencies
+        if: matrix.node-version == '24.x'
+        run: npm run depcheck
+
+      - name: Check for duplicate code
+        if: matrix.node-version == '24.x'
+        run: npm run jscpd
+
+      - name: Check dependency licenses
+        if: matrix.node-version == '24.x'
+        run: npm run license-check
+
+      - name: Format check
+        run: npm run format:check
 
       - name: Lint
         run: npm run lint
+
+      - name: Type check
+        run: npm run type-check
 
       - name: Build
         run: npm run build

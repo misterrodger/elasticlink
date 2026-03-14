@@ -1,5 +1,6 @@
-import { aggregations } from '..';
+import { aggregations, integer, keyword, mappings, nested } from '..';
 import { listingDetailMappings } from './fixtures/real-estate.js';
+import { productMappings } from './fixtures/ecommerce.js';
 
 describe('AggregationBuilder', () => {
   describe('Builder behavior', () => {
@@ -688,16 +689,363 @@ describe('AggregationBuilder', () => {
         });
       });
 
+      // eslint-disable-next-line vitest/expect-expect
+      it('rejects text fields in terms() — only keyword/numeric/boolean/ip allowed', () => {
+        // @ts-expect-error — 'title' is a text field; terms() only accepts keyword/numeric/boolean/ip
+        aggregations(listingDetailMappings).terms('by_title', 'title');
+        // @ts-expect-error — 'embedding' is dense_vector; not valid in terms()
+        aggregations(listingDetailMappings).terms('by_embedding', 'embedding');
+        // valid: keyword
+        aggregations(listingDetailMappings).terms('by_class', 'property_class');
+        // valid: numeric
+        aggregations(listingDetailMappings).terms('by_price', 'list_price');
+      });
+
+      // eslint-disable-next-line vitest/expect-expect
+      it('rejects text/vector fields in range() — only numeric/date allowed', () => {
+        // @ts-expect-error — 'title' is a text field; range() only accepts numeric/date
+        aggregations(listingDetailMappings).range('r', 'title', { ranges: [] });
+        // @ts-expect-error — 'property_class' is keyword; not valid in range()
+        aggregations(listingDetailMappings).range('r', 'property_class', { ranges: [] });
+        // valid: numeric
+        aggregations(listingDetailMappings).range('r', 'list_price', { ranges: [] });
+        // valid: date
+        aggregations(listingDetailMappings).range('r', 'listed_date', { ranges: [] });
+      });
+
+      it('extended_stats emits correct DSL', () => {
+        const result = aggregations(listingDetailMappings).extendedStats('price_stats', 'list_price').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "price_stats": {
+              "extended_stats": {
+                "field": "list_price",
+              },
+            },
+          }
+        `);
+      });
+
+      it('top_hits emits correct DSL with options', () => {
+        const result = aggregations(listingDetailMappings)
+          .terms('by_class', 'property_class')
+          .subAgg((sub) => sub.topHits('sample', { size: 3 }))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "by_class": {
+              "aggs": {
+                "sample": {
+                  "top_hits": {
+                    "size": 3,
+                  },
+                },
+              },
+              "terms": {
+                "field": "property_class",
+              },
+            },
+          }
+        `);
+      });
+
+      it('auto_date_histogram emits correct DSL', () => {
+        const result = aggregations(listingDetailMappings)
+          .autoDateHistogram('over_time', 'listed_date', { buckets: 10 })
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "over_time": {
+              "auto_date_histogram": {
+                "buckets": 10,
+                "field": "listed_date",
+              },
+            },
+          }
+        `);
+      });
+
+      it('composite emits correct DSL with multiple sources', () => {
+        const result = aggregations(listingDetailMappings)
+          .composite('paged', [
+            { by_class: { terms: { field: 'property_class' } } },
+            { by_date: { date_histogram: { field: 'listed_date', calendar_interval: 'month' } } }
+          ])
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "paged": {
+              "composite": {
+                "sources": [
+                  {
+                    "by_class": {
+                      "terms": {
+                        "field": "property_class",
+                      },
+                    },
+                  },
+                  {
+                    "by_date": {
+                      "date_histogram": {
+                        "calendar_interval": "month",
+                        "field": "listed_date",
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          }
+        `);
+      });
+
+      it('composite emits after cursor for pagination', () => {
+        const result = aggregations(listingDetailMappings)
+          .composite('paged', [{ by_class: { terms: { field: 'property_class' } } }], {
+            after: { by_class: 'condo' }
+          })
+          .build();
+
+        expect(result.paged.composite.after).toStrictEqual({ by_class: 'condo' });
+      });
+
+      it('filter emits correct DSL wrapping a raw query', () => {
+        const result = aggregations(listingDetailMappings)
+          .filter('condos_only', { term: { property_class: 'condo' } })
+          .subAgg((sub) => sub.avg('avg_price', 'list_price'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "condos_only": {
+              "aggs": {
+                "avg_price": {
+                  "avg": {
+                    "field": "list_price",
+                  },
+                },
+              },
+              "filter": {
+                "term": {
+                  "property_class": "condo",
+                },
+              },
+            },
+          }
+        `);
+      });
+
+      it('global emits correct DSL', () => {
+        const result = aggregations(listingDetailMappings).global('all_listings').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "all_listings": {
+              "global": {},
+            },
+          }
+        `);
+      });
+
+      it('nested emits correct DSL for a nested path', () => {
+        const result = aggregations(productMappings).nested('by_variants', 'variants').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "by_variants": {
+              "nested": {
+                "path": "variants",
+              },
+            },
+          }
+        `);
+      });
+
+      it('nested with sub-aggregation aggregates inside nested context', () => {
+        const result = aggregations(productMappings)
+          .nested('by_variants', 'variants')
+          .subAgg((sub) => sub.terms('colors', 'color'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "by_variants": {
+              "aggs": {
+                "colors": {
+                  "terms": {
+                    "field": "color",
+                  },
+                },
+              },
+              "nested": {
+                "path": "variants",
+              },
+            },
+          }
+        `);
+      });
+
+      it('reverseNested emits correct DSL without path', () => {
+        const result = aggregations(productMappings)
+          .nested('by_variants', 'variants')
+          .subAgg((sub) => sub.terms('colors', 'color').subAgg((inner) => inner.reverseNested('back_to_root')))
+          .build();
+
+        expect(result.by_variants.aggs.colors.aggs.back_to_root).toStrictEqual({ reverse_nested: {} });
+      });
+
+      it('reverseNested emits correct DSL with path', () => {
+        const result = aggregations(productMappings)
+          .nested('by_variants', 'variants')
+          .subAgg((sub) => sub.reverseNested('back', 'variants'))
+          .build();
+
+        expect(result.by_variants.aggs.back).toStrictEqual({ reverse_nested: { path: 'variants' } });
+      });
+
+      it('global() chained after nested() adds global agg at root level', () => {
+        const result = aggregations(productMappings).nested('by_variants', 'variants').global('all_products').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "all_products": {
+              "global": {},
+            },
+            "by_variants": {
+              "nested": {
+                "path": "variants",
+              },
+            },
+          }
+        `);
+      });
+
+      it('nested() chained after nested() adds two root-level nested aggs', () => {
+        const result = aggregations(productMappings)
+          .nested('by_variants', 'variants')
+          .nested('by_variants_2', 'variants')
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "by_variants": {
+              "nested": {
+                "path": "variants",
+              },
+            },
+            "by_variants_2": {
+              "nested": {
+                "path": "variants",
+              },
+            },
+          }
+        `);
+      });
+
+      it('nested sub-agg can itself contain a nested agg (multi-level)', () => {
+        const deepMappings = mappings({
+          orders: nested({
+            items: nested({
+              sku: keyword(),
+              qty: integer()
+            })
+          })
+        });
+
+        const result = aggregations(deepMappings)
+          .nested('by_orders', 'orders')
+          .subAgg((sub) => sub.nested('by_items', 'items').subAgg((inner) => inner.terms('skus', 'sku')))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "by_orders": {
+              "aggs": {
+                "by_items": {
+                  "aggs": {
+                    "skus": {
+                      "terms": {
+                        "field": "sku",
+                      },
+                    },
+                  },
+                  "nested": {
+                    "path": "items",
+                  },
+                },
+              },
+              "nested": {
+                "path": "orders",
+              },
+            },
+          }
+        `);
+      });
+
+      it('chained .subAgg() calls merge sub-aggregations instead of overwriting', () => {
+        const result = aggregations(listingDetailMappings)
+          .terms('by_class', 'property_class')
+          .subAgg((sub) => sub.avg('avg_price', 'list_price'))
+          .subAgg((sub) => sub.max('max_price', 'list_price'))
+          .build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "by_class": {
+              "aggs": {
+                "avg_price": {
+                  "avg": {
+                    "field": "list_price",
+                  },
+                },
+                "max_price": {
+                  "max": {
+                    "field": "list_price",
+                  },
+                },
+              },
+              "terms": {
+                "field": "property_class",
+              },
+            },
+          }
+        `);
+      });
+
+      // eslint-disable-next-line vitest/expect-expect
+      it('reverseNested returns a builder typed to root-level fields', () => {
+        aggregations(productMappings)
+          .nested('by_variants', 'variants')
+          .subAgg((sub) =>
+            sub
+              .terms('colors', 'color')
+              .subAgg((inner) => inner.reverseNested('back_to_root').terms('by_category', 'category'))
+          );
+
+        aggregations(productMappings)
+          .nested('by_variants', 'variants')
+          .subAgg((sub) =>
+            sub
+              .reverseNested('back_to_root')
+              // @ts-expect-error — 'color' is a nested sub-field, not available after reverseNested
+              .terms('by_color', 'color')
+          );
+      });
+
       it('should create multiple bucket aggregations at same level', () => {
         const result = aggregations(listingDetailMappings)
           .terms('by_property_class', 'property_class', { size: 10 })
-          .terms('by_title', 'title', { size: 5 })
+          .terms('by_cap_rate', 'cap_rate', { size: 5 })
           .dateHistogram('by_date', 'listed_date', { interval: 'week' })
           .build();
 
         expect(result).toMatchObject({
           by_property_class: { terms: { field: 'property_class', size: 10 } },
-          by_title: { terms: { field: 'title', size: 5 } },
+          by_cap_rate: { terms: { field: 'cap_rate', size: 5 } },
           by_date: {
             date_histogram: { field: 'listed_date', interval: 'week' }
           }

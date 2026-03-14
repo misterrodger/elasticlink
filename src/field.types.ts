@@ -63,6 +63,11 @@ export type ScaledFloatFieldOptions = NumericFieldOptions & {
   scaling_factor?: number;
 };
 
+/** Options for unsigned_long fields — null_value accepts string or number for >MAX_SAFE_INTEGER precision */
+export type UnsignedLongFieldOptions = Omit<NumericFieldOptions, 'null_value'> & {
+  null_value?: string | number;
+};
+
 /** Options for date fields */
 export type DateFieldOptions = {
   boost?: number;
@@ -93,6 +98,16 @@ export type DenseVectorFieldOptions = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   index_options?: any;
   similarity?: 'cosine' | 'dot_product' | 'l2_norm' | 'max_inner_product';
+};
+
+/**
+ * Options for semantic_text fields (ES 9.x — ML-powered text field for semantic/hybrid search).
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/semantic-text.html
+ */
+export type SemanticTextFieldOptions = {
+  inference_id?: string;
+  search_inference_id?: string;
+  model_settings?: { task_type?: string; [key: string]: unknown };
 };
 
 /** Sub-fields for nested and object field types */
@@ -260,6 +275,9 @@ export type BooleanFieldMapping = TypedFieldMapping<'boolean'>;
 export type BinaryFieldMapping = TypedFieldMapping<'binary'>;
 export type IpFieldMapping = TypedFieldMapping<'ip'>;
 export type DenseVectorFieldMapping = TypedFieldMapping<'dense_vector'>;
+export type SparseVectorFieldMapping = TypedFieldMapping<'sparse_vector'>;
+export type SemanticTextFieldMapping = TypedFieldMapping<'semantic_text'>;
+export type UnsignedLongFieldMapping = TypedFieldMapping<'unsigned_long'>;
 export type GeoPointFieldMapping = TypedFieldMapping<'geo_point'>;
 export type GeoShapeFieldMapping = TypedFieldMapping<'geo_shape'>;
 export type CompletionFieldMapping = TypedFieldMapping<'completion'>;

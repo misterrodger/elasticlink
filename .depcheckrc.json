@@ -1,0 +1,7 @@
+{
+  "ignores": [
+    "@typescript-eslint/eslint-plugin",
+    "@typescript-eslint/parser",
+    "@vitest/coverage-v8"
+  ]
+}

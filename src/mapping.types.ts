@@ -67,6 +67,9 @@ type ESTypeToTS = {
   geo_point: { lat: number; lon: number };
   geo_shape: Record<string, unknown>;
   dense_vector: number[];
+  sparse_vector: Record<string, number>;
+  semantic_text: string;
+  unsigned_long: number | string;
   completion: string;
   search_as_you_type: string;
   nested: unknown;
@@ -123,7 +126,7 @@ export type KeywordFields<M extends Record<string, FieldTypeString>> = FieldsOfT
 
 export type NumericFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
   ExcludeNestedDescendants<M>,
-  'long' | 'integer' | 'short' | 'byte' | 'double' | 'float' | 'half_float' | 'scaled_float'
+  'long' | 'integer' | 'short' | 'byte' | 'double' | 'float' | 'half_float' | 'scaled_float' | 'unsigned_long'
 >;
 
 export type DateFields<M extends Record<string, FieldTypeString>> = FieldsOfType<ExcludeNestedDescendants<M>, 'date'>;
@@ -136,6 +139,11 @@ export type BooleanFields<M extends Record<string, FieldTypeString>> = FieldsOfT
 export type GeoPointFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
   ExcludeNestedDescendants<M>,
   'geo_point'
+>;
+
+export type GeoShapeFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
+  ExcludeNestedDescendants<M>,
+  'geo_shape'
 >;
 
 export type VectorFields<M extends Record<string, FieldTypeString>> = FieldsOfType<

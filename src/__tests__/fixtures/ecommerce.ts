@@ -1,11 +1,8 @@
-import { mappings, keyword, text, float, integer, boolean, object, nested } from '../../index.js';
+import { mappings, keyword, text, float, integer, boolean, object, nested, denseVector } from '../../index.js';
 import type { Infer } from '../../index.js';
 
 /**
  * E-commerce product schema — demonstrates both `object()` and `nested()` field types.
- *
- * `address` uses `object()`: a single structured value queried with dot-notation.
- * `variants` uses `nested()`: an array of objects where per-variant field relationships matter.
  */
 export const productMappings = mappings({
   name: text(),
@@ -55,4 +52,19 @@ export const PRODUCTS: Product[] = [
       { sku: 'TB-BLK-9', color: 'black', size: '9', price: 189.99, stock: 3 }
     ]
   }
+];
+
+export const vectorProductMappings = mappings({
+  title: keyword(),
+  category: keyword(),
+  embedding: denseVector({ dims: 3, similarity: 'cosine' })
+});
+
+export type VectorProduct = Infer<typeof vectorProductMappings>;
+
+export const VECTOR_PRODUCTS: VectorProduct[] = [
+  { title: 'alpha', category: 'a', embedding: [1.0, 0.0, 0.0] },
+  { title: 'beta', category: 'b', embedding: [0.0, 1.0, 0.0] },
+  { title: 'gamma', category: 'a', embedding: [0.0, 0.0, 1.0] },
+  { title: 'delta', category: 'b', embedding: [0.707, 0.707, 0.0] }
 ];

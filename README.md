@@ -24,6 +24,7 @@ elasticlink simplifies building Elasticsearch queries and index management in Ty
 
 | elasticlink | Node.js     | Elasticsearch |
 |-------------|-------------|---------------|
+| 0.7.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
 | 0.6.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
 | 0.5.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
 | 0.4.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
@@ -185,7 +186,7 @@ Aggregations can be combined with queries or used standalone:
 
 - **Bucket**: `terms()`, `dateHistogram()`, `histogram()`, `range()`
 - **Metric**: `avg()`, `sum()`, `min()`, `max()`, `cardinality()`, `percentiles()`, `stats()`, `valueCount()`
-- **Composition**: `subAgg()` for nested aggregations
+- **Composition**: `subAgg()` for nested aggregations — attaches sub-aggregations to the **last** aggregation defined before the call; chain order matters
 
 ```typescript
 import { query, aggregations } from 'elasticlink';
@@ -286,12 +287,14 @@ const hybridSearch = query(productWithEmbeddingMappings)
 ```
 
 **Common Vector Dimensions:**
+
 - **384-768**: Sentence transformers (all-MiniLM, all-mpnet)
 - **512**: Image embeddings (ResNet, ViT)
 - **1536**: OpenAI text-embedding-ada-002
 - **3072**: OpenAI text-embedding-3-large
 
 **Dense Vector Field Mapping Example:**
+
 ```typescript
 import type { DenseVectorOptions } from 'elasticlink';
 
@@ -347,6 +350,7 @@ const customScored = query(scoredProductMappings)
 ```
 
 **Script Languages:**
+
 - **painless** (default): Elasticsearch's primary scripting language
 - **expression**: Fast, limited expression language
 - **mustache**: Template-based scripting

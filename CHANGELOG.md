@@ -4,6 +4,24 @@ All notable changes to elasticlink will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
+## [0.7.0-beta] - TBD
+
+### Added
+
+- **ES 9.x field types**: `sparseVector()`, `semanticText()`, `unsignedLong()` field helpers
+- **Nested aggregation builders**: `RootAggregationBuilder`, `NestedAggregationBuilder`, `NestedEntryBuilder` — type-safe aggregation builders that constrain field access based on nested context
+- **New aggregation types**: `extendedStats()`, `topHits()`, `autoDateHistogram()`, `composite()`, `filter()`, `reverseNested()`, `global()`
+- **`geoShape` query**: `geoShape()` query method for spatial filtering with GeoJSON geometries
+- **`script` query**: `scriptQuery()` for custom Painless-based filtering
+- **Index analysis configuration**: `.analysis()` method on `indexBuilder()` for custom analyzers, tokenizers, and filters
+- **PIT pagination**: `pitId()` and `searchAfter()` methods on the query builder for stateful pagination
+- **CI quality checks**: `depcheck`, `jscpd`, and `license-checker` added to CI pipeline
+
+### Changed
+
+- **`reverseNested` type safety**: `reverseNested()` now correctly returns a builder typed to root-level fields instead of remaining in the nested sub-field context
+- **`unsigned_long` inferred type**: `Infer<>` now maps `unsigned_long` to `number | string` (ES returns strings for values exceeding `Number.MAX_SAFE_INTEGER`)
+
 ## [0.6.0-beta] - 2026-03-10
 
 ### Fixed

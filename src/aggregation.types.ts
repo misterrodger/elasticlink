@@ -17,10 +17,23 @@ import type {
   AggregationsPercentilesAggregation,
   AggregationsStatsAggregation,
   AggregationsValueCountAggregation,
-  AggregationsCalendarInterval
+  AggregationsCalendarInterval,
+  AggregationsExtendedStatsAggregation,
+  AggregationsTopHitsAggregation,
+  AggregationsAutoDateHistogramAggregation,
+  AggregationsCompositeAggregation,
+  AggregationsCompositeAggregationSource
 } from '@elastic/elasticsearch/lib/api/types';
 import type { FieldTypeString } from './index-management.types.js';
-import type { DateFields, NumericFields } from './mapping.types.js';
+import type {
+  DateFields,
+  NumericFields,
+  KeywordFields,
+  BooleanFields,
+  IpFields,
+  NestedPathFields,
+  SubFieldsOf
+} from './mapping.types.js';
 
 /**
  * Options for terms aggregation (excludes 'field' which is handled by the builder)
@@ -101,6 +114,35 @@ export type StatsAggOptions = Omit<AggregationsStatsAggregation, 'field'>;
 export type ValueCountAggOptions = Omit<AggregationsValueCountAggregation, 'field'>;
 
 /**
+ * Options for extended_stats aggregation (excludes 'field' which is handled by the builder)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-extendedstats-aggregation.html
+ */
+export type ExtendedStatsAggOptions = Omit<AggregationsExtendedStatsAggregation, 'field'>;
+
+/**
+ * Options for top_hits aggregation
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-top-hits-aggregation.html
+ */
+export type TopHitsAggOptions = AggregationsTopHitsAggregation;
+
+/**
+ * Options for auto_date_histogram aggregation (excludes 'field' which is handled by the builder)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-autodatehistogram-aggregation.html
+ */
+export type AutoDateHistogramAggOptions = Omit<AggregationsAutoDateHistogramAggregation, 'field'>;
+
+/**
+ * Source entry for composite aggregation — a named single-value source definition
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-composite-aggregation.html
+ */
+export type CompositeAggSource = Record<string, AggregationsCompositeAggregationSource>;
+
+/**
+ * Options for composite aggregation (excludes 'sources' which is handled by the builder)
+ */
+export type CompositeAggOptions = Omit<AggregationsCompositeAggregation, 'sources'>;
+
+/**
  * Aggregation state for build output
  */
 export type AggregationState = {
@@ -109,72 +151,133 @@ export type AggregationState = {
 };
 
 /**
- * Aggregation builder interface
+ * Shared metric and bucket aggregation methods.
+ * `Self` is the return type for each method — varies by context (root vs nested).
  */
-export type AggregationBuilder<M extends Record<string, FieldTypeString>> = {
-  /** Terms aggregation - group by field values */
-  terms: <K extends string & keyof M>(name: string, field: K, options?: TermsAggOptions) => AggregationBuilder<M>;
-
-  /** Date histogram aggregation - group by time intervals */
-  dateHistogram: <K extends DateFields<M> & string>(
+export type BaseAggMethods<M extends Record<string, FieldTypeString>, Self> = {
+  terms: <K extends (KeywordFields<M> | NumericFields<M> | BooleanFields<M> | IpFields<M>) & string>(
     name: string,
     field: K,
-    options?: DateHistogramAggOptions
-  ) => AggregationBuilder<M>;
+    options?: TermsAggOptions
+  ) => Self;
 
-  /** Range aggregation - group by numeric/date ranges */
-  range: <K extends string & keyof M>(name: string, field: K, options?: RangeAggOptions) => AggregationBuilder<M>;
+  dateHistogram: <K extends DateFields<M> & string>(name: string, field: K, options?: DateHistogramAggOptions) => Self;
 
-  /** Histogram aggregation - group by numeric intervals */
-  histogram: <K extends NumericFields<M> & string>(
+  range: <K extends (NumericFields<M> | DateFields<M>) & string>(
     name: string,
     field: K,
-    options?: HistogramAggOptions
-  ) => AggregationBuilder<M>;
+    options?: RangeAggOptions
+  ) => Self;
 
-  /** Average aggregation */
-  avg: <K extends NumericFields<M> & string>(name: string, field: K, options?: AvgAggOptions) => AggregationBuilder<M>;
+  histogram: <K extends NumericFields<M> & string>(name: string, field: K, options?: HistogramAggOptions) => Self;
 
-  /** Sum aggregation */
-  sum: <K extends NumericFields<M> & string>(name: string, field: K, options?: SumAggOptions) => AggregationBuilder<M>;
+  avg: <K extends NumericFields<M> & string>(name: string, field: K, options?: AvgAggOptions) => Self;
+  sum: <K extends NumericFields<M> & string>(name: string, field: K, options?: SumAggOptions) => Self;
+  min: <K extends NumericFields<M> & string>(name: string, field: K, options?: MinAggOptions) => Self;
+  max: <K extends NumericFields<M> & string>(name: string, field: K, options?: MaxAggOptions) => Self;
 
-  /** Minimum value aggregation */
-  min: <K extends NumericFields<M> & string>(name: string, field: K, options?: MinAggOptions) => AggregationBuilder<M>;
+  cardinality: <K extends string & keyof M>(name: string, field: K, options?: CardinalityAggOptions) => Self;
 
-  /** Maximum value aggregation */
-  max: <K extends NumericFields<M> & string>(name: string, field: K, options?: MaxAggOptions) => AggregationBuilder<M>;
+  percentiles: <K extends NumericFields<M> & string>(name: string, field: K, options?: PercentilesAggOptions) => Self;
 
-  /** Cardinality aggregation - count unique values */
-  cardinality: <K extends string & keyof M>(
+  stats: <K extends NumericFields<M> & string>(name: string, field: K, options?: StatsAggOptions) => Self;
+
+  valueCount: <K extends string & keyof M>(name: string, field: K, options?: ValueCountAggOptions) => Self;
+
+  extendedStats: <K extends NumericFields<M> & string>(
     name: string,
     field: K,
-    options?: CardinalityAggOptions
-  ) => AggregationBuilder<M>;
+    options?: ExtendedStatsAggOptions
+  ) => Self;
 
-  /** Percentiles aggregation */
-  percentiles: <K extends NumericFields<M> & string>(
+  topHits: (name: string, options?: TopHitsAggOptions) => Self;
+
+  autoDateHistogram: <K extends DateFields<M> & string>(
     name: string,
     field: K,
-    options?: PercentilesAggOptions
-  ) => AggregationBuilder<M>;
+    options?: AutoDateHistogramAggOptions
+  ) => Self;
 
-  /** Statistics aggregation (count, min, max, avg, sum) */
-  stats: <K extends NumericFields<M> & string>(
-    name: string,
-    field: K,
-    options?: StatsAggOptions
-  ) => AggregationBuilder<M>;
+  composite: (name: string, sources: CompositeAggSource[], options?: CompositeAggOptions) => Self;
 
-  /** Value count aggregation */
-  valueCount: <K extends string & keyof M>(
-    name: string,
-    field: K,
-    options?: ValueCountAggOptions
-  ) => AggregationBuilder<M>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  filter: (name: string, query: Record<string, any>) => Self;
 
-  /** Add sub-aggregation to parent bucket aggregation */
-  subAgg: (fn: (agg: AggregationBuilder<M>) => AggregationBuilder<M>) => AggregationBuilder<M>;
-
-  /** Build aggregation DSL */
   build: () => AggregationState;
 };
+
+/**
+ * Root-level aggregation builder. Supports `global` and `nested`; does not expose `reverseNested`.
+ *
+ * Declared as an `interface` (not a `type` alias) so that TypeScript's lazy interface resolution
+ * handles the 3-way mutual recursion between `RootAggregationBuilder`, `NestedEntryBuilder`,
+ * and `NestedAggregationBuilder` without triggering TS2456 (circular type alias).
+ */
+export interface RootAggregationBuilder<M extends Record<string, FieldTypeString>> extends BaseAggMethods<
+  M,
+  RootAggregationBuilder<M>
+> {
+  /** Global aggregation — escapes the current filter context to aggregate across all documents.
+   * @remarks Only valid at the root aggregation level, not inside a nested context. */
+  global: (name: string) => RootAggregationBuilder<M>;
+
+  /** Nested aggregation — enters a nested document context for aggregating nested fields.
+   * Returns a `NestedEntryBuilder` whose `subAgg` callback receives the nested sub-field types. */
+  nested: <K extends NestedPathFields<M> & string>(
+    name: string,
+    path: K
+  ) => NestedEntryBuilder<M, SubFieldsOf<M, K>, RootAggregationBuilder<M>, M>;
+
+  /** Add sub-aggregation to the last bucket aggregation */
+  subAgg: (fn: (agg: RootAggregationBuilder<M>) => RootAggregationBuilder<M>) => RootAggregationBuilder<M>;
+}
+
+/**
+ * Returned by `.nested()` on a root or nested builder.
+ *
+ * Dual-context design: metric/bucket helpers inherited from `BaseAggMethods<M, R>` operate
+ * on the parent field map `M` (sibling aggregations), while the `subAgg` callback is typed
+ * to `NestedAggregationBuilder<N>`, giving it access only to the nested sub-fields `N`.
+ *
+ * `R` is the parent context — `RootAggregationBuilder<M>` when called from root,
+ * `NestedAggregationBuilder<M>` when called from inside a nested context.
+ */
+export interface NestedEntryBuilder<
+  M extends Record<string, FieldTypeString>,
+  N extends Record<string, FieldTypeString>,
+  R = RootAggregationBuilder<M>,
+  Root extends Record<string, FieldTypeString> = M
+> extends BaseAggMethods<M, R> {
+  global: (name: string) => RootAggregationBuilder<M>;
+
+  nested: <K extends NestedPathFields<M> & string>(
+    name: string,
+    path: K
+  ) => NestedEntryBuilder<M, SubFieldsOf<M, K>, R, Root>;
+
+  subAgg: (fn: (agg: NestedAggregationBuilder<N, Root>) => NestedAggregationBuilder<N, Root>) => R;
+}
+
+/**
+ * Nested-context aggregation builder. Supports `reverseNested` and nested-level `nested`;
+ * does not expose `global`.
+ */
+export interface NestedAggregationBuilder<
+  N extends Record<string, FieldTypeString>,
+  Root extends Record<string, FieldTypeString> = N
+> extends BaseAggMethods<N, NestedAggregationBuilder<N, Root>> {
+  /** Nested aggregation within a nested context — supports multi-level nesting */
+  nested: <K extends NestedPathFields<N> & string>(
+    name: string,
+    path: K
+  ) => NestedEntryBuilder<N, SubFieldsOf<N, K>, NestedAggregationBuilder<N, Root>, Root>;
+
+  /** Reverse nested aggregation — returns from a nested context back to the root document.
+   * @remarks Only valid inside a nested aggregation context. */
+  reverseNested: (name: string, path?: string) => NestedAggregationBuilder<Root, Root>;
+
+  /** Add sub-aggregation to the last bucket aggregation */
+  subAgg: (
+    fn: (agg: NestedAggregationBuilder<N, Root>) => NestedAggregationBuilder<N, Root>
+  ) => NestedAggregationBuilder<N, Root>;
+}

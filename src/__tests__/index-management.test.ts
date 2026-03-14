@@ -33,7 +33,10 @@ import {
   constantKeyword,
   wildcardField,
   flattened,
-  quantizedDenseVector
+  quantizedDenseVector,
+  sparseVector,
+  semanticText,
+  unsignedLong
 } from '..';
 
 describe('Index Management', () => {
@@ -1878,6 +1881,122 @@ describe('Index Management', () => {
           },
         }
       `);
+    });
+  });
+
+  describe('New field helpers (ES 9.x)', () => {
+    it('sparseVector emits sparse_vector type', () => {
+      const result = indexBuilder().mappings({ tokens: sparseVector() }).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "tokens": {
+                "type": "sparse_vector",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('semanticText emits semantic_text type with inference_id', () => {
+      const result = indexBuilder()
+        .mappings({ body: semanticText({ inference_id: '.elser-2-elasticsearch' }) })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "body": {
+                "inference_id": ".elser-2-elasticsearch",
+                "type": "semantic_text",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('unsignedLong emits unsigned_long type', () => {
+      const result = indexBuilder().mappings({ file_size: unsignedLong() }).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "file_size": {
+                "type": "unsigned_long",
+              },
+            },
+          },
+        }
+      `);
+    });
+  });
+
+  describe('analysis() builder method', () => {
+    it('emits analysis settings merged under settings.analysis', () => {
+      const result = indexBuilder()
+        .mappings({ body: text() })
+        .analysis({
+          analyzer: {
+            my_analyzer: { type: 'custom', tokenizer: 'standard', filter: ['lowercase', 'stop'] }
+          },
+          filter: {
+            stop: { type: 'stop', stopwords: '_english_' }
+          }
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "mappings": {
+            "dynamic": "strict",
+            "properties": {
+              "body": {
+                "type": "text",
+              },
+            },
+          },
+          "settings": {
+            "analysis": {
+              "analyzer": {
+                "my_analyzer": {
+                  "filter": [
+                    "lowercase",
+                    "stop",
+                  ],
+                  "tokenizer": "standard",
+                  "type": "custom",
+                },
+              },
+              "filter": {
+                "stop": {
+                  "stopwords": "_english_",
+                  "type": "stop",
+                },
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('analysis() merges with existing settings rather than replacing them', () => {
+      const result = indexBuilder()
+        .settings({ number_of_shards: 1 })
+        .analysis({ analyzer: { default: { type: 'standard' } } })
+        .build();
+
+      expect(result.settings?.number_of_shards).toBe(1);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((result.settings as any)?.analysis?.analyzer?.default).toStrictEqual({ type: 'standard' });
     });
   });
 });

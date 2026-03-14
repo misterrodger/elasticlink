@@ -11,7 +11,7 @@ export type { QueryBuilder, ClauseBuilder } from './query.types.js';
 
 // Aggregations API
 export { aggregations } from './aggregation.builder.js';
-export type { AggregationBuilder } from './aggregation.types.js';
+export type { RootAggregationBuilder, NestedAggregationBuilder, NestedEntryBuilder } from './aggregation.types.js';
 
 // Mappings API
 export { mappings } from './mapping.builder.js';
@@ -48,7 +48,10 @@ export {
   constantKeyword,
   wildcardField,
   flattened,
-  quantizedDenseVector
+  quantizedDenseVector,
+  sparseVector,
+  semanticText,
+  unsignedLong
 } from './field.helpers.js';
 export type {
   MappingsSchema,
@@ -60,10 +63,16 @@ export type {
   DateFields,
   BooleanFields,
   GeoPointFields,
+  GeoShapeFields,
   VectorFields,
   IpFields
 } from './mapping.types.js';
-export type { FieldMappingWithLiteralType, TypedNestedFieldMapping, TypedObjectFieldMapping } from './field.types.js';
+export type {
+  FieldMappingWithLiteralType,
+  TypedNestedFieldMapping,
+  TypedObjectFieldMapping,
+  UnsignedLongFieldOptions
+} from './field.types.js';
 
 // Multi-search API
 export { msearch } from './multi-search.builder.js';
@@ -75,7 +84,12 @@ export type { BulkBuilder } from './bulk.types.js';
 
 // Index Management API
 export { indexBuilder } from './index-management.builder.js';
-export type { IndexBuilder } from './index-management.types.js';
+export type {
+  IndexBuilder,
+  AnalysisConfig,
+  AnalysisAnalyzerConfig,
+  AnalysisComponentConfig
+} from './index-management.types.js';
 
 // Suggester API
 export { suggest } from './suggester.builder.js';
