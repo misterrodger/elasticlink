@@ -1,6 +1,7 @@
 import { query, indexBuilder } from '../../index.js';
-import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from './helpers.js';
-import { attorneyMappings, ATTORNEYS } from './fixtures/legal.js';
+import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from '../helpers';
+import { attorneyMappings } from '../fixtures/legal.schema.js';
+import { ATTORNEYS } from '../fixtures/legal.data.js';
 
 const INDEX = 'int-suggester';
 

@@ -4,8 +4,3 @@ coverage/
 *.log
 .DS_Store
 .env
-BETA_RELEASE_GUIDE.md
-.claude/
-.mcp.json
-CLAUDE.md
-pr_feedback.json

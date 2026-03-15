@@ -1,9 +1,9 @@
 import { query, mappings, keyword, text, nested, float, percolator } from '..';
 import type { Infer } from '..';
-import { listingMappings, listingDetailMappings, geoListingMappings } from './fixtures/real-estate.js';
-import { instrumentWithEmbeddingMappings, scoredInstrumentMappings } from './fixtures/finance.js';
-import { productMappings } from './fixtures/ecommerce.js';
-import { deepObjectMappings, deepNestedMappings } from './fixtures/logistics.js';
+import { listingMappings, listingDetailMappings, geoListingMappings } from './fixtures/real-estate.schema.js';
+import { instrumentWithEmbeddingMappings } from './fixtures/finance.schema.js';
+import { productMappings } from './fixtures/ecommerce.schema.js';
+import { deepObjectMappings, deepNestedMappings } from './fixtures/logistics.schema.js';
 
 const percolatorDocMappings = mappings({
   query: percolator(),
@@ -5350,15 +5350,15 @@ describe('QueryBuilder', () => {
               k: 5,
               num_candidates: 50
             })
-            ._source(['address', 'list_price', 'property_class'])
+            ._source(['name', 'sector', 'market_cap'])
             .build();
 
           expect(result).toMatchInlineSnapshot(`
             {
               "_source": [
-                "address",
-                "list_price",
-                "property_class",
+                "name",
+                "sector",
+                "market_cap",
               ],
               "knn": {
                 "field": "embedding",
@@ -5379,7 +5379,7 @@ describe('QueryBuilder', () => {
               k: 10,
               num_candidates: 100
             })
-            .sort('list_price', 'asc')
+            .sort('market_cap', 'asc')
             .build();
 
           expect(result).toMatchInlineSnapshot(`
@@ -5395,7 +5395,7 @@ describe('QueryBuilder', () => {
               },
               "sort": [
                 {
-                  "list_price": "asc",
+                  "market_cap": "asc",
                 },
               ],
             }
@@ -5653,14 +5653,14 @@ describe('QueryBuilder', () => {
             })
             .size(20)
             .from(0)
-            ._source(['address', 'list_price'])
+            ._source(['name', 'asset_class'])
             .timeout('10s')
             .build();
 
           expect(result.knn).toBeDefined();
           expect(result.size).toBe(20);
           expect(result.from).toBe(0);
-          expect(result._source).toStrictEqual(['address', 'list_price']);
+          expect(result._source).toStrictEqual(['name', 'asset_class']);
           expect(result.timeout).toBe('10s');
         });
 
@@ -5688,7 +5688,7 @@ describe('QueryBuilder', () => {
               num_candidates: 100,
               filter: { term: { category: 'electronics' } }
             })
-            .aggs((agg) => agg.terms('categories', 'property_class', { size: 10 }))
+            .aggs((agg) => agg.terms('categories', 'sector', { size: 10 }))
             .build();
 
           expect(result.knn).toBeDefined();
@@ -5806,7 +5806,7 @@ describe('QueryBuilder', () => {
                 num_candidates: 100
               })
             )
-            .filter((q) => q.term('property_class', 'electronics'))
+            .filter((q) => q.term('sector', 'technology'))
             .build();
 
           expect(result.query?.bool?.should).toHaveLength(1);
@@ -5829,7 +5829,7 @@ describe('QueryBuilder', () => {
               boost: 1.2
             })
             .size(10)
-            ._source(['address', 'description', 'list_price'])
+            ._source(['name', 'sector', 'asset_class'])
             .build();
 
           expect(result.knn).toBeDefined();
@@ -5875,7 +5875,7 @@ describe('QueryBuilder', () => {
     describe('Script queries', () => {
       describe('Basic script queries', () => {
         it('build a basic script query', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .script({
               source: "doc['list_price'].value > 100"
             })
@@ -5896,7 +5896,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build script query with parameters', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .script({
               source: "doc['list_price'].value > params.min_price",
               params: { min_price: 100 }
@@ -5921,7 +5921,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build script query with boost', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .script({
               source: "doc['liquidity_score'].value > 1000",
               boost: 2.0
@@ -5944,7 +5944,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build script query with expression language', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .script({
               source: "doc['list_price'].value * 1.1",
               lang: 'expression'
@@ -5955,7 +5955,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build script query with mustache template', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .script({
               source: '{"term": {"name": "{{product_name}}"}}',
               lang: 'mustache',
@@ -5970,7 +5970,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build script query with complex parameters', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .script({
               source: "doc['list_price'].value * params.multiplier + params.offset",
               params: {
@@ -5989,7 +5989,7 @@ describe('QueryBuilder', () => {
 
       describe('Script in bool query context', () => {
         it('support script in bool must', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .bool()
             .must((q) =>
               q.script({
@@ -6019,11 +6019,11 @@ describe('QueryBuilder', () => {
         });
 
         it('support script in bool filter', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .bool()
             .filter((q) =>
               q.script({
-                source: "doc['momentum_score'].value >= params.min_quality",
+                source: "doc['cap_rate'].value >= params.min_quality",
                 params: { min_quality: 8 }
               })
             )
@@ -6034,7 +6034,7 @@ describe('QueryBuilder', () => {
         });
 
         it('combine script with other queries', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .bool()
             .must((q) => q.match('address', 'laptop'))
             .filter((q) =>
@@ -6052,9 +6052,9 @@ describe('QueryBuilder', () => {
 
       describe('Script score queries', () => {
         it('build basic script_score query', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .scriptScore((q) => q.matchAll(), {
-              source: "doc['liquidity_score'].value * 0.1"
+              source: "doc['list_price'].value * 0.1"
             })
             .build();
 
@@ -6067,7 +6067,7 @@ describe('QueryBuilder', () => {
                   },
                   "script": {
                     "lang": "painless",
-                    "source": "doc['liquidity_score'].value * 0.1",
+                    "source": "doc['list_price'].value * 0.1",
                   },
                 },
               },
@@ -6076,9 +6076,9 @@ describe('QueryBuilder', () => {
         });
 
         it('build script_score with inner query', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .scriptScore((q) => q.match('address', 'laptop'), {
-              source: "_score * doc['liquidity_score'].value"
+              source: "_score * doc['list_price'].value"
             })
             .build();
 
@@ -6087,7 +6087,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build script_score with parameters', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .scriptScore((q) => q.term('property_class', 'electronics'), {
               source: '_score * params.boost_factor',
               params: { boost_factor: 2.5 }
@@ -6098,8 +6098,8 @@ describe('QueryBuilder', () => {
         });
 
         it('build script_score with min_score', () => {
-          const result = query(scoredInstrumentMappings)
-            .scriptScore((q) => q.matchAll(), { source: "doc['momentum_score'].value" }, { min_score: 5.0 })
+          const result = query(listingDetailMappings)
+            .scriptScore((q) => q.matchAll(), { source: "doc['cap_rate'].value" }, { min_score: 5.0 })
             .build();
 
           expect(result).toMatchInlineSnapshot(`
@@ -6112,7 +6112,7 @@ describe('QueryBuilder', () => {
                   },
                   "script": {
                     "lang": "painless",
-                    "source": "doc['momentum_score'].value",
+                    "source": "doc['cap_rate'].value",
                   },
                 },
               },
@@ -6121,10 +6121,10 @@ describe('QueryBuilder', () => {
         });
 
         it('build script_score with boost', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .scriptScore(
               (q) => q.term('property_class', 'premium'),
-              { source: "Math.log(2 + doc['liquidity_score'].value)" },
+              { source: "Math.log(2 + doc['sqft'].value)" },
               { boost: 1.5 }
             )
             .build();
@@ -6133,11 +6133,11 @@ describe('QueryBuilder', () => {
         });
 
         it('build script_score with min_score and boost', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .scriptScore(
               (q) => q.range('list_price', { gte: 100 }),
               {
-                source: "_score * doc['momentum_score'].value * params.weight",
+                source: "_score * doc['cap_rate'].value * params.weight",
                 params: { weight: 0.5 }
               },
               { min_score: 10, boost: 2.0 }
@@ -6149,11 +6149,11 @@ describe('QueryBuilder', () => {
         });
 
         it('build script_score with complex scoring formula', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .scriptScore((q) => q.match('description', 'quality'), {
               source: `
                   double popularity = doc['liquidity_score'].value;
-                  double quality = doc['momentum_score'].value;
+                  double quality = doc['cap_rate'].value;
                   return _score * (popularity * 0.3 + quality * 0.7);
                 `.trim()
             })
@@ -6166,7 +6166,7 @@ describe('QueryBuilder', () => {
 
       describe('Script edge cases', () => {
         it('defaults scriptScore inner query to match_all when callback returns undefined', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .scriptScore(() => undefined as any, { source: '_score' })
             .build();
@@ -6175,19 +6175,19 @@ describe('QueryBuilder', () => {
         });
 
         it('handle empty script source', () => {
-          const result = query(scoredInstrumentMappings).script({ source: '' }).build();
+          const result = query(listingDetailMappings).script({ source: '' }).build();
 
           expect(result.query?.script?.script?.source).toBe('');
         });
 
         it('handle script without parameters', () => {
-          const result = query(scoredInstrumentMappings).script({ source: 'true' }).build();
+          const result = query(listingDetailMappings).script({ source: 'true' }).build();
 
           expect(result.query?.script?.script?.params).toBeUndefined();
         });
 
         it('handle empty params object', () => {
-          const result = query(scoredInstrumentMappings)
+          const result = query(listingDetailMappings)
             .script({ source: "doc['list_price'].value > 0", params: {} })
             .build();
 

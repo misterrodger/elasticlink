@@ -1,3 +1,4 @@
+import type { QueryDslQueryContainer } from '@elastic/elasticsearch/lib/api/types';
 import type { FieldTypeString } from './index-management.types.js';
 import type { MappingsSchema, NestedPathFields, SubFieldsOf } from './mapping.types.js';
 import type {
@@ -30,55 +31,53 @@ import type {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sharedAggMethods = (state: AggregationState, rebuild: (s: AggregationState) => any) => ({
   terms: (name: string, field: string, options?: TermsAggOptions) =>
-    rebuild({ ...state, [name]: { terms: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { terms: { field, ...options } } }),
 
   dateHistogram: (name: string, field: string, options?: DateHistogramAggOptions) =>
-    rebuild({ ...state, [name]: { date_histogram: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { date_histogram: { field, ...options } } }),
 
   range: (name: string, field: string, options?: RangeAggOptions) =>
-    rebuild({ ...state, [name]: { range: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { range: { field, ...options } } }),
 
   histogram: (name: string, field: string, options?: HistogramAggOptions) =>
-    rebuild({ ...state, [name]: { histogram: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { histogram: { field, ...options } } }),
 
   avg: (name: string, field: string, options?: AvgAggOptions) =>
-    rebuild({ ...state, [name]: { avg: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { avg: { field, ...options } } }),
 
   sum: (name: string, field: string, options?: SumAggOptions) =>
-    rebuild({ ...state, [name]: { sum: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { sum: { field, ...options } } }),
 
   min: (name: string, field: string, options?: MinAggOptions) =>
-    rebuild({ ...state, [name]: { min: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { min: { field, ...options } } }),
 
   max: (name: string, field: string, options?: MaxAggOptions) =>
-    rebuild({ ...state, [name]: { max: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { max: { field, ...options } } }),
 
   cardinality: (name: string, field: string, options?: CardinalityAggOptions) =>
-    rebuild({ ...state, [name]: { cardinality: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { cardinality: { field, ...options } } }),
 
   percentiles: (name: string, field: string, options?: PercentilesAggOptions) =>
-    rebuild({ ...state, [name]: { percentiles: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { percentiles: { field, ...options } } }),
 
   stats: (name: string, field: string, options?: StatsAggOptions) =>
-    rebuild({ ...state, [name]: { stats: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { stats: { field, ...options } } }),
 
   valueCount: (name: string, field: string, options?: ValueCountAggOptions) =>
-    rebuild({ ...state, [name]: { value_count: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { value_count: { field, ...options } } }),
 
   extendedStats: (name: string, field: string, options?: ExtendedStatsAggOptions) =>
-    rebuild({ ...state, [name]: { extended_stats: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { extended_stats: { field, ...options } } }),
 
-  topHits: (name: string, options?: TopHitsAggOptions) =>
-    rebuild({ ...state, [name]: { top_hits: { ...(options ?? {}) } } }),
+  topHits: (name: string, options?: TopHitsAggOptions) => rebuild({ ...state, [name]: { top_hits: { ...options } } }),
 
   autoDateHistogram: (name: string, field: string, options?: AutoDateHistogramAggOptions) =>
-    rebuild({ ...state, [name]: { auto_date_histogram: { field, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { auto_date_histogram: { field, ...options } } }),
 
   composite: (name: string, sources: CompositeAggSource[], options?: CompositeAggOptions) =>
-    rebuild({ ...state, [name]: { composite: { sources, ...(options ?? {}) } } }),
+    rebuild({ ...state, [name]: { composite: { sources, ...options } } }),
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  filter: (name: string, query: Record<string, any>) => rebuild({ ...state, [name]: { filter: query } }),
+  filter: (name: string, query: QueryDslQueryContainer) => rebuild({ ...state, [name]: { filter: query } }),
 
   // eslint-disable-next-line functional/functional-parameters
   build: () => state

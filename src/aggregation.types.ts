@@ -22,7 +22,8 @@ import type {
   AggregationsTopHitsAggregation,
   AggregationsAutoDateHistogramAggregation,
   AggregationsCompositeAggregation,
-  AggregationsCompositeAggregationSource
+  AggregationsCompositeAggregationSource,
+  QueryDslQueryContainer
 } from '@elastic/elasticsearch/lib/api/types';
 import type { FieldTypeString } from './index-management.types.js';
 import type {
@@ -200,8 +201,7 @@ export type BaseAggMethods<M extends Record<string, FieldTypeString>, Self> = {
 
   composite: (name: string, sources: CompositeAggSource[], options?: CompositeAggOptions) => Self;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  filter: (name: string, query: Record<string, any>) => Self;
+  filter: (name: string, query: QueryDslQueryContainer) => Self;
 
   build: () => AggregationState;
 };

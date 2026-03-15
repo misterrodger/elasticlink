@@ -19,6 +19,7 @@ import type {
   QueryDslSimpleQueryStringQuery,
   QueryDslMoreLikeThisQuery,
   QueryDslMatchBoolPrefixQuery,
+  QueryDslNestedQuery,
   SearchHighlightBase,
   Script
 } from '@elastic/elasticsearch/lib/api/types';
@@ -86,6 +87,7 @@ export type QueryStringOptions = Omit<QueryDslQueryStringQuery, 'query'>;
 export type SimpleQueryStringOptions = Omit<QueryDslSimpleQueryStringQuery, 'query'>;
 export type MoreLikeThisOptions = Omit<QueryDslMoreLikeThisQuery, 'fields' | 'like'>;
 export type MatchBoolPrefixOptions = Omit<QueryDslMatchBoolPrefixQuery, 'query'>;
+export type NestedOptions = Omit<QueryDslNestedQuery, 'path' | 'query'>;
 
 // ---------------------------------------------------------------------------
 // Derived field groups
@@ -254,7 +256,7 @@ export type ClauseBuilder<M extends Record<string, FieldTypeString>> = {
   nested: <K extends NestedPathFields<M> & string>(
     path: K,
     fn: (q: ClauseBuilder<SubFieldsOf<M, K>>) => any,
-    options?: { score_mode?: 'avg' | 'sum' | 'min' | 'max' | 'none' }
+    options?: NestedOptions
   ) => any;
   when: (condition: unknown, thenFn: (q: ClauseBuilder<M>) => any) => any | undefined;
 };
@@ -318,7 +320,7 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
   nested: <K extends NestedPathFields<M> & string>(
     path: K,
     fn: (q: ClauseBuilder<SubFieldsOf<M, K>>) => any,
-    options?: { score_mode?: 'avg' | 'sum' | 'min' | 'max' | 'none' }
+    options?: NestedOptions
   ) => QueryBuilder<M>;
 
   knn: <K extends VectorFields<M> & string>(field: K, queryVector: number[], options: KnnOptions) => QueryBuilder<M>;

@@ -14,8 +14,7 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/**/*.test.ts',
         'src/**/*.types.ts',
-        'src/__tests__/fixtures/**',
-        'src/__tests__/integration/**',
+        'src/__tests__/**'
       ],
       thresholds: {
         branches: 97,

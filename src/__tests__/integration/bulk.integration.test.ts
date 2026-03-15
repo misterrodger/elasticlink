@@ -1,6 +1,6 @@
 import { bulk, query, indexBuilder } from '../../index.js';
-import { createIndex, deleteIndex, refreshIndex, search, bulkRequest } from './helpers.js';
-import { tradeMappings } from './fixtures/finance.js';
+import { createIndex, deleteIndex, refreshIndex, search, bulkRequest } from '../helpers';
+import { tradeMappings } from '../fixtures/finance.schema.js';
 
 const INDEX = 'int-bulk';
 
