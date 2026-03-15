@@ -1,6 +1,7 @@
 import { query, indexBuilder } from '../../index.js';
-import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from './helpers.js';
-import { matterMappings, MATTERS } from './fixtures/legal.js';
+import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from '../helpers';
+import { matterMappings } from '../fixtures/legal.schema.js';
+import { MATTERS } from '../fixtures/legal.data.js';
 
 const INDEX = 'int-aggregation';
 

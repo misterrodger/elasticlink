@@ -1,5 +1,6 @@
 import { bulk } from '..';
-import { Matter, matterMappings } from './fixtures/legal.js';
+import { matterMappings } from './fixtures/legal.schema.js';
+import { MATTERS } from './fixtures/legal.data.js';
 
 describe('Bulk API', () => {
   describe('Builder behavior', () => {
@@ -657,29 +658,8 @@ describe('Bulk API', () => {
 
   describe('Real-world bulk scenarios', () => {
     it('should batch matter index operations', () => {
-      const matters: Matter[] = [
-        {
-          matter_id: 'M-1001',
-          title: 'Mergers & Acquisitions Advisory',
-          practice_area: 'corporate',
-          billing_rate: 850
-        },
-        {
-          matter_id: 'M-1002',
-          title: 'SEC Compliance Review',
-          practice_area: 'securities',
-          billing_rate: 725
-        },
-        {
-          matter_id: 'M-1003',
-          title: 'IP Portfolio Audit',
-          practice_area: 'intellectual-property',
-          billing_rate: 650
-        }
-      ];
-
       let bulkOp = bulk(matterMappings);
-      for (const matter of matters) {
+      for (const matter of MATTERS) {
         bulkOp = bulkOp.index(matter, {
           _index: 'matters',
           _id: matter.matter_id
@@ -699,7 +679,9 @@ describe('Bulk API', () => {
           {
             "billing_rate": 850,
             "matter_id": "M-1001",
+            "opened_at": "2023-01-10",
             "practice_area": "corporate",
+            "risk_score": 3.2,
             "title": "Mergers & Acquisitions Advisory",
           },
           {
@@ -709,10 +691,12 @@ describe('Bulk API', () => {
             },
           },
           {
-            "billing_rate": 725,
+            "billing_rate": 920,
             "matter_id": "M-1002",
+            "opened_at": "2023-05-22",
             "practice_area": "securities",
-            "title": "SEC Compliance Review",
+            "risk_score": 4.7,
+            "title": "SEC Enforcement Defense",
           },
           {
             "index": {
@@ -721,10 +705,26 @@ describe('Bulk API', () => {
             },
           },
           {
-            "billing_rate": 650,
+            "billing_rate": 780,
             "matter_id": "M-1003",
+            "opened_at": "2022-08-14",
             "practice_area": "intellectual-property",
-            "title": "IP Portfolio Audit",
+            "risk_score": 3.9,
+            "title": "Patent Infringement Litigation",
+          },
+          {
+            "index": {
+              "_id": "M-1004",
+              "_index": "matters",
+            },
+          },
+          {
+            "billing_rate": 620,
+            "matter_id": "M-1004",
+            "opened_at": "2021-11-03",
+            "practice_area": "real-estate",
+            "risk_score": 2.1,
+            "title": "Commercial Real Estate Finance",
           },
         ]
       `);

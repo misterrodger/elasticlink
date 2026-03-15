@@ -1,6 +1,6 @@
 import { aggregations, integer, keyword, mappings, nested } from '..';
-import { listingDetailMappings } from './fixtures/real-estate.js';
-import { productMappings } from './fixtures/ecommerce.js';
+import { listingDetailMappings } from './fixtures/real-estate.schema.js';
+import { productMappings } from './fixtures/ecommerce.schema.js';
 
 describe('AggregationBuilder', () => {
   describe('Builder behavior', () => {

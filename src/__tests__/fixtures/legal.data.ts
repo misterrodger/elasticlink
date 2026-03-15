@@ -1,18 +1,8 @@
-import { mappings, text, keyword, integer, float, date, completion } from '../../../index.js';
-import type { Infer } from '../../../index.js';
+import type { Matter, Attorney } from './legal.schema.js';
 
-export const matterMappings = mappings({
-  title: text(),
-  practice_area: keyword(),
-  billing_rate: integer(),
-  risk_score: float(),
-  opened_at: date()
-});
-
-export type Matter = Infer<typeof matterMappings>;
-
-export const MATTERS = [
+export const MATTERS: Matter[] = [
   {
+    matter_id: 'M-1001',
     title: 'Mergers & Acquisitions Advisory',
     practice_area: 'corporate',
     billing_rate: 850,
@@ -20,6 +10,7 @@ export const MATTERS = [
     opened_at: '2023-01-10'
   },
   {
+    matter_id: 'M-1002',
     title: 'SEC Enforcement Defense',
     practice_area: 'securities',
     billing_rate: 920,
@@ -27,6 +18,7 @@ export const MATTERS = [
     opened_at: '2023-05-22'
   },
   {
+    matter_id: 'M-1003',
     title: 'Patent Infringement Litigation',
     practice_area: 'intellectual-property',
     billing_rate: 780,
@@ -34,6 +26,7 @@ export const MATTERS = [
     opened_at: '2022-08-14'
   },
   {
+    matter_id: 'M-1004',
     title: 'Commercial Real Estate Finance',
     practice_area: 'real-estate',
     billing_rate: 620,
@@ -42,15 +35,7 @@ export const MATTERS = [
   }
 ];
 
-export const attorneyMappings = mappings({
-  name: text(),
-  practice_area: keyword(),
-  name_suggest: completion()
-});
-
-export type Attorney = Infer<typeof attorneyMappings>;
-
-export const ATTORNEYS = [
+export const ATTORNEYS: Attorney[] = [
   {
     name: 'Sarah Chen',
     practice_area: 'corporate',

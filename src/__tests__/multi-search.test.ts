@@ -1,5 +1,5 @@
 import { query, msearch } from '..';
-import { matterMappings } from './fixtures/legal.js';
+import { matterMappings } from './fixtures/legal.schema.js';
 
 describe('Multi-Search API', () => {
   describe('add() method', () => {

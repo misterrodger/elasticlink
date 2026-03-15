@@ -1,5 +1,6 @@
 import { query } from '..';
-import { instrumentMappings, scoredInstrumentMappings } from './fixtures/finance';
+import { instrumentMappings } from './fixtures/finance.schema.js';
+import { listingDetailMappings } from './fixtures/real-estate.schema.js';
 
 describe('QueryBuilder Extensions', () => {
   describe('Search parameters', () => {
@@ -227,14 +228,14 @@ describe('QueryBuilder Extensions', () => {
 
   describe('New query types', () => {
     it('should build combinedFields query', () => {
-      const result = query(scoredInstrumentMappings).combinedFields(['name', 'address'], 'technology company').build();
+      const result = query(listingDetailMappings).combinedFields(['title', 'address'], 'technology company').build();
 
       expect(result).toMatchInlineSnapshot(`
         {
           "query": {
             "combined_fields": {
               "fields": [
-                "name",
+                "title",
                 "address",
               ],
               "query": "technology company",
@@ -245,8 +246,8 @@ describe('QueryBuilder Extensions', () => {
     });
 
     it('should build combinedFields query with options', () => {
-      const result = query(scoredInstrumentMappings)
-        .combinedFields(['name', 'address'], 'tech', { operator: 'and' })
+      const result = query(listingDetailMappings)
+        .combinedFields(['title', 'address'], 'tech', { operator: 'and' })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -254,7 +255,7 @@ describe('QueryBuilder Extensions', () => {
           "query": {
             "combined_fields": {
               "fields": [
-                "name",
+                "title",
                 "address",
               ],
               "operator": "and",

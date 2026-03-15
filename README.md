@@ -24,6 +24,7 @@ elasticlink simplifies building Elasticsearch queries and index management in Ty
 
 | elasticlink | Node.js     | Elasticsearch |
 |-------------|-------------|---------------|
+| 0.8.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
 | 0.7.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
 | 0.6.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |
 | 0.5.0-beta  | 20, 22, 24  | 9.x (≥9.0.0)  |

@@ -1,6 +1,7 @@
 import { query, msearch, indexBuilder } from '../../index.js';
-import { ensureIndex, deleteIndex, indexDoc, refreshIndex, msearchRequest } from './helpers.js';
-import { listingMappings, LISTINGS } from './fixtures/real-estate.js';
+import { ensureIndex, deleteIndex, indexDoc, refreshIndex, msearchRequest } from '../helpers';
+import { listingMappings } from '../fixtures/real-estate.schema.js';
+import { LISTINGS } from '../fixtures/real-estate.data.js';
 
 const INDEX = 'int-msearch';
 
@@ -32,7 +33,7 @@ describe('MSearchBuilder', () => {
         INDEX,
         msearch(listingMappings)
           .addQuery(query(listingMappings).range('list_price', { lte: 2_000_000 }).build())
-          .addQuery(query(listingMappings).range('list_price', { gte: 4_000_000 }).build())
+          .addQuery(query(listingMappings).range('list_price', { gte: 4_000_000, lte: 5_000_000 }).build())
           .build()
       );
 

@@ -1,10 +1,10 @@
-import { mappings, keyword, text, float, long, date, geoPoint, geoShape, denseVector } from '../../index.js';
+import { mappings, keyword, text, long, float, date, geoPoint, geoShape, denseVector } from '../../index.js';
 import type { Infer } from '../../index.js';
 
 export const listingMappings = mappings({
   property_class: keyword(),
   address: text(),
-  list_price: float(),
+  list_price: long(),
   sqft: long()
 });
 
@@ -13,7 +13,7 @@ export type Listing = Infer<typeof listingMappings>;
 export const listingDetailMappings = mappings({
   property_class: keyword(),
   address: text(),
-  list_price: float(),
+  list_price: long(),
   sqft: long(),
   location: geoPoint(),
   listed_date: date(),
@@ -32,24 +32,3 @@ export const geoListingMappings = mappings({
 });
 
 export type GeoListing = Infer<typeof geoListingMappings>;
-
-export const LISTINGS: Listing[] = [
-  {
-    property_class: 'condo',
-    address: '200 Harbor View Dr',
-    list_price: 1_250_000,
-    sqft: 1100
-  },
-  {
-    property_class: 'co-op',
-    address: '845 Park Avenue',
-    list_price: 2_400_000,
-    sqft: 1850
-  },
-  {
-    property_class: 'townhouse',
-    address: '12 Park Terrace',
-    list_price: 3_100_000,
-    sqft: 2800
-  }
-];

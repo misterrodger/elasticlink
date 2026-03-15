@@ -70,7 +70,7 @@ type ESTypeToTS = {
   sparse_vector: Record<string, number>;
   semantic_text: string;
   unsigned_long: number | string;
-  completion: string;
+  completion: string | { input: string[]; weight?: number };
   search_as_you_type: string;
   nested: unknown;
   object: unknown;

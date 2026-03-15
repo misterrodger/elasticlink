@@ -12,7 +12,7 @@ import {
   nested,
   completion
 } from '../../index.js';
-import { createIndex, deleteIndex, esGet } from './helpers.js';
+import { createIndex, deleteIndex, esGet } from '../helpers';
 
 const INDEX_FULL = 'int-index-mgmt-full';
 const INDEX_ALIAS = 'int-index-mgmt-alias';

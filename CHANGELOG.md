@@ -4,7 +4,19 @@ All notable changes to elasticlink will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
-## [0.7.0-beta] - TBD
+## [0.8.0-beta] - 2026-03-21
+
+### Added
+
+- **`NestedOptions` type** — `Omit<QueryDslNestedQuery, 'path' | 'query'>` replaces the previous inline `{ score_mode?: ... }` on `nested()`, giving access to all Elasticsearch nested query options (e.g. `score_mode`, `ignore_unmapped`)
+
+### Changed
+
+- **Typed clause builder options** — `match()`, `multiMatch()`, `matchPhrasePrefix()`, `fuzzy()`, `combinedFields()`, `knn()`, `nested()` in `ClauseBuilder` now use specific ES-derived option types instead of `Record<string, unknown>`, providing full IntelliSense and compile-time validation for all query options
+- **Typed aggregation `filter()`** — accepts `QueryDslQueryContainer` instead of `Record<string, any>`, enabling type-safe filter aggregation queries
+- **`completion` field inferred type** — `Infer<>` now maps `completion` to `string | { input: string[]; weight?: number }` (was `string`), matching Elasticsearch's accepted input formats
+
+## [0.7.0-beta] - 2026-03-14
 
 ### Added
 

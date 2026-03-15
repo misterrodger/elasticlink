@@ -1,6 +1,7 @@
 import { query, indexBuilder } from '../../index.js';
-import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from './helpers.js';
-import { deepObjectMappings, deepNestedMappings, DEEP_OBJECT_DOCS, DEEP_NESTED_DOCS } from '../fixtures/logistics.js';
+import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from '../helpers';
+import { deepObjectMappings, deepNestedMappings } from '../fixtures/logistics.schema.js';
+import { DEEP_OBJECT_DOCS, DEEP_NESTED_DOCS } from '../fixtures/logistics.data.js';
 
 const OBJECT_INDEX = 'int-deep-object';
 const NESTED_INDEX = 'int-deep-nested';

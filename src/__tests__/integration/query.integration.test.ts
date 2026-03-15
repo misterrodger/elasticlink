@@ -1,6 +1,7 @@
 import { query, indexBuilder } from '../../index.js';
-import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from './helpers.js';
-import { instrumentMappings, INSTRUMENTS } from './fixtures/finance.js';
+import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from '../helpers';
+import { instrumentMappings } from '../../__tests__/fixtures/finance.schema.js';
+import { INSTRUMENTS } from '../../__tests__/fixtures/finance.data.js';
 
 const INDEX = 'int-query';
 
@@ -46,7 +47,7 @@ describe('QueryBuilder', () => {
 
   describe('Query — range', () => {
     it('filters documents within a numeric range', async () => {
-      const result = await search(INDEX, query(instrumentMappings).range('price', { gte: 100, lte: 200 }).build());
+      const result = await search(INDEX, query(instrumentMappings).range('yield_rate', { gte: 5.0, lte: 6.0 }).build());
 
       expect(result.hits.total.value).toBe(1);
     });
@@ -66,7 +67,7 @@ describe('QueryBuilder', () => {
           .bool()
           .must((q) => q.term('asset_class', 'fixed-income'))
           .mustNot((q) => q.term('sector', 'government'))
-          .filter((q) => q.range('price', { lte: 200 }))
+          .filter((q) => q.range('yield_rate', { lte: 5.5 }))
           .build()
       );
 
@@ -91,15 +92,15 @@ describe('QueryBuilder', () => {
 
   describe('Query — sort and _source', () => {
     it('sorts results by a numeric field', async () => {
-      const result = await search(INDEX, query(instrumentMappings).matchAll().sort('price', 'asc').build());
-      const prices = result.hits.hits.map((h: { _source: { price: number } }) => h._source.price);
+      const result = await search(INDEX, query(instrumentMappings).matchAll().sort('yield_rate', 'asc').build());
+      const yields = result.hits.hits.map((h: { _source: { yield_rate: number } }) => h._source.yield_rate);
 
-      expect(prices).toMatchInlineSnapshot(`
+      expect(yields).toMatchInlineSnapshot(`
         [
-          54,
-          98,
-          112,
-          479,
+          0.5,
+          1.5,
+          4.3,
+          5.1,
         ]
       `);
     });
@@ -107,7 +108,7 @@ describe('QueryBuilder', () => {
     it('limits returned fields with _source', async () => {
       const result = await search(
         INDEX,
-        query(instrumentMappings).matchAll().size(1)._source(['name', 'price']).build()
+        query(instrumentMappings).matchAll().size(1)._source(['name', 'yield_rate']).build()
       );
       const {
         hits: {
@@ -118,7 +119,7 @@ describe('QueryBuilder', () => {
       expect(Object.keys(_source).sort()).toMatchInlineSnapshot(`
         [
           "name",
-          "price",
+          "yield_rate",
         ]
       `);
     });
@@ -176,50 +177,50 @@ describe('QueryBuilder', () => {
 
     it('applies only truthy conditions in a chain', async () => {
       const assetClass: string | undefined = 'fixed-income';
-      const minPrice: number | undefined = undefined;
-      const maxPrice: number | undefined = 200;
+      const minYield: number | undefined = undefined;
+      const maxYield: number | undefined = 5.5;
 
       const result = await search(
         INDEX,
         query(instrumentMappings)
           .bool()
           .when(assetClass, (q) => q.filter((q2) => q2.term('asset_class', assetClass!)))
-          .when(minPrice, (q) => q.filter((q2) => q2.range('price', { gte: minPrice! })))
-          .when(maxPrice, (q) => q.filter((q2) => q2.range('price', { lte: maxPrice! })))
+          .when(minYield, (q) => q.filter((q2) => q2.range('yield_rate', { gte: minYield! })))
+          .when(maxYield, (q) => q.filter((q2) => q2.range('yield_rate', { lte: maxYield! })))
           .build()
       );
 
-      // fixed-income (2 docs): prices 98 and 112, both <= 200 — minPrice filter skipped
+      // fixed-income (2 docs): yields 4.3 and 5.1, both <= 5.5 — minYield filter skipped
       expect(result.hits.total.value).toBe(2);
     });
 
     it('treats numeric zero as truthy — filter fires, not skipped', async () => {
       // Boolean(0) is false, but 0 != null is true — the filter must be applied
-      const maxPrice: number = 0;
+      const maxYield: number = 0;
 
       const result = await search(
         INDEX,
         query(instrumentMappings)
           .bool()
-          .when(maxPrice, (q) => q.filter((q2) => q2.range('price', { lte: maxPrice })))
+          .when(maxYield, (q) => q.filter((q2) => q2.range('yield_rate', { lte: maxYield })))
           .build()
       );
 
-      // No documents have price <= 0, so filter applied = 0 results.
+      // No documents have yield_rate <= 0, so filter applied = 0 results.
       // If zero were treated as falsy the filter would be skipped and return 4.
       expect(result.hits.total.value).toBe(0);
     });
 
     it('returns all documents when all conditions are false', async () => {
       const assetClass: string | undefined = undefined;
-      const minPrice: number | undefined = undefined;
+      const minYield: number | undefined = undefined;
 
       const result = await search(
         INDEX,
         query(instrumentMappings)
           .bool()
           .when(assetClass, (q) => q.filter((q2) => q2.term('asset_class', assetClass!)))
-          .when(minPrice, (q) => q.filter((q2) => q2.range('price', { gte: minPrice! })))
+          .when(minYield, (q) => q.filter((q2) => q2.range('yield_rate', { gte: minYield! })))
           .build()
       );
 
@@ -228,8 +229,8 @@ describe('QueryBuilder', () => {
 
     it('complex: conditional must with nested conditional range filter', async () => {
       const searchTerm: string | undefined = 'Fund';
-      const minPrice: number | undefined = 100;
-      const maxPrice: number | undefined = undefined;
+      const minYield: number | undefined = 5.0;
+      const maxYield: number | undefined = undefined;
 
       const result = await search(
         INDEX,
@@ -238,14 +239,14 @@ describe('QueryBuilder', () => {
           .when(Boolean(searchTerm), (q) =>
             q
               .must((q2) => q2.match('name', searchTerm!))
-              .when(minPrice, (q2) => q2.filter((q3) => q3.range('price', { gte: minPrice! })))
-              .when(maxPrice, (q2) => q2.filter((q3) => q3.range('price', { lte: maxPrice! })))
+              .when(minYield, (q2) => q2.filter((q3) => q3.range('yield_rate', { gte: minYield! })))
+              .when(maxYield, (q2) => q2.filter((q3) => q3.range('yield_rate', { lte: maxYield! })))
           )
           .build()
       );
 
       expect(result.hits.total.value).toBe(1);
-      expect(result.hits.hits[0]._source.price).toBe(479);
+      expect(result.hits.hits[0]._source.yield_rate).toBe(5.1);
     });
   });
 });

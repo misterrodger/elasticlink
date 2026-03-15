@@ -20,7 +20,7 @@ import {
   completion,
   percolator
 } from '..';
-import { productMappings } from './fixtures/ecommerce.js';
+import { productMappings } from './fixtures/ecommerce.schema.js';
 
 /**
  * Real-world usage examples demonstrating elasticlink's capabilities.
