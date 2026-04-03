@@ -1,4 +1,4 @@
-import { query, indexBuilder } from '../../index.js';
+import { queryBuilder, indexBuilder } from '../../index.js';
 import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from '../helpers';
 import { matterMappings } from '../fixtures/legal.schema.js';
 import { MATTERS } from '../fixtures/legal.data.js';
@@ -18,7 +18,7 @@ describe('AggregationBuilder', () => {
     it('buckets documents by a keyword field', async () => {
       const result = await search(
         INDEX,
-        query(matterMappings)
+        queryBuilder(matterMappings)
           .matchAll()
           .aggs((agg) => agg.terms('by_area', 'practice_area'))
           .size(0)
@@ -50,7 +50,7 @@ describe('AggregationBuilder', () => {
     it('supports size option and sub-aggregations', async () => {
       const result = await search(
         INDEX,
-        query(matterMappings)
+        queryBuilder(matterMappings)
           .matchAll()
           .aggs((agg) =>
             agg.terms('by_area', 'practice_area', { size: 2 }).subAgg((sub) => sub.avg('avg_rate', 'billing_rate'))
@@ -84,7 +84,7 @@ describe('AggregationBuilder', () => {
     it('computes avg, min, max, sum, and value_count in one request', async () => {
       const result = await search(
         INDEX,
-        query(matterMappings)
+        queryBuilder(matterMappings)
           .matchAll()
           .aggs((agg) =>
             agg
@@ -122,7 +122,7 @@ describe('AggregationBuilder', () => {
     it('computes stats and cardinality', async () => {
       const result = await search(
         INDEX,
-        query(matterMappings)
+        queryBuilder(matterMappings)
           .matchAll()
           .aggs((agg) => agg.stats('rate_stats', 'billing_rate').cardinality('unique_areas', 'practice_area'))
           .size(0)
@@ -150,7 +150,7 @@ describe('AggregationBuilder', () => {
     it('buckets documents into named billing rate ranges', async () => {
       const result = await search(
         INDEX,
-        query(matterMappings)
+        queryBuilder(matterMappings)
           .matchAll()
           .aggs((agg) =>
             agg.range('rate_bands', 'billing_rate', {
@@ -188,11 +188,86 @@ describe('AggregationBuilder', () => {
     });
   });
 
+  describe('Aggregation — missing', () => {
+    it('counts documents missing a field value', async () => {
+      const result = await search(
+        INDEX,
+        queryBuilder(matterMappings)
+          .matchAll()
+          .aggs((agg) => agg.missing('no_risk', 'risk_score'))
+          .size(0)
+          .build()
+      );
+
+      expect(result.aggregations.no_risk.doc_count).toBe(0);
+    });
+  });
+
+  describe('Aggregation — rareTerms', () => {
+    it('returns rare terms from a keyword field', async () => {
+      const result = await search(
+        INDEX,
+        queryBuilder(matterMappings)
+          .matchAll()
+          .aggs((agg) => agg.rareTerms('rare_areas', 'practice_area', { max_doc_count: 2 }))
+          .size(0)
+          .build()
+      );
+
+      expect(result.aggregations.rare_areas.buckets.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Aggregation — pipeline (derivative, cumulativeSum)', () => {
+    it('computes derivative and cumulative sum over a date histogram', async () => {
+      const result = await search(
+        INDEX,
+        queryBuilder(matterMappings)
+          .matchAll()
+          .aggs((agg) =>
+            agg
+              .dateHistogram('by_year', 'opened_at', { calendar_interval: 'year', min_doc_count: 0 })
+              .subAgg((sub) =>
+                sub
+                  .avg('avg_rate', 'billing_rate')
+                  .derivative('rate_change', { buckets_path: 'avg_rate' })
+                  .cumulativeSum('running_rate', { buckets_path: 'avg_rate' })
+              )
+          )
+          .size(0)
+          .build()
+      );
+
+      expect(result.aggregations.by_year.buckets.length).toBeGreaterThan(1);
+      expect(result.aggregations.by_year.buckets[0].avg_rate.value).toBeDefined();
+    });
+  });
+
+  describe('Aggregation — weightedAvg', () => {
+    it('computes a weighted average', async () => {
+      const result = await search(
+        INDEX,
+        queryBuilder(matterMappings)
+          .matchAll()
+          .aggs((agg) =>
+            agg.weightedAvg('weighted_rate', {
+              value: { field: 'billing_rate' },
+              weight: { field: 'risk_score' }
+            })
+          )
+          .size(0)
+          .build()
+      );
+
+      expect(result.aggregations.weighted_rate.value).toBeGreaterThan(0);
+    });
+  });
+
   describe('Aggregation — dateHistogram', () => {
     it('groups documents into yearly buckets', async () => {
       const result = await search(
         INDEX,
-        query(matterMappings)
+        queryBuilder(matterMappings)
           .matchAll()
           .aggs((agg) =>
             agg.dateHistogram('by_year', 'opened_at', {

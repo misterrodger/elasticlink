@@ -1,11 +1,12 @@
-import { query, suggest, mappings, keyword, text, float, completion } from '..';
+import { queryBuilder, suggest, mappings, keyword, text, float, integer, completion } from '..';
 
 const matterWithSuggestMappings = mappings({
   matter_id: keyword(),
   title: text(),
   practice_area: keyword(),
   billing_rate: float(),
-  title_suggest: completion()
+  title_suggest: completion(),
+  category_suggest: completion()
 });
 
 describe('Suggester API', () => {
@@ -675,8 +676,8 @@ describe('Suggester API', () => {
 
     it('should combine multiple completion suggesters', () => {
       const result = suggest(matterWithSuggestMappings)
-        .completion('name-auto', 'lap', { field: 'title' })
-        .completion('category-auto', 'ele', { field: 'practice_area' })
+        .completion('name-auto', 'lap', { field: 'title_suggest' })
+        .completion('category-auto', 'ele', { field: 'category_suggest' })
         .build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -684,13 +685,13 @@ describe('Suggester API', () => {
           "suggest": {
             "category-auto": {
               "completion": {
-                "field": "practice_area",
+                "field": "category_suggest",
               },
               "prefix": "ele",
             },
             "name-auto": {
               "completion": {
-                "field": "title",
+                "field": "title_suggest",
               },
               "prefix": "lap",
             },
@@ -763,7 +764,7 @@ describe('Suggester API', () => {
 
   describe('Suggester with QueryBuilder', () => {
     it('should add term suggester to query', () => {
-      const result = query(matterWithSuggestMappings)
+      const result = queryBuilder(matterWithSuggestMappings)
         .match('title', 'corporate')
         .suggest((s) => s.term('name-suggestions', 'acquistion', { field: 'title' }))
         .build();
@@ -788,7 +789,7 @@ describe('Suggester API', () => {
     });
 
     it('should add phrase suggester to query', () => {
-      const result = query(matterWithSuggestMappings)
+      const result = queryBuilder(matterWithSuggestMappings)
         .match('title', 'corporate')
         .suggest((s) =>
           s.phrase('description-suggestions', 'powerfull laptop', {
@@ -819,7 +820,7 @@ describe('Suggester API', () => {
     });
 
     it('should add completion suggester to query', () => {
-      const result = query(matterWithSuggestMappings)
+      const result = queryBuilder(matterWithSuggestMappings)
         .match('title', 'corporate')
         .suggest((s) =>
           s.completion('autocomplete', 'lap', {
@@ -850,7 +851,7 @@ describe('Suggester API', () => {
     });
 
     it('should add multiple suggesters to query', () => {
-      const result = query(matterWithSuggestMappings)
+      const result = queryBuilder(matterWithSuggestMappings)
         .match('title', 'corporate')
         .suggest((s) =>
           s.term('name-term', 'acquistion', { field: 'title', size: 3 }).completion('name-complete', 'lap', {
@@ -887,8 +888,8 @@ describe('Suggester API', () => {
       `);
     });
 
-    it('should combine query, aggregations, and suggestions', () => {
-      const result = query(matterWithSuggestMappings)
+    it('should combine queryBuilder, aggregations, and suggestions', () => {
+      const result = queryBuilder(matterWithSuggestMappings)
         .match('title', 'corporate')
         .aggs((agg) => agg.terms('popular-areas', 'practice_area', { size: 10 }))
         .suggest((s) => s.term('name-suggestions', 'acquistion', { field: 'title', size: 5 }))
@@ -939,9 +940,49 @@ describe('Suggester API', () => {
     });
   });
 
+  describe('Suggester field constraints (type ratchet)', () => {
+    const suggestConstraintMappings = mappings({
+      title: text(),
+      slug: keyword(),
+      count: integer(),
+      title_suggest: completion()
+    });
+
+    it('term suggester accepts text/keyword fields', () => {
+      expect(suggest(suggestConstraintMappings).term('spell', 'titl', { field: 'title' }).build()).toBeDefined();
+      expect(suggest(suggestConstraintMappings).term('spell', 'slgg', { field: 'slug' }).build()).toBeDefined();
+    });
+
+    it('term suggester rejects non-text/keyword fields', () => {
+      // @ts-expect-error count is integer, not a text/keyword field
+      expect(() => suggest(suggestConstraintMappings).term('bad', 'x', { field: 'count' }).build()).toBeDefined();
+    });
+
+    it('completion suggester requires a completion field', () => {
+      expect(
+        suggest(suggestConstraintMappings).completion('auto', 'lap', { field: 'title_suggest' }).build()
+      ).toBeDefined();
+      expect(() =>
+        suggest(suggestConstraintMappings)
+          // @ts-expect-error title is text, not completion
+          .completion('bad', 'lap', { field: 'title' })
+          .build()
+      ).toBeDefined();
+    });
+
+    it('suggester options reject builder-owned keys', () => {
+      expect(() =>
+        suggest(suggestConstraintMappings)
+          // @ts-expect-error text is not a valid option key (supplied as the second arg)
+          .term('bad', 'corprate', { field: 'title', text: 'override' })
+          .build()
+      ).toBeDefined();
+    });
+  });
+
   describe('Real-world suggester scenarios', () => {
     it('should build product search with autocomplete', () => {
-      const result = query(matterWithSuggestMappings)
+      const result = queryBuilder(matterWithSuggestMappings)
         .bool()
         .filter((q) => q.term('practice_area', 'corporate'))
         .suggest((s) =>
@@ -991,7 +1032,7 @@ describe('Suggester API', () => {
     });
 
     it('should build spell-check with term suggester', () => {
-      const result = query(matterWithSuggestMappings)
+      const result = queryBuilder(matterWithSuggestMappings)
         .match('title', 'acquistion')
         .suggest((s) =>
           s.term('spelling-correction', 'acquistion', {
@@ -1032,7 +1073,7 @@ describe('Suggester API', () => {
     });
 
     it('should build phrase correction with highlighting', () => {
-      const result = query(matterWithSuggestMappings)
+      const result = queryBuilder(matterWithSuggestMappings)
         .match('title', 'powerfull gaming laptop')
         .suggest((s) =>
           s.phrase('phrase-correction', 'powerfull gaming laptop', {

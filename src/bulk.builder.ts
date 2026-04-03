@@ -3,6 +3,7 @@
  * Enables batching multiple index/create/update/delete operations
  */
 
+import type { BulkOperationContainer, BulkUpdateAction } from '@elastic/elasticsearch/lib/api/types';
 import type { FieldTypeString } from './index-management.types.js';
 import type { MappingsSchema, Infer } from './mapping.types.js';
 import { BulkBuilder } from './bulk.types.js';
@@ -12,8 +13,7 @@ import { BulkBuilder } from './bulk.types.js';
  * @returns BulkBuilder instance
  */
 export const createBulkBuilder = <T>(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  operations: any[] = []
+  operations: Array<BulkOperationContainer | T | Partial<T> | BulkUpdateAction<T, Partial<T>>> = []
 ): BulkBuilder<T> => ({
   index: (doc, meta = {}) => {
     return createBulkBuilder<T>([...operations, { index: meta }, doc]);
@@ -24,14 +24,16 @@ export const createBulkBuilder = <T>(
   },
 
   update: (meta) => {
-    const { doc, script, upsert, doc_as_upsert, ...header } = meta;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateDoc: any = {
+    const { doc, script, upsert, doc_as_upsert, detect_noop, scripted_upsert, _source, ...header } = meta;
+    const updateDoc = {
       ...(doc && { doc }),
       ...(script && { script }),
       ...(upsert && { upsert }),
-      ...(doc_as_upsert !== undefined && { doc_as_upsert })
-    };
+      ...(doc_as_upsert !== undefined && { doc_as_upsert }),
+      ...(detect_noop !== undefined && { detect_noop }),
+      ...(scripted_upsert !== undefined && { scripted_upsert }),
+      ...(_source !== undefined && { _source })
+    } as BulkUpdateAction<T, Partial<T>>;
 
     return createBulkBuilder<T>([...operations, { update: header }, updateDoc]);
   },

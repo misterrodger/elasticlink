@@ -18,11 +18,21 @@ const isMappingsSchema = (
 ): input is MappingsSchema<Record<string, FieldTypeString>> => '_fieldTypes' in input;
 
 /**
- * Creates an index builder
+ * Creates an index builder.
+ *
+ * The optional generic `M` carries the field-type map from any mapping schema attached
+ * via `.mappings(schema)`. `.mappings()` rebinds the generic to the incoming schema's
+ * field-type map, so callers typically rely on inference rather than specifying `M` directly.
+ *
  * @returns IndexBuilder instance
  */
-export const createIndexBuilder = (state: CreateIndexOptions = {}): IndexBuilder => ({
-  mappings: (schemaOrFields, inlineOptions) => {
+export const createIndexBuilder = <M extends Record<string, FieldTypeString> = Record<string, FieldTypeString>>(
+  state: CreateIndexOptions = {}
+): IndexBuilder<M> => ({
+  mappings: <NewM extends Record<string, FieldTypeString>>(
+    schemaOrFields: MappingsSchema<NewM> | Record<string, FieldMapping>,
+    inlineOptions?: MappingOptions
+  ): IndexBuilder<NewM> => {
     const rawProperties = isMappingsSchema(schemaOrFields) ? schemaOrFields.properties : schemaOrFields;
     const properties = Object.fromEntries(Object.entries(rawProperties).filter(([, v]) => v !== undefined));
     const schemaOptions = isMappingsSchema(schemaOrFields) ? schemaOrFields._mappingOptions : undefined;
@@ -31,7 +41,7 @@ export const createIndexBuilder = (state: CreateIndexOptions = {}): IndexBuilder
       ...schemaOptions,
       ...inlineOptions
     };
-    return createIndexBuilder({
+    return createIndexBuilder<NewM>({
       ...state,
       mappings: {
         properties,
@@ -42,14 +52,14 @@ export const createIndexBuilder = (state: CreateIndexOptions = {}): IndexBuilder
     });
   },
 
-  settings: (settings) => createIndexBuilder({ ...state, settings }),
+  settings: (settings) => createIndexBuilder<M>({ ...state, settings }),
 
   analysis: (config: AnalysisConfig) =>
-    createIndexBuilder({ ...state, settings: { ...state.settings, analysis: config } as IndexSettings }),
+    createIndexBuilder<M>({ ...state, settings: { ...state.settings, analysis: config } as IndexSettings }),
 
   alias: (name, options = {}) => {
     const aliases = state.aliases || {};
-    return createIndexBuilder({
+    return createIndexBuilder<M>({
       ...state,
       aliases: { ...aliases, [name]: options }
     });
@@ -81,4 +91,4 @@ export const createIndexBuilder = (state: CreateIndexOptions = {}): IndexBuilder
  *   .build();
  */
 // eslint-disable-next-line functional/functional-parameters
-export const indexBuilder = () => createIndexBuilder();
+export const indexBuilder = (): IndexBuilder => createIndexBuilder();

@@ -7,10 +7,12 @@
 import type {
   BulkIndexOperation,
   BulkCreateOperation,
+  BulkOperationContainer,
   BulkUpdateOperation,
   BulkUpdateAction,
   BulkDeleteOperation
 } from '@elastic/elasticsearch/lib/api/types';
+export type { BulkOperationContainer } from '@elastic/elasticsearch/lib/api/types';
 
 /**
  * Metadata for bulk index operation — re-exported from official @elastic/elasticsearch types
@@ -52,7 +54,6 @@ export type BulkBuilder<T> = {
   delete: (meta: BulkDeleteMeta) => BulkBuilder<T>;
   /** Build as NDJSON string format for Elasticsearch */
   build: () => string;
-  /** Build as array of objects */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  buildArray: () => any[];
+  /** Build as array of operation headers and document bodies. Alternating operation/document pairs (except `delete` which is header-only). */
+  buildArray: () => Array<BulkOperationContainer | T | Partial<T> | BulkUpdateAction<T, Partial<T>>>;
 };

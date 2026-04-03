@@ -13,7 +13,12 @@
  * 5. Refresh: `POST /index/_refresh`
  */
 
-import type { IndicesIndexSettings } from '@elastic/elasticsearch/lib/api/types';
+import type {
+  IndicesIndexSettings,
+  IndicesIndexSegmentSort,
+  IndicesSegmentSortMode,
+  IndicesSegmentSortMissing
+} from '@elastic/elasticsearch/lib/api/types';
 
 /**
  * Balanced production settings for search workloads.
@@ -49,32 +54,65 @@ export const productionSearchSettings = (overrides?: Partial<IndicesIndexSetting
 });
 
 /**
- * Generate index sort settings from a field→direction map.
+ * Per-field sort configuration for `indexSortSettings()`.
+ * Either a bare direction, or a full spec with `mode`/`missing`.
+ */
+export type IndexSortFieldSpec =
+  | 'asc'
+  | 'desc'
+  | {
+      order: 'asc' | 'desc';
+      mode?: IndicesSegmentSortMode;
+      missing?: IndicesSegmentSortMissing;
+    };
+
+/**
+ * Generate index sort settings from a field→direction (or full spec) map.
  *
  * Index-time sorting improves compression (similar values stored together) and
  * enables early termination when query sort matches index sort. Combine with
  * `trackTotalHits(false)` for fastest sorted queries.
  *
- * @param fields - Map of field names to sort directions.
- * @returns The `index` portion of settings to spread into your settings config.
+ * The returned object lives at the top level of `IndicesIndexSettings` — spread it
+ * directly into a settings object (do NOT wrap it under an `index` key, the
+ * `@elastic/elasticsearch` client normalises that form).
+ *
+ * Pass a bare `'asc' | 'desc'` for simple cases; pass `{ order, mode?, missing? }`
+ * when you need `mode` (`min`/`max`/`median`/`avg`) or `missing` (`_first`/`_last`).
+ *
+ * @param fields - Map of field names to sort direction or full spec.
+ * @returns A `{ sort: IndicesIndexSegmentSort }` fragment to spread into your settings.
  *
  * @example
  * const index = indexBuilder()
  *   .mappings(schema)
  *   .settings({
  *     ...productionSearchSettings(),
- *     index: indexSortSettings({ timestamp: 'desc', status: 'asc' }),
+ *     ...indexSortSettings({ timestamp: 'desc', status: 'asc' }),
  *   })
  *   .build();
+ *
+ * @example
+ * indexSortSettings({
+ *   price: { order: 'asc', mode: 'min', missing: '_last' },
+ *   created_at: 'desc'
+ * })
  */
-export const indexSortSettings = (
-  fields: Record<string, 'asc' | 'desc'>
-): { sort: { field: string[]; order: string[] } } => {
+export const indexSortSettings = (fields: Record<string, IndexSortFieldSpec>): { sort: IndicesIndexSegmentSort } => {
   const entries = Object.entries(fields);
+  const normalize = (spec: IndexSortFieldSpec) => (typeof spec === 'string' ? { order: spec } : spec);
+  const hasAnyMode = entries.some(([, spec]) => typeof spec !== 'string' && spec.mode !== undefined);
+  const hasAnyMissing = entries.some(([, spec]) => typeof spec !== 'string' && spec.missing !== undefined);
   return {
     sort: {
       field: entries.map(([name]) => name),
-      order: entries.map(([, dir]) => dir)
+      order: entries.map(([, spec]) => normalize(spec).order),
+      ...(hasAnyMode && {
+        mode: entries.map(([, spec]) => normalize(spec).mode ?? ('min' as IndicesSegmentSortMode))
+      }),
+      ...(hasAnyMissing && {
+        missing: entries.map(([, spec]) => normalize(spec).missing ?? ('_last' as IndicesSegmentSortMissing))
+      })
     }
   };
 };

@@ -1,4 +1,4 @@
-import { query, indexBuilder } from '../../index.js';
+import { queryBuilder, indexBuilder } from '../../index.js';
 import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from '../helpers';
 import { attorneyMappings } from '../fixtures/legal.schema.js';
 import { ATTORNEYS } from '../fixtures/legal.data.js';
@@ -18,7 +18,7 @@ describe('SuggesterBuilder', () => {
     it('returns spelling corrections for a misspelled term', async () => {
       const result = await search(
         INDEX,
-        query(attorneyMappings)
+        queryBuilder(attorneyMappings)
           .suggest((s) => s.term('name-suggestions', 'wiliams', { field: 'name' }))
           .size(0)
           .build()
@@ -33,7 +33,7 @@ describe('SuggesterBuilder', () => {
     it('returns autocomplete suggestions for a prefix', async () => {
       const result = await search(
         INDEX,
-        query(attorneyMappings)
+        queryBuilder(attorneyMappings)
           .suggest((s) => s.completion('autocomplete', 'kap', { field: 'name_suggest' }))
           .size(0)
           .build()
@@ -53,7 +53,7 @@ describe('SuggesterBuilder', () => {
     it('limits results with size option', async () => {
       const result = await search(
         INDEX,
-        query(attorneyMappings)
+        queryBuilder(attorneyMappings)
           .suggest((s) => s.completion('autocomplete', '', { field: 'name_suggest', size: 2 }))
           .size(0)
           .build()

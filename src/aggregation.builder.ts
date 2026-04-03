@@ -22,7 +22,24 @@ import type {
   TopHitsAggOptions,
   AutoDateHistogramAggOptions,
   CompositeAggSource,
-  CompositeAggOptions
+  CompositeAggOptions,
+  DateRangeAggOptions,
+  FiltersAggOptions,
+  SignificantTermsAggOptions,
+  RareTermsAggOptions,
+  MultiTermsAggOptions,
+  GeoDistanceAggOptions,
+  GeohashGridAggOptions,
+  GeotileGridAggOptions,
+  GeoBoundsAggOptions,
+  GeoCentroidAggOptions,
+  MissingAggOptions,
+  TopMetricsAggOptions,
+  WeightedAvgAggOptions,
+  BucketScriptAggOptions,
+  BucketSelectorAggOptions,
+  DerivativeAggOptions,
+  CumulativeSumAggOptions
 } from './aggregation.types.js';
 
 // Shared metric/bucket method implementations — return type is `any` so the same code
@@ -38,6 +55,15 @@ const sharedAggMethods = (state: AggregationState, rebuild: (s: AggregationState
 
   range: (name: string, field: string, options?: RangeAggOptions) =>
     rebuild({ ...state, [name]: { range: { field, ...options } } }),
+
+  dateRange: (name: string, field: string, options?: DateRangeAggOptions) =>
+    rebuild({ ...state, [name]: { date_range: { field, ...options } } }),
+
+  filters: (name: string, filters: Record<string, QueryDslQueryContainer>, options?: FiltersAggOptions) =>
+    rebuild({ ...state, [name]: { filters: { filters, ...options } } }),
+
+  significantTerms: (name: string, field: string, options?: SignificantTermsAggOptions) =>
+    rebuild({ ...state, [name]: { significant_terms: { field, ...options } } }),
 
   histogram: (name: string, field: string, options?: HistogramAggOptions) =>
     rebuild({ ...state, [name]: { histogram: { field, ...options } } }),
@@ -78,6 +104,48 @@ const sharedAggMethods = (state: AggregationState, rebuild: (s: AggregationState
     rebuild({ ...state, [name]: { composite: { sources, ...options } } }),
 
   filter: (name: string, query: QueryDslQueryContainer) => rebuild({ ...state, [name]: { filter: query } }),
+
+  rareTerms: (name: string, field: string, options?: RareTermsAggOptions) =>
+    rebuild({ ...state, [name]: { rare_terms: { field, ...options } } }),
+
+  multiTerms: (name: string, options: MultiTermsAggOptions) =>
+    rebuild({ ...state, [name]: { multi_terms: { ...options } } }),
+
+  geoDistance: (name: string, field: string, options: GeoDistanceAggOptions) =>
+    rebuild({ ...state, [name]: { geo_distance: { field, ...options } } }),
+
+  geohashGrid: (name: string, field: string, options?: GeohashGridAggOptions) =>
+    rebuild({ ...state, [name]: { geohash_grid: { field, ...options } } }),
+
+  geotileGrid: (name: string, field: string, options?: GeotileGridAggOptions) =>
+    rebuild({ ...state, [name]: { geotile_grid: { field, ...options } } }),
+
+  geoBounds: (name: string, field: string, options?: GeoBoundsAggOptions) =>
+    rebuild({ ...state, [name]: { geo_bounds: { field, ...options } } }),
+
+  geoCentroid: (name: string, field: string, options?: GeoCentroidAggOptions) =>
+    rebuild({ ...state, [name]: { geo_centroid: { field, ...options } } }),
+
+  missing: (name: string, field: string, options?: MissingAggOptions) =>
+    rebuild({ ...state, [name]: { missing: { field, ...options } } }),
+
+  topMetrics: (name: string, options: TopMetricsAggOptions) =>
+    rebuild({ ...state, [name]: { top_metrics: { ...options } } }),
+
+  weightedAvg: (name: string, options: WeightedAvgAggOptions) =>
+    rebuild({ ...state, [name]: { weighted_avg: { ...options } } }),
+
+  bucketScript: (name: string, options: BucketScriptAggOptions) =>
+    rebuild({ ...state, [name]: { bucket_script: { ...options } } }),
+
+  bucketSelector: (name: string, options: BucketSelectorAggOptions) =>
+    rebuild({ ...state, [name]: { bucket_selector: { ...options } } }),
+
+  derivative: (name: string, options: DerivativeAggOptions) =>
+    rebuild({ ...state, [name]: { derivative: { ...options } } }),
+
+  cumulativeSum: (name: string, options: CumulativeSumAggOptions) =>
+    rebuild({ ...state, [name]: { cumulative_sum: { ...options } } }),
 
   // eslint-disable-next-line functional/functional-parameters
   build: () => state

@@ -4,6 +4,113 @@ All notable changes to elasticlink will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
+## [1.0.0-beta.1] - 2026-04-06
+
+First release candidate for v1.0.0. The earlier beta phases (`0.1.0-beta` → `0.8.0-beta`) iterated on the public shape; `1.0.0-beta.1` closes the type-fidelity gaps identified by a full audit of every builder module against `@elastic/elasticsearch` 9.x.
+
+### Migration from 0.8.0-beta (applies to 1.0.0 stable as well)
+
+Two phases in this release contain breaking changes. All others are additive.
+
+**Phase 1 — Geo / regexp inside `.nested()` (behavioural fix):** `regexp`, `geoDistance`, `geoBoundingBox`, `geoPolygon`, and `geoShape` previously emitted unqualified field names inside a `.nested()` callback, producing queries that silently matched nothing. They now correctly prefix the nested path. If you had a workaround that pre-qualified field names manually (e.g. passing `'variants.sku'` instead of `'sku'`), remove it — the builder now does this for you.
+
+**Phase 2 — Analyzer config + `IndexBuilder<M>` + `indexSortSettings()`:**
+
+- *Analyzer/tokenizer/filter types* are now passthroughs to `@elastic/elasticsearch` (`AnalysisAnalyzer`, `AnalysisTokenizer`, `AnalysisTokenFilter`, `AnalysisCharFilter`, `AnalysisNormalizer`). Loosely-typed configs relying on `[key: string]: unknown` may surface new type errors. Fix by setting `type` to a valid discriminator literal — your IDE will then offer the correct option bag. You gain 45+ analyzers, 18 tokenizers, and 80+ token filters for free.
+- *`IndexBuilder` is now generic over the mapping schema* (`IndexBuilder<M>`). Almost all usage is inference-driven and needs no changes; explicit type references must supply the generic. The default `Record<string, FieldTypeString>` keeps untyped references working.
+- *`indexSortSettings()` return shape corrected*: it now returns `{ sort: IndicesIndexSegmentSort }` instead of an incorrectly nested shape. Spread the result directly into your settings object; see the updated JSDoc and README example. Per-field `mode` and `missing` are now supported.
+- *`AnalysisComponentConfig` removed* — use one of the more specific `AnalysisXxxConfig` aliases.
+
+Phases 3–8 are purely additive or internal type tightening; no source changes should be required.
+
+**`query()` renamed to `queryBuilder()`:** The main search entry point is now `queryBuilder(schema)` instead of `query(schema)`. This better describes the return value (a builder) and parallels `indexBuilder()`. Update your imports: `import { queryBuilder } from 'elasticlink'`.
+
+### Fixed
+
+- **`regexp`, `geoDistance`, `geoBoundingBox`, `geoPolygon`, `geoShape` inside `.nested()`** — these clauses are now available on `ClauseBuilder` and correctly qualify field names with the nested path prefix. Previously they were only exposed on the top-level `QueryBuilder`, so they could not be used inside nested contexts at all.
+
+### Changed
+
+- **`.knn()` field constraint** — explicitly narrowed to `DenseVectorFields<M>` (a dedicated alias of the current dense-vector projection). Behaviourally unchanged — the constraint makes the rule visible and keeps `VectorFields<M>` free to broaden to other vector types in future releases.
+- **`QueryState.knn` internal shape** — expanded to mirror `KnnSearch` from `@elastic/elasticsearch`. `filter` is now `QueryDslQueryContainer | QueryDslQueryContainer[]` (was `any`), and the state now carries `query_vector_builder`, `inner_hits`, `rescore_vector`, and `visit_percentage`.
+- **Analyzer / tokenizer / token filter / char filter / normalizer types are now passthroughs** to `@elastic/elasticsearch`'s `AnalysisAnalyzer`, `AnalysisTokenizer`, `AnalysisTokenFilter`, `AnalysisCharFilter`, and `AnalysisNormalizer`. This unlocks every built-in and plugin component (45+ analyzers, 18 tokenizers, 80+ token filters) without further code changes and keeps elasticlink in lockstep with Elasticsearch releases. **Breaking:** loosely-typed analysis configs (`[key: string]: unknown`) may now see type errors where the discriminated `type` literal is wrong. Migration: set `type` to a valid discriminator — the IDE will then offer the correct option bag.
+- **`IndexBuilder` is now generic over the mapping schema (`IndexBuilder<M>`)**. `.mappings(schema)` rebinds `M` to the incoming schema's field-type map. Usage is inference-driven, so most callers need no changes; explicit `IndexBuilder` references now require the generic (defaults to `Record<string, FieldTypeString>` for backwards compatibility).
+- **`indexSortSettings()`** now returns `{ sort: IndicesIndexSegmentSort }` (the Elastic type) and supports full per-field specs with `mode` and `missing` alongside the existing `'asc' | 'desc'` shorthand. **Breaking:** the previous example that wrapped the result under an `index` key was incorrect — spread the return value directly into your settings object. See the updated JSDoc for the new pattern.
+- **`IndexMappings.dynamic_templates`** is now typed as `Partial<Record<string, MappingDynamicTemplate>>[]` (was `any[]`).
+- **`QueryState.query`** narrowed from `any` to `QueryDslQueryContainer`.
+- **`QueryState.search_after`** narrowed from `unknown[]` to `SortResults`, and the `.searchAfter()` method signature updated to match.
+- **`QueryState.collapse.inner_hits`** narrowed from `any` to `SearchInnerHits`; `.collapse()` options updated to match.
+- **`QueryState.rescore.query.rescore_query`** narrowed from `any` to `QueryDslQueryContainer`.
+- **`DenseVectorFieldOptions.index_options`** narrowed from `any` to `MappingDenseVectorIndexOptions`.
+- **`VectorFields<M>` broadened** to cover both `dense_vector` and `sparse_vector` field types. The narrower `DenseVectorFields<M>` alias (used by `.knn()`) is unchanged.
+- **`BulkBuilder.buildArray()`** now returns `Array<BulkOperationContainer | T | Partial<T>>` instead of `any[]`.
+- **Aggregation field constraints tightened** — `cardinality` and `valueCount` now restrict `field` to `KeywordFields<M> | TextFields<M> | NumericFields<M> | DateFields<M> | BooleanFields<M> | IpFields<M>`. Non-aggregatable field types (e.g. `dense_vector`, `sparse_vector`, `geo_point`) are now rejected at compile time.
+- **Suggester option types are now `Omit<SearchXxxSuggester, 'field' | 'text' | 'prefix'> & { field: <projection> }`**. `text` / `prefix` are supplied as explicit method arguments, and `field` is narrowed to the mapping schema: `term`/`phrase` require text/keyword fields, `completion` requires a `completion()` field. Previously `field` on a completion suggester was unchecked, so typos or wrong-type fields were silently sent to Elasticsearch. **Breaking:** calls passing a non-completion field to `.completion()` no longer compile. Migration: map the target field as `completion()` or switch to `.term()` / `.phrase()`.
+
+### Added
+
+- **Field helper option gaps filled** (Phase 8):
+  - `text()` — `position_increment_gap`, `norms`, `search_quote_analyzer`, `index_options` (typed as `MappingIndexOptions`: `'docs' | 'freqs' | 'positions' | 'offsets'`). Multi-field `fields` property now carries literal type info (see multi-field expansion below).
+  - `keyword()` — `split_queries_on_whitespace`, `script`, `on_script_error`.
+  - `date()` — `locale`, `script`, `on_script_error`.
+  - `geoPoint()` — `ignore_z_value`, `null_value`, `copy_to`, `script`, `on_script_error`.
+  - `completion()` — `contexts` (typed as `MappingSuggestContext[]`).
+  - `searchAsYouType()` — `search_quote_analyzer`, `store`, `doc_values`, `norms`, `term_vector`; `max_shingle_size` narrowed to `2 | 3 | 4`.
+  - `nested()` now accepts a second `NestedFieldOptions` argument (`enabled`, `dynamic`, `include_in_parent`, `include_in_root`).
+  - `object()` `ObjectFieldOptions` now includes `dynamic`.
+- **`dateNanos()` field helper** — mirrors `date()` but stores timestamps at nanosecond precision. `DateFields<M>` projection broadened to include `date_nanos`, so every agg/query that accepts a date field also accepts `date_nanos`. New `DateNanosFieldOptions`, `DateNanosFieldMapping` types; `date_nanos` added to `FieldTypeString` and `Infer<>`.
+- **`ipRange()` field helper** — range-typed IPv4/IPv6 field. New `IpRangeFieldOptions`, `IpRangeFieldMapping` types; `ip_range` added to `FieldTypeString` and `Infer<>` (range object or CIDR string).
+- **Aggregation must-haves**:
+  - `.dateRange(name, field, options)` — date-bucket complement to `.range()`, constrained to `DateFields<M>`. Supports date-math expressions in `ranges[].from`/`to`.
+  - `.filters(name, filters, options?)` — multi-filter bucket aggregation distinct from the existing single-query `.filter(name, query)`. Accepts a `Record<string, QueryDslQueryContainer>` and supports `other_bucket`, `other_bucket_key`, `keyed`.
+  - `.significantTerms(name, field, options?)` — statistically significant terms relative to the background set, constrained to `KeywordFields<M> | TextFields<M>`.
+  - Corresponding `DateRangeAggOptions`, `FiltersAggOptions`, `SignificantTermsAggOptions` types.
+- **Long-tail aggregations** (14 new methods):
+  - **Bucket:** `.rareTerms(name, field, options?)`, `.multiTerms(name, options)`, `.geoDistance(name, field, options)`, `.geohashGrid(name, field, options?)`, `.geotileGrid(name, field, options?)`, `.missing(name, field, options?)`.
+  - **Metric:** `.geoBounds(name, field, options?)`, `.geoCentroid(name, field, options?)`, `.topMetrics(name, options)`, `.weightedAvg(name, options)`.
+  - **Pipeline:** `.derivative(name, options)`, `.cumulativeSum(name, options)`, `.bucketScript(name, options)`, `.bucketSelector(name, options)`.
+  - Geo aggs constrained to `GeoPointFields<M>`; `rareTerms` constrained to `KeywordFields<M> | NumericFields<M> | IpFields<M>`. Pipeline aggs use `buckets_path` references (no field parameter).
+  - Corresponding option types exported: `RareTermsAggOptions`, `MultiTermsAggOptions`, `GeoDistanceAggOptions`, `GeohashGridAggOptions`, `GeotileGridAggOptions`, `GeoBoundsAggOptions`, `GeoCentroidAggOptions`, `MissingAggOptions`, `TopMetricsAggOptions`, `WeightedAvgAggOptions`, `BucketScriptAggOptions`, `BucketSelectorAggOptions`, `DerivativeAggOptions`, `CumulativeSumAggOptions`.
+- **Field helpers** — `tokenCount()`, `murmur3Hash()`, `join()`:
+  - `tokenCount(options?)` — counts the number of tokens produced by an analyzer. Options: `analyzer`, `boost`, `index`, `store`, `doc_values`, `null_value`, `enable_position_increments`. `Infer<>` maps to `number`.
+  - `murmur3Hash()` — computes a murmur3 hash at index time (requires `mapper-murmur3` plugin). No options. `Infer<>` maps to `string`.
+  - `join(options)` — defines parent/child relationships within a single index. Options: `relations` (required), `eager_global_ordinals`. `Infer<>` maps to `string`.
+  - New types: `TokenCountFieldOptions`, `JoinFieldOptions`, `TokenCountFieldMapping`, `Murmur3FieldMapping`, `JoinFieldMapping`.
+  - `token_count`, `murmur3`, `join` added to `FieldTypeString` and `ESTypeToTS`.
+- **`functionScore` query** — wraps an inner query and applies scoring functions (`field_value_factor`, decay functions, `random_score`, `script_score`, `weight`). Available on both `QueryBuilder` and `ClauseBuilder` (usable inside `bool` contexts). Options type `FunctionScoreOptions` is `Omit<QueryDslFunctionScoreQuery, 'query'>` — full passthrough to the Elastic type.
+- **`hasChild` / `hasParent` / `parentId` queries** — parent/child join queries for use with `join()` field mappings. `hasChild(type, queryFn, options?)` returns parent documents whose children match; `hasParent(type, queryFn, options?)` returns children whose parent matches; `parentId(type, id, options?)` returns children of a specific parent document. Available on both `QueryBuilder` and `ClauseBuilder`. Options types: `HasChildOptions`, `HasParentOptions`, `ParentIdOptions`.
+- **`intervals` query** — positional proximity query returning documents where terms appear in a specified order and proximity. Field constrained to `TextFields<M>`. Full passthrough to `QueryDslIntervalsQuery` — supports `match`, `prefix`, `wildcard`, `fuzzy`, `range`, `regexp`, `all_of`, `any_of` rules with optional `filter` (before/after/containing/overlapping). Options type: `IntervalsOptions`.
+- **Span queries** — 9 span query methods for advanced positional matching: `spanTerm(field, value)`, `spanNear(clauses, options?)`, `spanOr(clauses)`, `spanNot(include, exclude, options?)`, `spanFirst(match, end)`, `spanContaining(big, little)`, `spanWithin(big, little)`, `spanMultiTerm(query)`, `spanFieldMasking(field, query)`. All available on both `QueryBuilder` and `ClauseBuilder`. Span queries compose naturally — use `q.spanTerm()` from the `ClauseBuilder` to build inner clauses for `spanNear`, `spanFirst`, etc. Options types: `SpanNearOptions`, `SpanNotOptions`, `SpanQuery`.
+- **Multi-field sub-field expansion** — field helpers that accept `fields` (`text`, `keyword`, numeric types, `date`, `dateNanos`, `matchOnlyText`) now carry multi-field type information at compile time. Dot-notation paths like `name.raw` are automatically expanded into the field map, so `term('name.raw', ...)` compiles when `name` is `text({ fields: { raw: keyword() } })`. Multi-fields appear in query field constraints (`KeywordFields<M>`, `TextFields<M>`, etc.) but do **not** appear in `Infer<>` — they are indexing sub-fields, not document properties. All field option types (`TextFieldOptions`, `KeywordFieldOptions`, `NumericFieldOptions`, `DateFieldOptions`, `MatchOnlyTextFieldOptions`, and derived types) are now generic over the multi-field record `MF`; defaults are backwards-compatible.
+- **SearchRequest surface completion**:
+  - `.runtimeMappings(mappings)` — attach script-computed fields (`Record<string, MappingRuntimeField>`) visible to queries, sorts, and aggs.
+  - `.docValueFields(fields)` — set `docvalue_fields` (`Array<QueryDslFieldAndFormat | string>`) for efficient hit-time value retrieval.
+  - `.fields(fields)` — set `fields` (`Array<QueryDslFieldAndFormat | string>`) to pull values via the fields API (supports runtime + standard with format).
+  - `.postFilter(fn)` — clause-builder callback for `post_filter`, applied after aggregations so aggs see the unfiltered result set. Field constraints come from the mapping schema.
+  - `.scriptFields(fields)` — set `script_fields` (`Record<string, ScriptField>`) for per-hit Painless-computed values.
+  - `.sourceIncludes(paths)` / `.sourceExcludes(paths)` — complement to the existing `.source()` / `._source()` methods, setting `_source_includes` and `_source_excludes`.
+- **`.distanceFeature(field, options)`** — query clause that boosts relevance by proximity of a `date` or `geo_point` field to a given origin. Constrained to `DateFields<M> | GeoPointFields<M>`.
+- **`.rankFeature(field, options?)`** — query clause that boosts relevance using a numeric feature stored in a `rank_feature` or `rank_features` field. Options mirror `QueryDslRankFeatureQuery` (saturation, log, linear, sigmoid). Constrained to `RankFeatureFields<M>`.
+- **`.sparseVector(field, options)`** — query clause for learned sparse retrieval (e.g. ELSER). Supports both the `inference_id`/`query` form and the precomputed `query_vector` form, plus `prune` and `pruning_config`. Constrained to `SparseVectorFields<M>`.
+- **`rankFeature()` and `rankFeatures()` field helpers** with `positive_score_impact` option. Corresponding `RankFeatureFieldMapping`, `RankFeaturesFieldMapping`, `RankFeatureFieldOptions`, and `RankFeaturesFieldOptions` types.
+- **`RankFeatureFields<M>`** — new mapping projection for the query-clause field constraint.
+- **`rank_feature` and `rank_features`** added to `FieldTypeString`.
+- **`KnnOptions` now exposes `query_vector_builder`, `inner_hits`, `rescore_vector`, and `visit_percentage`** via the existing `Omit<KnnSearch, 'field' | 'query_vector'>` passthrough — these were already structurally available but are now covered by explicit tests (including an ELSER-style `query_vector_builder` call).
+- **Bulk `update` body now forwards `detect_noop`, `scripted_upsert`, and `_source`** alongside the existing `doc`, `doc_as_upsert`, `upsert`, and `script` fields. Header-level `require_alias` and `dynamic_templates` continue to flow through the header spread — they are now covered by tests to prevent regression.
+- **`MultiSearchBuilder.addQueryBuilder(qb, header?)`** — convenience method that accepts a `QueryBuilder` directly, equivalent to `.addQuery(qb.build(), header)` but without the manual `.build()` call.
+- **`MultiSearchBuilder.withParams(params)` and `.buildParams()`** — set request-level msearch params (`max_concurrent_searches`, `max_concurrent_shard_requests`, `pre_filter_shard_size`, `rest_total_hits_as_int`, `typed_keys`, `ccs_minimize_roundtrips`, `search_type`, `routing`) separately from the NDJSON body, so callers can spread them into `client.msearch({ ...ms.buildParams(), body: ms.build() })`. New `MSearchRequestParams` type re-exported from the package root.
+- **`MSearchHeader`** — re-exported from the package root for typed header construction.
+- **Suggester helper type re-exports** — `TermSuggesterOptions`, `PhraseSuggesterOptions`, `CompletionSuggesterOptions`, plus the leaf helper types `PhraseSuggestDirectGenerator`, `PhraseSuggestCollate`, `PhraseSuggestSmoothingModel`, and `CompletionSuggestContext` (all passthroughs from `@elastic/elasticsearch`).
+- **`DenseVectorFields<M>`** — new mapping projection, exported alongside `VectorFields<M>`.
+- **`SparseVectorFields<M>`** — new mapping projection for `sparse_vector` fields (needed by upcoming `.sparseVector()` query and ELSER support).
+- **`CompletionFields<M>`** — new mapping projection used by the completion suggester constraint.
+- **`IndexSortFieldSpec`** — per-field sort spec type for `indexSortSettings()` allowing `mode` and `missing` per field.
+- Re-exported analysis component type aliases: `AnalysisTokenizerConfig`, `AnalysisTokenFilterConfig`, `AnalysisCharFilterConfig`, `AnalysisNormalizerConfig`.
+
+### Removed
+
+- **`AnalysisComponentConfig`** — replaced by the five more specific passthrough aliases above. If you imported this directly, migrate to the matching `AnalysisXxxConfig` type.
+
 ## [0.8.0-beta] - 2026-03-21
 
 ### Added
@@ -295,7 +402,4 @@ All input types are now derived directly from the official `@elastic/elasticsear
 
 ## Versioning
 
-This project is currently in **beta**. The API may change, including breaking changes, as we gather feedback and refine the design.
-
-- **0.x.x-beta**: Beta releases - API may change
-- **Future stable release**: When ready, based on real-world usage and feedback
+elasticlink follows [Semantic Versioning](https://semver.org/). Breaking changes to the public API will only ship in a major release once `1.0.0` stable lands. The `1.0.0-beta.x` series is feature-complete and intended for validation; the `0.x.x-beta` series pre-dates v1 and is no longer maintained.

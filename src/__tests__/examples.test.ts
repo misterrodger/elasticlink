@@ -1,5 +1,5 @@
 import {
-  query,
+  queryBuilder,
   aggregations,
   suggest,
   msearch,
@@ -102,7 +102,7 @@ describe('Real-world Usage Examples', () => {
     it('should build a basic product search query', () => {
       const searchTerm = 'equity';
 
-      const result = query(instrumentMappings)
+      const result = queryBuilder(instrumentMappings)
         .match('name', searchTerm, { operator: 'and', boost: 2 })
         .from(0)
         .size(20)
@@ -131,7 +131,7 @@ describe('Real-world Usage Examples', () => {
       const minPrice = 1_000_000_000;
       const maxPrice = 5_000_000_000;
 
-      const result = query(instrumentMappings)
+      const result = queryBuilder(instrumentMappings)
         .bool()
         .must((q) => q.match('name', searchTerm, { operator: 'and', boost: 2 }))
         .should((q) => q.fuzzy('description', searchTerm, { fuzziness: 'AUTO' }))
@@ -237,7 +237,7 @@ describe('Real-world Usage Examples', () => {
       const maxPrice = undefined;
       const selectedTags = ['large-cap', 'sp500'];
 
-      const result = query(instrumentMappings)
+      const result = queryBuilder(instrumentMappings)
         .bool()
         .when(searchTerm, (q) =>
           q.must((q2) =>
@@ -304,7 +304,7 @@ describe('Real-world Usage Examples', () => {
     it('should build an autocomplete-style product search', () => {
       const userInput = 'equ';
 
-      const result = query(instrumentMappings)
+      const result = queryBuilder(instrumentMappings)
         .bool()
         .must((q) => q.matchPhrasePrefix('name', userInput, { max_expansions: 20 }))
         .highlight(['name'], { fragment_size: 100 })
@@ -350,7 +350,7 @@ describe('Real-world Usage Examples', () => {
       const authorName = 'john';
       const startDate = '2024-01-01';
 
-      const result = query(articleMappings)
+      const result = queryBuilder(articleMappings)
         .bool()
         .must((q) =>
           q.multiMatch(['title', 'content'], searchTerm, {
@@ -452,7 +452,7 @@ describe('Real-world Usage Examples', () => {
     it('should build a search for articles with a specific author', () => {
       const authorName = 'jane';
 
-      const result = query(articleMappings)
+      const result = queryBuilder(articleMappings)
         .bool()
         .must((q) => q.term('author', authorName))
         .filter((q) =>
@@ -516,7 +516,7 @@ describe('Real-world Usage Examples', () => {
       const documentIds = ['doc-123', 'doc-456', 'doc-789'];
       const searchTerm = 'meeting notes';
 
-      const result = query(documentMappings)
+      const result = queryBuilder(documentMappings)
         .bool()
         .must((q) => q.ids(documentIds))
         .when(Boolean(searchTerm), (q) =>
@@ -588,7 +588,7 @@ describe('Real-world Usage Examples', () => {
       const startDate: string | undefined = '2024-01-01';
       const endDate: string | undefined = undefined;
 
-      const result = query(documentMappings)
+      const result = queryBuilder(documentMappings)
         .bool()
         .when(Boolean(searchTerm), (q) =>
           q.must((q2) =>
@@ -660,7 +660,7 @@ describe('Real-world Usage Examples', () => {
     it('should build a search-as-you-type query', () => {
       const userTypedPrefix = 'ela';
 
-      const result = query(instrumentMappings)
+      const result = queryBuilder(instrumentMappings)
         .matchPhrasePrefix('name', userTypedPrefix, { max_expansions: 50 })
         .highlight(['name'], {
           fragment_size: 80,
@@ -710,7 +710,7 @@ describe('Real-world Usage Examples', () => {
         minRating: 4
       };
 
-      const result = query(instrumentMappings)
+      const result = queryBuilder(instrumentMappings)
         .bool()
         .must((q) => q.match('name', searchTerm, { boost: 2, operator: 'and' }))
         .filter((q) => q.term('asset_class', facetFilters.categories[0]))
@@ -789,7 +789,7 @@ describe('Real-world Usage Examples', () => {
     it('should build an error-resilient search with typo tolerance', () => {
       const userQuery = 'laptpo'; // Intentional typo
 
-      const result = query(instrumentMappings)
+      const result = queryBuilder(instrumentMappings)
         .bool()
         .must((q) =>
           q.fuzzy('name', userQuery, {
@@ -925,7 +925,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should find restaurants near a location', () => {
-      const result = query(restaurantMappings)
+      const result = queryBuilder(restaurantMappings)
         .geoDistance('location', { lat: 40.7128, lon: -74.006 }, { distance: '5km' })
         .size(20)
         .build();
@@ -947,7 +947,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should search in a geographic bounding box', () => {
-      const result = query(restaurantMappings)
+      const result = queryBuilder(restaurantMappings)
         .geoBoundingBox('location', {
           top_left: { lat: 40.8, lon: -74.1 },
           bottom_right: { lat: 40.7, lon: -74.0 }
@@ -975,7 +975,9 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should find products matching a pattern', () => {
-      const result = query(instrumentMappings).regexp('asset_class', 'elec.*', { flags: 'CASE_INSENSITIVE' }).build();
+      const result = queryBuilder(instrumentMappings)
+        .regexp('asset_class', 'elec.*', { flags: 'CASE_INSENSITIVE' })
+        .build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -992,7 +994,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should use constant_score for efficient filtering', () => {
-      const result = query(instrumentMappings)
+      const result = queryBuilder(instrumentMappings)
         .constantScore((q) => q.term('asset_class', 'technology'), {
           boost: 1.2
         })
@@ -1015,7 +1017,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should combine geo search with aggregations for store analytics', () => {
-      const queryResult = query(storeMappings)
+      const queryResult = queryBuilder(storeMappings)
         .geoDistance('coordinates', { lat: 40.7128, lon: -74.006 }, { distance: '10km' })
         .build();
 
@@ -1033,7 +1035,7 @@ describe('Real-world Usage Examples', () => {
     it('skips a filter clause when its value is undefined', () => {
       const assetClass: string | undefined = undefined;
 
-      const result = query(instrumentMappings)
+      const result = queryBuilder(instrumentMappings)
         .bool()
         .when(assetClass, (q) => q.filter((q2) => q2.term('asset_class', assetClass!)))
         .build();
@@ -1054,7 +1056,7 @@ describe('Real-world Usage Examples', () => {
       const maxCap: number | undefined = undefined;
       const tags: string[] = [];
 
-      const result = query(instrumentMappings)
+      const result = queryBuilder(instrumentMappings)
         .bool()
         .when(assetClass, (q) => q.filter((q2) => q2.term('asset_class', assetClass)))
         .when(minCap, (q) => q.filter((q2) => q2.range('market_cap', { gte: minCap! })))
@@ -1088,7 +1090,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('accepts a function condition — condition resolved at .when() invocation time', () => {
-      const result = query(instrumentMappings)
+      const result = queryBuilder(instrumentMappings)
         .bool()
         .when(
           () => new Date().getFullYear() >= 2020,
@@ -1105,7 +1107,7 @@ describe('Real-world Usage Examples', () => {
       // Simulated embedding vector for "wireless headphones"
       const searchEmbedding = [0.23, 0.45, 0.67, 0.12, 0.89, 0.34, 0.56, 0.78];
 
-      const result = query(instrumentWithEmbeddingMappings)
+      const result = queryBuilder(instrumentWithEmbeddingMappings)
         .knn('embedding', searchEmbedding, {
           k: 10,
           num_candidates: 100
@@ -1145,7 +1147,7 @@ describe('Real-world Usage Examples', () => {
     it('should build semantic search with category filtering', () => {
       const queryVector = [0.1, 0.2, 0.3, 0.4, 0.5];
 
-      const result = query(instrumentWithEmbeddingMappings)
+      const result = queryBuilder(instrumentWithEmbeddingMappings)
         .knn('embedding', queryVector, {
           k: 20,
           num_candidates: 200,
@@ -1160,15 +1162,18 @@ describe('Real-world Usage Examples', () => {
         .build();
 
       expect(result.knn?.filter).toBeDefined();
-      expect(result.knn?.filter.bool.must).toHaveLength(1);
-      expect(result.knn?.filter.bool.filter).toHaveLength(1);
+
+      const filterClause = result.knn?.filter as { bool: { must: unknown[]; filter: unknown[] } };
+
+      expect(filterClause.bool.must).toHaveLength(1);
+      expect(filterClause.bool.filter).toHaveLength(1);
     });
 
     it('should build image similarity search', () => {
       // Simulated 512-dimensional image embedding (e.g., from ResNet)
       const imageEmbedding = new Array(512).fill(0).map((_, i) => Math.sin(i / 100));
 
-      const result = query(instrumentWithEmbeddingMappings)
+      const result = queryBuilder(instrumentWithEmbeddingMappings)
         .knn('embedding', imageEmbedding, {
           k: 50,
           num_candidates: 500,
@@ -1188,7 +1193,7 @@ describe('Real-world Usage Examples', () => {
       // Current product's embedding
       const currentProductEmbedding = [0.45, 0.23, 0.67, 0.89, 0.12];
 
-      const result = query(instrumentWithEmbeddingMappings)
+      const result = queryBuilder(instrumentWithEmbeddingMappings)
         .knn('embedding', currentProductEmbedding, {
           k: 10,
           num_candidates: 100,
@@ -1203,7 +1208,9 @@ describe('Real-world Usage Examples', () => {
         ._source(['isin', 'name', 'market_cap', 'prospectus_url'])
         .build();
 
-      expect(result.knn?.filter?.bool?.must_not).toBeDefined();
+      const filterClause = result.knn?.filter as { bool: { must_not: unknown[] } };
+
+      expect(filterClause.bool.must_not).toBeDefined();
       expect(result.size).toBe(10);
     });
 
@@ -1211,7 +1218,7 @@ describe('Real-world Usage Examples', () => {
       // Search embedding for "machine learning best practices"
       const queryEmbedding = new Array(384).fill(0).map((_, i) => i / 384);
 
-      const result = query(contentDocumentMappings)
+      const result = queryBuilder(contentDocumentMappings)
         .knn('embedding', queryEmbedding, {
           k: 50,
           num_candidates: 500,
@@ -1234,7 +1241,7 @@ describe('Real-world Usage Examples', () => {
       // Embedding from multilingual model (e.g., multilingual-E5)
       const multilingualEmbedding = new Array(768).fill(0).map(() => Math.random());
 
-      const result = query(contentDocumentMappings)
+      const result = queryBuilder(contentDocumentMappings)
         .knn('embedding', multilingualEmbedding, {
           k: 30,
           num_candidates: 300,
@@ -1256,7 +1263,7 @@ describe('Real-world Usage Examples', () => {
       // OpenAI text-embedding-ada-002 produces 1536-dimensional vectors
       const openaiEmbedding = new Array(1536).fill(0).map(() => Math.random());
 
-      const result = query(contentDocumentMappings)
+      const result = queryBuilder(contentDocumentMappings)
         .knn('embedding', openaiEmbedding, {
           k: 10,
           num_candidates: 100,
@@ -1277,7 +1284,7 @@ describe('Real-world Usage Examples', () => {
     it('should build hybrid semantic + price ranking', () => {
       const productEmbedding = [0.5, 0.3, 0.8, 0.2, 0.6];
 
-      const result = query(instrumentWithEmbeddingMappings)
+      const result = queryBuilder(instrumentWithEmbeddingMappings)
         .knn('embedding', productEmbedding, {
           k: 100,
           num_candidates: 1000,
@@ -1305,7 +1312,7 @@ describe('Real-world Usage Examples', () => {
     it('should build semantic search with quality thresholding', () => {
       const queryVector = [0.7, 0.2, 0.5, 0.9, 0.1];
 
-      const result = query(instrumentWithEmbeddingMappings)
+      const result = queryBuilder(instrumentWithEmbeddingMappings)
         .knn('embedding', queryVector, {
           k: 20,
           num_candidates: 200,
@@ -1324,7 +1331,7 @@ describe('Real-world Usage Examples', () => {
       const referenceEmbedding = [0.33, 0.66, 0.22, 0.88, 0.44];
       const excludeIds = ['ref-item-1', 'ref-item-2', 'ref-item-3'];
 
-      const result = query(instrumentWithEmbeddingMappings)
+      const result = queryBuilder(instrumentWithEmbeddingMappings)
         .knn('embedding', referenceEmbedding, {
           k: 15,
           num_candidates: 150,
@@ -1338,7 +1345,9 @@ describe('Real-world Usage Examples', () => {
         ._source(['isin', 'name', 'description', 'market_cap', 'asset_class'])
         .build();
 
-      expect(result.knn?.filter?.bool?.must_not).toHaveLength(3);
+      const filterClause = result.knn?.filter as { bool: { must_not: unknown[] } };
+
+      expect(filterClause.bool.must_not).toHaveLength(3);
       expect(result.size).toBe(15);
     });
   });
@@ -1355,7 +1364,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should build dynamic price filter with script', () => {
-      const result = query(scoredProductMappings)
+      const result = queryBuilder(scoredProductMappings)
         .bool()
         .must((q) => q.match('name', 'laptop'))
         .filter((q) =>
@@ -1366,24 +1375,61 @@ describe('Real-world Usage Examples', () => {
         )
         .build();
 
-      expect(result.query?.bool?.filter).toHaveLength(1);
-      expect(result.query?.bool?.filter[0].script).toBeDefined();
+      expect(result.query).toMatchInlineSnapshot(`
+        {
+          "bool": {
+            "filter": [
+              {
+                "script": {
+                  "script": {
+                    "lang": "painless",
+                    "params": {
+                      "threshold": 500,
+                    },
+                    "source": "doc['price'].value > params.threshold",
+                  },
+                },
+              },
+            ],
+            "must": [
+              {
+                "match": {
+                  "name": "laptop",
+                },
+              },
+            ],
+          },
+        }
+      `);
     });
 
     it('should build custom popularity scoring', () => {
-      const result = query(scoredProductMappings)
+      const result = queryBuilder(scoredProductMappings)
         .scriptScore((q) => q.match('name', 'smartphone'), {
           source: "_score * Math.log(2 + doc['popularity'].value)"
         })
         .size(20)
         .build();
 
-      expect(result.query?.script_score?.query?.match).toBeDefined();
-      expect(result.query?.script_score?.script?.source).toContain('popularity');
+      expect(result.query).toMatchInlineSnapshot(`
+        {
+          "script_score": {
+            "query": {
+              "match": {
+                "name": "smartphone",
+              },
+            },
+            "script": {
+              "lang": "painless",
+              "source": "_score * Math.log(2 + doc['popularity'].value)",
+            },
+          },
+        }
+      `);
     });
 
     it('should build weighted quality + popularity score', () => {
-      const result = query(scoredProductMappings)
+      const result = queryBuilder(scoredProductMappings)
         .scriptScore(
           (q) =>
             q.multiMatch(['name'], 'premium headphones', {
@@ -1412,7 +1458,7 @@ describe('Real-world Usage Examples', () => {
         popularity_weight: 0.2
       };
 
-      const result = query(scoredProductMappings)
+      const result = queryBuilder(scoredProductMappings)
         .scriptScore((q) => q.term('id', 'prod-123'), {
           source: `
               double price_score = 1.0 / (1.0 + doc['price'].value / 1000);
@@ -1430,11 +1476,38 @@ describe('Real-world Usage Examples', () => {
         .size(50)
         .build();
 
-      expect(result.query?.script_score?.script?.params).toStrictEqual(userPreferences);
+      expect(result.query).toMatchInlineSnapshot(`
+        {
+          "script_score": {
+            "query": {
+              "term": {
+                "id": "prod-123",
+              },
+            },
+            "script": {
+              "lang": "painless",
+              "params": {
+                "popularity_weight": 0.2,
+                "price_weight": 0.3,
+                "quality_weight": 0.5,
+              },
+              "source": "double price_score = 1.0 / (1.0 + doc['price'].value / 1000);
+                      double quality_score = doc['quality_score'].value / 10.0;
+                      double popularity_score = Math.log(1 + doc['popularity'].value) / 10.0;
+
+                      return _score * (
+                        price_score * params.price_weight +
+                        quality_score * params.quality_weight +
+                        popularity_score * params.popularity_weight
+                      );",
+            },
+          },
+        }
+      `);
     });
 
     it('should build time-decay scoring for trending products', () => {
-      const result = query(scoredProductMappings)
+      const result = queryBuilder(scoredProductMappings)
         .scriptScore(
           (q) => q.matchAll(),
           {
@@ -1471,7 +1544,7 @@ describe('Real-world Usage Examples', () => {
         source: 'api-server'
       };
 
-      const result = query(alertRuleMappings)
+      const result = queryBuilder(alertRuleMappings)
         .percolate({
           field: 'query',
           document: logEntry
@@ -1489,7 +1562,7 @@ describe('Real-world Usage Examples', () => {
         { title: 'Sports News', content: 'Team wins championship' }
       ];
 
-      const result = query(alertRuleMappings)
+      const result = queryBuilder(alertRuleMappings)
         .percolate({
           field: 'query',
           documents: articles
@@ -1503,7 +1576,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should match against stored document', () => {
-      const result = query(alertRuleMappings)
+      const result = queryBuilder(alertRuleMappings)
         .percolate({
           field: 'query',
           index: 'user_content',
@@ -1527,7 +1600,7 @@ describe('Real-world Usage Examples', () => {
         attempted_resource: '/admin/users'
       };
 
-      const result = query(alertRuleMappings)
+      const result = queryBuilder(alertRuleMappings)
         .percolate({
           field: 'query',
           document: securityEvent,
@@ -1549,7 +1622,7 @@ describe('Real-world Usage Examples', () => {
         preferred_length: 'medium'
       };
 
-      const result = query(alertRuleMappings)
+      const result = queryBuilder(alertRuleMappings)
         .percolate({
           field: 'query',
           document: userPreferences
@@ -1571,7 +1644,7 @@ describe('Real-world Usage Examples', () => {
         timestamp: '2024-01-15T15:00:00Z'
       };
 
-      const result = query(alertRuleMappings)
+      const result = queryBuilder(alertRuleMappings)
         .percolate({
           field: 'query',
           document: metrics,
@@ -1597,7 +1670,7 @@ describe('Real-world Usage Examples', () => {
         created_at: date()
       });
       // Top selling products query
-      const topSelling = query(dashboardProductMappings)
+      const topSelling = queryBuilder(dashboardProductMappings)
         .bool()
         .filter((q) => q.range('created_at', { gte: 'now-30d' }))
         .sort('sales_count', 'desc')
@@ -1605,10 +1678,10 @@ describe('Real-world Usage Examples', () => {
         .build();
 
       // New arrivals query
-      const newArrivals = query(dashboardProductMappings).matchAll().sort('created_at', 'desc').size(10).build();
+      const newArrivals = queryBuilder(dashboardProductMappings).matchAll().sort('created_at', 'desc').size(10).build();
 
       // Electronics deals query
-      const electronicsDeals = query(dashboardProductMappings)
+      const electronicsDeals = queryBuilder(dashboardProductMappings)
         .bool()
         .filter((q) => q.term('category', 'technology'))
         .filter((q) => q.range('price', { lte: 500 }))
@@ -1639,7 +1712,7 @@ describe('Real-world Usage Examples', () => {
         content: text(),
         tenant_id: keyword()
       });
-      const searchQuery = query(tenantDocMappings).match('content', 'important').size(20).build();
+      const searchQuery = queryBuilder(tenantDocMappings).match('content', 'important').size(20).build();
 
       const result = msearch(tenantDocMappings)
         .addQuery(searchQuery, { index: 'tenant-001-docs' })
@@ -2185,7 +2258,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should aggregate fixed-income instruments by sector with yield metrics', () => {
-      const result = query(portfolioMappings)
+      const result = queryBuilder(portfolioMappings)
         .bool()
         .filter((q) => q.term('asset_class', 'fixed-income'))
         .filter((q) => q.range('yield_rate', { gte: 3.0 }))
@@ -2318,7 +2391,7 @@ describe('Real-world Usage Examples', () => {
         property_class: keyword(),
         list_price: long()
       });
-      const condoSearch = query(listingMappings)
+      const condoSearch = queryBuilder(listingMappings)
         .bool()
         .filter((q) => q.term('property_class', 'condo'))
         .filter((q) => q.range('list_price', { lte: 2_000_000 }))
@@ -2326,7 +2399,7 @@ describe('Real-world Usage Examples', () => {
         .size(0)
         .build();
 
-      const townhouseSearch = query(listingMappings)
+      const townhouseSearch = queryBuilder(listingMappings)
         .bool()
         .filter((q) => q.term('property_class', 'townhouse'))
         .aggs((agg) => agg.avg('avg_price', 'list_price').min('min_price', 'list_price'))
@@ -2438,7 +2511,7 @@ describe('Real-world Usage Examples', () => {
     it('should query an object sub-field with dot-notation — no wrapper needed', () => {
       const city = 'Portland';
 
-      const result = query(productMappings)
+      const result = queryBuilder(productMappings)
         .bool()
         .filter((q) => q.term('address.city', city))
         .filter((q) => q.term('address.country', 'US'))
@@ -2467,7 +2540,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should query a nested field with the .nested() wrapper', () => {
-      const result = query(productMappings)
+      const result = queryBuilder(productMappings)
         .nested('variants', (q) => q.term('color', 'black'))
         .build();
 
@@ -2488,7 +2561,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should query a nested field with a range clause and score_mode', () => {
-      const result = query(productMappings)
+      const result = queryBuilder(productMappings)
         .nested('variants', (q) => q.range('price', { lte: 150 }), { score_mode: 'min' })
         .build();
 
@@ -2512,7 +2585,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should query article comments nested field with typed inner builder', () => {
-      const result = query(articleMappings)
+      const result = queryBuilder(articleMappings)
         .nested('comments', (q) => q.term('author', 'alice'))
         .build();
 
@@ -2533,7 +2606,7 @@ describe('Real-world Usage Examples', () => {
     });
 
     it('should combine object dot-notation and nested queries in a bool', () => {
-      const result = query(productMappings)
+      const result = queryBuilder(productMappings)
         .bool()
         .must((q) => q.match('name', 'shoe'))
         .filter((q) => q.term('address.country', 'US'))

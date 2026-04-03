@@ -5,21 +5,30 @@
 
 import type { FieldTypeString } from './index-management.types.js';
 import type { MappingsSchema } from './mapping.types.js';
-import { MSearchBuilder, MSearchRequest } from './multi-search.types.js';
+import { MSearchBuilder, MSearchRequest, MSearchRequestParams } from './multi-search.types.js';
 
 /**
  * Creates a multi-search builder
  * @returns MSearchBuilder instance
  */
 export const createMSearchBuilder = <M extends Record<string, FieldTypeString>>(
-  searches: MSearchRequest<M>[] = []
+  searches: MSearchRequest<M>[] = [],
+  params: MSearchRequestParams = {}
 ): MSearchBuilder<M> => ({
   add: (request) => {
-    return createMSearchBuilder<M>([...searches, request]);
+    return createMSearchBuilder<M>([...searches, request], params);
   },
 
   addQuery: (body, header = {}) => {
-    return createMSearchBuilder<M>([...searches, { header, body }]);
+    return createMSearchBuilder<M>([...searches, { header, body }], params);
+  },
+
+  addQueryBuilder: (qb, header = {}) => {
+    return createMSearchBuilder<M>([...searches, { header, body: qb.build() }], params);
+  },
+
+  withParams: (next) => {
+    return createMSearchBuilder<M>(searches, { ...params, ...next });
   },
 
   // eslint-disable-next-line functional/functional-parameters
@@ -36,15 +45,19 @@ export const createMSearchBuilder = <M extends Record<string, FieldTypeString>>(
   // eslint-disable-next-line functional/functional-parameters
   buildArray: () => {
     return searches.flatMap(({ header, body }) => [header || {}, body]);
-  }
+  },
+
+  // eslint-disable-next-line functional/functional-parameters
+  buildParams: () => params
 });
 
 /**
  * Create a new multi-search builder
  * @example
  * const ms = msearch(productMappings)
- *   .addQuery(query1.build(), { index: 'products' })
- *   .addQuery(query2.build(), { index: 'products' })
+ *   .addQueryBuilder(queryBuilder(productMappings).match('name', 'shoe'), { index: 'products' })
+ *   .addQueryBuilder(queryBuilder(productMappings).match('name', 'shirt'), { index: 'products' })
+ *   .withParams({ max_concurrent_searches: 5, typed_keys: true })
  *   .build();
  */
 export const msearch = <M extends Record<string, FieldTypeString>>(_schema: MappingsSchema<M>) =>
