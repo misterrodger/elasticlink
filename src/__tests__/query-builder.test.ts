@@ -1,4 +1,4 @@
-import { query, mappings, keyword, text, nested, float, percolator } from '..';
+import { queryBuilder, mappings, keyword, text, nested, float, percolator, geoPoint, geoShape } from '..';
 import type { Infer } from '..';
 import { listingMappings, listingDetailMappings, geoListingMappings } from './fixtures/real-estate.schema.js';
 import { instrumentWithEmbeddingMappings } from './fixtures/finance.schema.js';
@@ -24,7 +24,7 @@ const reviewMappings = mappings({
 describe('QueryBuilder', () => {
   describe('Pagination and source filtering', () => {
     it('add from', () => {
-      const result = query(listingMappings).match('address', 'test').from(1).build();
+      const result = queryBuilder(listingMappings).match('address', 'test').from(1).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -39,7 +39,7 @@ describe('QueryBuilder', () => {
     });
 
     it('add size', () => {
-      const result = query(listingMappings).match('address', 'test').size(1).build();
+      const result = queryBuilder(listingMappings).match('address', 'test').size(1).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -54,7 +54,7 @@ describe('QueryBuilder', () => {
     });
 
     it('add source', () => {
-      const result = query(listingMappings).match('address', 'test')._source(['property_class', 'sqft']).build();
+      const result = queryBuilder(listingMappings).match('address', 'test')._source(['property_class', 'sqft']).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -72,7 +72,7 @@ describe('QueryBuilder', () => {
     });
 
     it('add sort', () => {
-      const result = query(listingMappings).match('address', 'test').sort('sqft', 'asc').build();
+      const result = queryBuilder(listingMappings).match('address', 'test').sort('sqft', 'asc').build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -91,7 +91,7 @@ describe('QueryBuilder', () => {
     });
 
     it('add sort with desc direction', () => {
-      const result = query(listingMappings).match('address', 'test').sort('list_price', 'desc').build();
+      const result = queryBuilder(listingMappings).match('address', 'test').sort('list_price', 'desc').build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -110,7 +110,7 @@ describe('QueryBuilder', () => {
     });
 
     it('combine from, size, and _source', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .match('address', 'test')
         .from(20)
         .size(10)
@@ -135,7 +135,7 @@ describe('QueryBuilder', () => {
     });
 
     it('combine sort with other meta properties', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .match('address', 'laptop')
         .sort('list_price', 'asc')
         .sort('sqft', 'desc')
@@ -167,7 +167,7 @@ describe('QueryBuilder', () => {
 
   describe('Full-text and term-level queries', () => {
     it('build a match_all query', () => {
-      const result = query(listingMappings).matchAll().build();
+      const result = queryBuilder(listingMappings).matchAll().build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -179,7 +179,7 @@ describe('QueryBuilder', () => {
     });
 
     it('builds a match_none query', () => {
-      const result = query(listingMappings).matchNone().build();
+      const result = queryBuilder(listingMappings).matchNone().build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -191,7 +191,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a match query', () => {
-      const result = query(listingMappings).match('address', 'test type').build();
+      const result = queryBuilder(listingMappings).match('address', 'test type').build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -205,7 +205,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a multi_match query', () => {
-      const result = query(listingMappings).multiMatch(['address'], 'test').build();
+      const result = queryBuilder(listingMappings).multiMatch(['address'], 'test').build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -222,7 +222,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a match_phrase query', () => {
-      const result = query(listingMappings).matchPhrase('address', 'test').build();
+      const result = queryBuilder(listingMappings).matchPhrase('address', 'test').build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -236,7 +236,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a term query', () => {
-      const result = query(listingMappings).term('property_class', 'test').build();
+      const result = queryBuilder(listingMappings).term('property_class', 'test').build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -250,7 +250,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a terms query', () => {
-      const result = query(listingMappings).terms('property_class', ['test', 'type']).build();
+      const result = queryBuilder(listingMappings).terms('property_class', ['test', 'type']).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -267,7 +267,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a range query', () => {
-      const result = query(listingMappings).range('list_price', { gt: 1, lt: 100 }).build();
+      const result = queryBuilder(listingMappings).range('list_price', { gt: 1, lt: 100 }).build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -284,7 +284,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build an exists query', () => {
-      const result = query(listingMappings).exists('property_class').build();
+      const result = queryBuilder(listingMappings).exists('property_class').build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -298,7 +298,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a prefix query', () => {
-      const result = query(listingMappings).prefix('property_class', 'test').build();
+      const result = queryBuilder(listingMappings).prefix('property_class', 'test').build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -312,7 +312,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a wildcard query', () => {
-      const result = query(listingMappings).wildcard('property_class', 'test').build();
+      const result = queryBuilder(listingMappings).wildcard('property_class', 'test').build();
 
       expect(result).toMatchInlineSnapshot(`
         {
@@ -328,7 +328,7 @@ describe('QueryBuilder', () => {
 
   describe('Boolean queries', () => {
     it('build a bool with 1 must query', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .must((q) => q.match('address', 'test type'))
         .build();
@@ -351,7 +351,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with 2 must queries', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .must((q) => q.match('address', 'test type'))
         .must((q) => q.match('address', 'value'))
@@ -380,7 +380,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with 1 mustNot query', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .mustNot((q) => q.match('address', 'test type'))
         .build();
@@ -403,7 +403,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with 2 mustNot queries', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .mustNot((q) => q.match('address', 'test type'))
         .mustNot((q) => q.match('address', 'value'))
@@ -432,7 +432,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with 1 should query', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .should((q) => q.match('address', 'test type'))
         .build();
@@ -455,7 +455,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with 2 should queries', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .should((q) => q.match('address', 'test type'))
         .should((q) => q.match('address', 'value'))
@@ -484,7 +484,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with one filter query', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .filter((q) => q.match('address', 'test type'))
         .build();
@@ -507,7 +507,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with minimumShouldMatch', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .must((q) => q.match('address', 'test type'))
         .must((q) => q.match('address', 'value'))
@@ -538,7 +538,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with range', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .must((q) => q.range('list_price', { gt: 1, lt: 100 }))
         .must((q) => q.range('sqft', { gte: 1, lte: 100 }))
@@ -573,7 +573,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with exists', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .must((q) => q.exists('list_price'))
         .must((q) => q.exists('property_class'))
@@ -602,7 +602,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with prefix', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .must((q) => q.prefix('property_class', 'pr'))
         .build();
@@ -625,7 +625,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with wildcard', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .must((q) => q.wildcard('property_class', 'pr'))
         .build();
@@ -648,7 +648,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with multi_match', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .must((q) => q.multiMatch(['address'], 'test'))
         .build();
@@ -674,7 +674,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build a bool with match_phrase', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .must((q) => q.matchPhrase('address', 'test'))
         .build();
@@ -697,7 +697,7 @@ describe('QueryBuilder', () => {
     });
 
     it('build filter-only bool (no must/should)', () => {
-      const result = query(listingMappings)
+      const result = queryBuilder(listingMappings)
         .bool()
         .filter((q) => q.term('property_class', 'laptop'))
         .filter((q) => q.range('list_price', { gte: 100 }))
@@ -731,7 +731,7 @@ describe('QueryBuilder', () => {
   describe('Query options and advanced features', () => {
     describe('match with options', () => {
       it('build match with operator option', () => {
-        const result = query(listingMappings).match('address', 'test type', { operator: 'and' }).build();
+        const result = queryBuilder(listingMappings).match('address', 'test type', { operator: 'and' }).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -748,7 +748,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build match with fuzziness option', () => {
-        const result = query(listingMappings).match('address', 'test', { fuzziness: 'AUTO' }).build();
+        const result = queryBuilder(listingMappings).match('address', 'test', { fuzziness: 'AUTO' }).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -765,7 +765,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build match with boost option', () => {
-        const result = query(listingMappings).match('address', 'test', { boost: 2.0 }).build();
+        const result = queryBuilder(listingMappings).match('address', 'test', { boost: 2.0 }).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -782,7 +782,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build match with multiple options', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .match('address', 'test', {
             operator: 'and',
             fuzziness: 'AUTO',
@@ -809,7 +809,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build match without options (backwards compatible)', () => {
-        const result = query(listingMappings).match('address', 'test').build();
+        const result = queryBuilder(listingMappings).match('address', 'test').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -823,7 +823,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build match in bool query with options', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'test', { operator: 'and', boost: 2 }))
           .build();
@@ -852,7 +852,7 @@ describe('QueryBuilder', () => {
 
     describe('multiMatch with options', () => {
       it('build multi_match with type option', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .multiMatch(['address'], 'test', {
             type: 'best_fields'
           })
@@ -874,7 +874,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build multi_match with tie_breaker option', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .multiMatch(['address'], 'test', {
             type: 'best_fields',
             tie_breaker: 0.3
@@ -898,7 +898,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build multi_match with operator and boost', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .multiMatch(['address'], 'test', {
             operator: 'and',
             boost: 1.5
@@ -922,7 +922,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build multi_match without options (backwards compatible)', () => {
-        const result = query(listingMappings).multiMatch(['address'], 'test').build();
+        const result = queryBuilder(listingMappings).multiMatch(['address'], 'test').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -939,7 +939,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build multi_match in bool query with options', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) =>
             q.multiMatch(['address'], 'test', {
@@ -974,7 +974,7 @@ describe('QueryBuilder', () => {
 
     describe('fuzzy', () => {
       it('build a fuzzy query at root level', () => {
-        const result = query(listingMappings).fuzzy('property_class', 'tst').build();
+        const result = queryBuilder(listingMappings).fuzzy('property_class', 'tst').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -990,7 +990,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a fuzzy query with fuzziness option', () => {
-        const result = query(listingMappings).fuzzy('property_class', 'tst', { fuzziness: 'AUTO' }).build();
+        const result = queryBuilder(listingMappings).fuzzy('property_class', 'tst', { fuzziness: 'AUTO' }).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1007,7 +1007,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a fuzzy query with numeric fuzziness', () => {
-        const result = query(listingMappings).fuzzy('property_class', 'test', { fuzziness: 2 }).build();
+        const result = queryBuilder(listingMappings).fuzzy('property_class', 'test', { fuzziness: 2 }).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1024,7 +1024,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a fuzzy query with boost option', () => {
-        const result = query(listingMappings).fuzzy('property_class', 'test', { boost: 1.5 }).build();
+        const result = queryBuilder(listingMappings).fuzzy('property_class', 'test', { boost: 1.5 }).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1041,7 +1041,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a fuzzy query with multiple options', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .fuzzy('property_class', 'test', { fuzziness: 'AUTO', boost: 2.0 })
           .build();
 
@@ -1061,7 +1061,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a fuzzy query in bool clause with no options', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.fuzzy('property_class', 'tst'))
           .build();
@@ -1086,7 +1086,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a fuzzy query in bool context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.fuzzy('property_class', 'test', { fuzziness: 'AUTO' }))
           .build();
@@ -1112,7 +1112,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a fuzzy query in should context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .should((q) => q.fuzzy('address', 'john', { fuzziness: 1 }))
           .should((q) => q.match('address', 'test'))
@@ -1146,7 +1146,7 @@ describe('QueryBuilder', () => {
 
     describe('Query parameters (timeout, trackScores, explain, etc.)', () => {
       it('add timeout parameter', () => {
-        const result = query(listingMappings).match('address', 'test').timeout('5s').build();
+        const result = queryBuilder(listingMappings).match('address', 'test').timeout('5s').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1161,7 +1161,7 @@ describe('QueryBuilder', () => {
       });
 
       it('add track_scores parameter', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .filter((q) => q.term('property_class', 'test'))
           .trackScores(true)
@@ -1186,7 +1186,7 @@ describe('QueryBuilder', () => {
       });
 
       it('add explain parameter', () => {
-        const result = query(listingMappings).match('address', 'test').explain(true).build();
+        const result = queryBuilder(listingMappings).match('address', 'test').explain(true).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1201,7 +1201,7 @@ describe('QueryBuilder', () => {
       });
 
       it('add min_score parameter', () => {
-        const result = query(listingMappings).match('address', 'test').minScore(0.5).build();
+        const result = queryBuilder(listingMappings).match('address', 'test').minScore(0.5).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1216,7 +1216,7 @@ describe('QueryBuilder', () => {
       });
 
       it('add version parameter', () => {
-        const result = query(listingMappings).term('property_class', 'test').version(true).build();
+        const result = queryBuilder(listingMappings).term('property_class', 'test').version(true).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1231,7 +1231,7 @@ describe('QueryBuilder', () => {
       });
 
       it('add seq_no_primary_term parameter', () => {
-        const result = query(listingMappings).term('property_class', 'test').seqNoPrimaryTerm(true).build();
+        const result = queryBuilder(listingMappings).term('property_class', 'test').seqNoPrimaryTerm(true).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1246,7 +1246,7 @@ describe('QueryBuilder', () => {
       });
 
       it('support multiple query parameters together', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .match('address', 'test', { operator: 'and', boost: 2 })
           .timeout('10s')
           .trackScores(true)
@@ -1286,7 +1286,7 @@ describe('QueryBuilder', () => {
 
     describe('pit()', () => {
       it('emits a pit object with id and keep_alive', () => {
-        const result = query(listingMappings).matchAll().pit('abc123', '1m').build();
+        const result = queryBuilder(listingMappings).matchAll().pit('abc123', '1m').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1302,7 +1302,7 @@ describe('QueryBuilder', () => {
       });
 
       it('combines pit with search_after for deep pagination', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .matchAll()
           .sort('list_price', 'asc')
           .pit('pit_token', '5m')
@@ -1316,7 +1316,7 @@ describe('QueryBuilder', () => {
 
     describe('ids', () => {
       it('build an ids query at root level', () => {
-        const result = query(listingMappings).ids(['id1', 'id2', 'id3']).build();
+        const result = queryBuilder(listingMappings).ids(['id1', 'id2', 'id3']).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1334,7 +1334,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build an ids query with single id', () => {
-        const result = query(listingMappings).ids(['single-id']).build();
+        const result = queryBuilder(listingMappings).ids(['single-id']).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1350,7 +1350,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build an ids query in bool must context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.ids(['id1', 'id2']))
           .build();
@@ -1376,7 +1376,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build an ids query in bool filter context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .filter((q) => q.ids(['id1', 'id2', 'id3']))
           .build();
@@ -1403,7 +1403,7 @@ describe('QueryBuilder', () => {
       });
 
       it('combine ids with other queries', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.ids(['id1', 'id2']))
           .filter((q) => q.term('property_class', 'test'))
@@ -1439,7 +1439,7 @@ describe('QueryBuilder', () => {
 
     describe('Nested queries', () => {
       it('build a nested query with a match clause', () => {
-        const result = query(reviewMappings)
+        const result = queryBuilder(reviewMappings)
           .nested('comments', (q) => q.match('author', 'john'))
           .build();
 
@@ -1460,7 +1460,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a nested query with a term clause', () => {
-        const result = query(reviewMappings)
+        const result = queryBuilder(reviewMappings)
           .nested('comments', (q) => q.term('status', 'approved'))
           .build();
 
@@ -1481,7 +1481,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a nested query with sum score_mode', () => {
-        const result = query(reviewMappings)
+        const result = queryBuilder(reviewMappings)
           .nested('comments', (q) => q.match('author', 'john'), { score_mode: 'sum' })
           .build();
 
@@ -1503,7 +1503,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a nested query with avg score_mode', () => {
-        const result = query(reviewMappings)
+        const result = queryBuilder(reviewMappings)
           .nested('comments', (q) => q.term('status', 'approved'), { score_mode: 'avg' })
           .build();
 
@@ -1525,7 +1525,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a nested query with min score_mode', () => {
-        const result = query(reviewMappings)
+        const result = queryBuilder(reviewMappings)
           .nested('comments', (q) => q.term('status', 'pending'), { score_mode: 'min' })
           .build();
 
@@ -1547,7 +1547,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a nested query combined with pagination and sort', () => {
-        const result = query(reviewMappings)
+        const result = queryBuilder(reviewMappings)
           .nested('comments', (q) => q.match('author', 'john'))
           .from(0)
           .size(10)
@@ -1589,7 +1589,7 @@ describe('QueryBuilder', () => {
           })
         });
 
-        const result = query(threadMappings)
+        const result = queryBuilder(threadMappings)
           .nested('posts', (q) => q.nested('replies', (qr) => qr.match('body', 'hello')))
           .build();
 
@@ -1626,7 +1626,7 @@ describe('QueryBuilder', () => {
           })
         });
 
-        const result = query(threadMappings)
+        const result = queryBuilder(threadMappings)
           .bool()
           .must((q) => q.nested('posts', (qp) => qp.nested('replies', (qr) => qr.term('author', 'alice'))))
           .build();
@@ -1659,7 +1659,7 @@ describe('QueryBuilder', () => {
       });
 
       it('returns builder unchanged when nested callback returns undefined', () => {
-        const result = query(reviewMappings)
+        const result = queryBuilder(reviewMappings)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .nested('comments', () => undefined as any)
           .build();
@@ -1671,7 +1671,7 @@ describe('QueryBuilder', () => {
     describe('Conditional building (when)', () => {
       it('executes thenFn when condition is true', () => {
         const searchTerm = 'test';
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .when(searchTerm, (q) => q.match('address', searchTerm))
           .build();
 
@@ -1688,7 +1688,7 @@ describe('QueryBuilder', () => {
 
       it('returns identity (empty state) when condition is false', () => {
         const searchTerm: string | undefined = undefined;
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .when(searchTerm, (q) => q.match('address', searchTerm!))
           .build();
 
@@ -1697,7 +1697,7 @@ describe('QueryBuilder', () => {
 
       it('uses when in bool must context — truthy', () => {
         const type = 'test';
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .when(type, (q) => q.must((q2) => q2.term('property_class', type)))
           .build();
@@ -1721,7 +1721,7 @@ describe('QueryBuilder', () => {
 
       it('uses when in bool must context — false leaves bool intact with no must array', () => {
         const type: string | undefined = undefined;
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .when(type, (q) => q.must((q2) => q2.term('property_class', type!)))
           .build();
@@ -1737,7 +1737,7 @@ describe('QueryBuilder', () => {
 
       it('uses when in bool filter context — truthy', () => {
         const minPrice = 100;
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .when(minPrice, (q) => q.filter((q2) => q2.range('list_price', { gte: minPrice })))
           .build();
@@ -1763,7 +1763,7 @@ describe('QueryBuilder', () => {
 
       it('uses when in bool filter context — false leaves no filter array', () => {
         const minPrice: number | undefined = undefined;
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
           .when(minPrice, (q) => q.filter((q2) => q2.range('list_price', { gte: minPrice! })))
@@ -1791,7 +1791,7 @@ describe('QueryBuilder', () => {
         const type = 'test';
         const minPrice = 500;
 
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .when(searchTerm, (q) => q.must((q2) => q2.match('address', searchTerm)))
           .when(type, (q) => q.filter((q2) => q2.term('property_class', type)))
@@ -1834,7 +1834,7 @@ describe('QueryBuilder', () => {
         const type: string | undefined = undefined;
         const minPrice: number | undefined = undefined;
 
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .when(searchTerm, (q) => q.must((q2) => q2.match('address', searchTerm!)))
           .when(type, (q) => q.filter((q2) => q2.term('property_class', type!)))
@@ -1852,7 +1852,7 @@ describe('QueryBuilder', () => {
 
       it('returns identity when condition is false — derived from empty array', () => {
         const ids: string[] = [];
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .when(ids.length > 0, (q) => q.ids(ids))
           .build();
 
@@ -1861,7 +1861,7 @@ describe('QueryBuilder', () => {
 
       it('executes when condition is true — derived from non-empty array', () => {
         const ids = ['id1', 'id2'];
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .when(ids.length > 0, (q) => q.ids(ids))
           .build();
 
@@ -1885,7 +1885,7 @@ describe('QueryBuilder', () => {
         const maxPrice: number | undefined = undefined;
         const type: string | undefined = 'residential';
 
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .when(searchTerm, (q) =>
             q
@@ -1930,7 +1930,7 @@ describe('QueryBuilder', () => {
 
     describe('matchPhrasePrefix', () => {
       it('build a match_phrase_prefix query at root level', () => {
-        const result = query(listingMappings).matchPhrasePrefix('address', 'test').build();
+        const result = queryBuilder(listingMappings).matchPhrasePrefix('address', 'test').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1944,7 +1944,9 @@ describe('QueryBuilder', () => {
       });
 
       it('build match_phrase_prefix with max_expansions option', () => {
-        const result = query(listingMappings).matchPhrasePrefix('address', 'test', { max_expansions: 10 }).build();
+        const result = queryBuilder(listingMappings)
+          .matchPhrasePrefix('address', 'test', { max_expansions: 10 })
+          .build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -1961,7 +1963,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build match_phrase_prefix in bool must context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.matchPhrasePrefix('address', 'john'))
           .build();
@@ -1984,7 +1986,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build match_phrase_prefix in bool filter context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .filter((q) => q.matchPhrasePrefix('address', 'test', { max_expansions: 5 }))
           .build();
@@ -2010,7 +2012,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use match_phrase_prefix for autocomplete pattern', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.matchPhrasePrefix('address', 'joh', { max_expansions: 20 }))
           .from(0)
@@ -2042,7 +2044,7 @@ describe('QueryBuilder', () => {
 
     describe('trackTotalHits', () => {
       it('add track_total_hits with true', () => {
-        const result = query(listingMappings).match('address', 'test').trackTotalHits(true).build();
+        const result = queryBuilder(listingMappings).match('address', 'test').trackTotalHits(true).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -2057,7 +2059,7 @@ describe('QueryBuilder', () => {
       });
 
       it('add track_total_hits with false', () => {
-        const result = query(listingMappings).match('address', 'test').trackTotalHits(false).build();
+        const result = queryBuilder(listingMappings).match('address', 'test').trackTotalHits(false).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -2072,7 +2074,7 @@ describe('QueryBuilder', () => {
       });
 
       it('add track_total_hits with number limit', () => {
-        const result = query(listingMappings).match('address', 'test').trackTotalHits(10000).build();
+        const result = queryBuilder(listingMappings).match('address', 'test').trackTotalHits(10000).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -2087,7 +2089,12 @@ describe('QueryBuilder', () => {
       });
 
       it('combine track_total_hits with pagination', () => {
-        const result = query(listingMappings).match('address', 'test').from(100).size(20).trackTotalHits(true).build();
+        const result = queryBuilder(listingMappings)
+          .match('address', 'test')
+          .from(100)
+          .size(20)
+          .trackTotalHits(true)
+          .build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -2106,7 +2113,7 @@ describe('QueryBuilder', () => {
 
     describe('Highlighting', () => {
       it('add highlight with single field', () => {
-        const result = query(listingMappings).match('address', 'test').highlight(['property_class']).build();
+        const result = queryBuilder(listingMappings).match('address', 'test').highlight(['property_class']).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -2125,7 +2132,10 @@ describe('QueryBuilder', () => {
       });
 
       it('add highlight with multiple fields', () => {
-        const result = query(listingMappings).match('address', 'test').highlight(['property_class', 'address']).build();
+        const result = queryBuilder(listingMappings)
+          .match('address', 'test')
+          .highlight(['property_class', 'address'])
+          .build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -2145,7 +2155,7 @@ describe('QueryBuilder', () => {
       });
 
       it('add highlight with fragment_size option', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .match('address', 'test')
           .highlight(['property_class'], { fragment_size: 150 })
           .build();
@@ -2169,7 +2179,7 @@ describe('QueryBuilder', () => {
       });
 
       it('add highlight with number_of_fragments option', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .match('address', 'test')
           .highlight(['address'], { number_of_fragments: 3 })
           .build();
@@ -2193,7 +2203,7 @@ describe('QueryBuilder', () => {
       });
 
       it('add highlight with custom pre/post tags', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .match('address', 'test')
           .highlight(['property_class'], {
             pre_tags: ['<em>'],
@@ -2224,7 +2234,7 @@ describe('QueryBuilder', () => {
       });
 
       it('add highlight with multiple options', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .match('address', 'test')
           .highlight(['property_class', 'address'], {
             fragment_size: 150,
@@ -2264,7 +2274,7 @@ describe('QueryBuilder', () => {
       });
 
       it('combine highlight with other query features', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'test'))
           .filter((q) => q.range('list_price', { gte: 100, lte: 1000 }))
@@ -2319,7 +2329,7 @@ describe('QueryBuilder', () => {
       });
 
       it('combine all features', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.matchPhrasePrefix('address', 'joh', { max_expansions: 20 }))
           .filter((q) => q.term('property_class', 'test'))
@@ -2390,7 +2400,7 @@ describe('QueryBuilder', () => {
   describe('Geo, pattern, scoring, and aggregation integration', () => {
     describe('Geo queries', () => {
       it('create a geo_distance query', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .geoDistance('location', { lat: 40.7128, lon: -74.006 }, { distance: '10km' })
           .build();
 
@@ -2410,7 +2420,7 @@ describe('QueryBuilder', () => {
       });
 
       it('create a geo_distance query with options', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .geoDistance(
             'location',
             { lat: 40.7128, lon: -74.006 },
@@ -2440,7 +2450,7 @@ describe('QueryBuilder', () => {
       });
 
       it('create a geo_bounding_box query', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .geoBoundingBox('location', {
             top_left: { lat: 40.8, lon: -74.1 },
             bottom_right: { lat: 40.7, lon: -74.0 }
@@ -2468,7 +2478,7 @@ describe('QueryBuilder', () => {
       });
 
       it('create a geo_polygon query', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .geoPolygon('location', {
             points: [
               { lat: 40.7128, lon: -74.006 },
@@ -2505,7 +2515,7 @@ describe('QueryBuilder', () => {
       });
 
       it('combine geo_distance with other queries', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .match('address', 'restaurants')
           .geoDistance('location', { lat: 40.7128, lon: -74.006 }, { distance: '5km' })
           .build();
@@ -2528,7 +2538,7 @@ describe('QueryBuilder', () => {
 
     describe('Pattern and scoring queries', () => {
       it('create a regexp query', () => {
-        const result = query(listingDetailMappings).regexp('property_class', 'rest.*').build();
+        const result = queryBuilder(listingDetailMappings).regexp('property_class', 'rest.*').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -2542,7 +2552,7 @@ describe('QueryBuilder', () => {
       });
 
       it('create a regexp query with options', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .regexp('property_class', 'rest.*', {
             flags: 'CASE_INSENSITIVE',
             boost: 2.0
@@ -2565,7 +2575,7 @@ describe('QueryBuilder', () => {
       });
 
       it('create a constant_score query', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .constantScore((q) => q.term('property_class', 'restaurants'))
           .build();
 
@@ -2585,7 +2595,7 @@ describe('QueryBuilder', () => {
       });
 
       it('create a constant_score query with boost', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .constantScore((q) => q.term('property_class', 'restaurants'), {
             boost: 1.5
           })
@@ -2608,7 +2618,7 @@ describe('QueryBuilder', () => {
       });
 
       it('combine constant_score with other queries', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .match('title', 'test')
           .constantScore((cb) => cb.term('property_class', 'restaurants'))
           .build();
@@ -2631,7 +2641,7 @@ describe('QueryBuilder', () => {
 
     describe('Query + Aggregations integration', () => {
       it('combine query with aggregations', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .match('title', 'restaurant')
           .aggs((agg) => agg.terms('by_category', 'property_class', { size: 10 }).avg('avg_price', 'list_price'))
           .build();
@@ -2660,8 +2670,8 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('build standalone aggregations with query(false)', () => {
-        const result = query(listingDetailMappings, false)
+      it('build standalone aggregations with queryBuilder(false)', () => {
+        const result = queryBuilder(listingDetailMappings, false)
           .aggs((agg) => agg.terms('by_category', 'property_class'))
           .size(0)
           .build();
@@ -2681,7 +2691,7 @@ describe('QueryBuilder', () => {
       });
 
       it('combine bool query with sub-aggregations', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .bool()
           .must((q) => q.match('title', 'coffee'))
           .filter((q) => q.range('list_price', { gte: 10, lte: 50 }))
@@ -2741,8 +2751,8 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('allow aggregations without query methods when using query()', () => {
-        const result = query(listingDetailMappings)
+      it('allow aggregations without query methods when using queryBuilder()', () => {
+        const result = queryBuilder(listingDetailMappings)
           .aggs((agg) => agg.sum('total_price', 'list_price'))
           .build();
 
@@ -2764,7 +2774,7 @@ describe('QueryBuilder', () => {
   describe('Boolean query combinations and edge cases', () => {
     describe('Combined bool clauses', () => {
       it('build bool with all four clauses (must + mustNot + should + filter)', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
           .mustNot((q) => q.term('property_class', 'refurbished'))
@@ -2816,7 +2826,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build bool with multiple filters chained', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .filter((q) => q.term('property_class', 'electronics'))
           .filter((q) => q.range('list_price', { gte: 100 }))
@@ -2853,7 +2863,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build bool with only filter clauses (non-scoring pattern)', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .filter((q) => q.term('property_class', 'product'))
           .filter((q) => q.range('list_price', { lte: 1000 }))
@@ -2884,7 +2894,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build bool with minimumShouldMatch and multiple should clauses', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .should((q) => q.match('address', 'laptop'))
           .should((q) => q.match('address', 'computer'))
@@ -2923,7 +2933,7 @@ describe('QueryBuilder', () => {
       it('build nested bool within bool (must containing complex logic)', () => {
         // This tests if we can express nested bool - currently API may not support this directly
         // This is an acceptance test for future functionality
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
           .filter((q) => q.range('list_price', { gte: 500 }))
@@ -2937,7 +2947,7 @@ describe('QueryBuilder', () => {
 
     describe('Range query edge cases', () => {
       it('build range with only gte', () => {
-        const result = query(listingMappings).range('list_price', { gte: 100 }).build();
+        const result = queryBuilder(listingMappings).range('list_price', { gte: 100 }).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -2953,7 +2963,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build range with only lte', () => {
-        const result = query(listingMappings).range('list_price', { lte: 1000 }).build();
+        const result = queryBuilder(listingMappings).range('list_price', { lte: 1000 }).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -2969,7 +2979,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build range with only gt', () => {
-        const result = query(listingMappings).range('list_price', { gt: 0 }).build();
+        const result = queryBuilder(listingMappings).range('list_price', { gt: 0 }).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -2985,7 +2995,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build range with only lt', () => {
-        const result = query(listingMappings).range('list_price', { lt: 9999 }).build();
+        const result = queryBuilder(listingMappings).range('list_price', { lt: 9999 }).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -3001,7 +3011,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build range with all four conditions', () => {
-        const result = query(listingMappings).range('list_price', { gt: 0, gte: 1, lt: 1000, lte: 999 }).build();
+        const result = queryBuilder(listingMappings).range('list_price', { gt: 0, gte: 1, lt: 1000, lte: 999 }).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -3020,7 +3030,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build range in bool filter context with gte only', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .filter((q) => q.range('list_price', { gte: 50 }))
           .build();
@@ -3045,7 +3055,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build range in bool must context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.range('sqft', { gte: 10, lte: 100 }))
           .build();
@@ -3073,7 +3083,7 @@ describe('QueryBuilder', () => {
 
     describe('Query + Aggregations integration gaps', () => {
       it('combine bool query with multiple top-level aggregations', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .bool()
           .must((q) => q.match('title', 'coffee'))
           .filter((q) => q.range('list_price', { gte: 5, lte: 20 }))
@@ -3139,7 +3149,7 @@ describe('QueryBuilder', () => {
       });
 
       it('combine geo query with aggregations', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .geoDistance('location', { lat: 40.7128, lon: -74.006 }, { distance: '5km' })
           .aggs((agg) => agg.terms('by_category', 'property_class').subAgg((sub) => sub.avg('avg_rating', 'cap_rate')))
           .build();
@@ -3173,8 +3183,8 @@ describe('QueryBuilder', () => {
         `);
       });
 
-      it('build query(false) with multiple aggregations and all meta properties', () => {
-        const result = query(listingDetailMappings, false)
+      it('build queryBuilder(false) with multiple aggregations and all meta properties', () => {
+        const result = queryBuilder(listingDetailMappings, false)
           .aggs((agg) =>
             agg
               .terms('by_category', 'property_class', { size: 20 })
@@ -3215,8 +3225,8 @@ describe('QueryBuilder', () => {
         expect(result.query).toBeUndefined();
       });
 
-      it('build query(false) with deeply nested sub-aggregations', () => {
-        const result = query(listingDetailMappings, false)
+      it('build queryBuilder(false) with deeply nested sub-aggregations', () => {
+        const result = queryBuilder(listingDetailMappings, false)
           .aggs((agg) =>
             agg.terms('by_category', 'property_class').subAgg((sub) =>
               sub
@@ -3265,7 +3275,7 @@ describe('QueryBuilder', () => {
       });
 
       it('combine aggregations with highlight', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .match('title', 'coffee shop')
           .aggs((agg) => agg.terms('by_category', 'property_class'))
           .highlight(['title', 'description'], {
@@ -3305,7 +3315,7 @@ describe('QueryBuilder', () => {
       });
 
       it('combine aggregations with sort', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .match('title', 'restaurant')
           .aggs((agg) => agg.terms('by_category', 'property_class'))
           .sort('cap_rate', 'desc')
@@ -3337,7 +3347,7 @@ describe('QueryBuilder', () => {
       });
 
       it('combine aggregations with _source selection', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .term('property_class', 'electronics')
           .aggs((agg) => agg.avg('avg_price', 'list_price'))
           ._source(['title', 'list_price', 'property_class'])
@@ -3371,7 +3381,7 @@ describe('QueryBuilder', () => {
   describe('ClauseBuilder and edge cases', () => {
     describe('ClauseBuilder in all bool contexts', () => {
       it('use matchPhrase in bool filter context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .filter((q) => q.matchPhrase('address', 'gaming laptop'))
           .build();
@@ -3394,7 +3404,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use matchPhrasePrefix in bool should context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .should((q) => q.matchPhrasePrefix('address', 'gam', { max_expansions: 10 }))
           .build();
@@ -3420,7 +3430,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use term in bool mustNot context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .mustNot((q) => q.term('property_class', 'refurbished'))
           .mustNot((q) => q.term('property_class', 'used'))
@@ -3449,7 +3459,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use fuzzy in bool filter context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .filter((q) => q.fuzzy('address', 'laptp', { fuzziness: 'AUTO' }))
           .build();
@@ -3475,7 +3485,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use ids in bool should context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .should((q) => q.ids(['featured-1', 'featured-2']))
           .should((q) => q.match('address', 'laptop'))
@@ -3509,7 +3519,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use matchAll in bool must context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.matchAll())
           .filter((q) => q.term('property_class', 'active'))
@@ -3538,7 +3548,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use multiMatch in bool filter context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .filter((q) =>
             q.multiMatch(['address'], 'laptop', {
@@ -3569,7 +3579,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use prefix in bool should context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .should((q) => q.prefix('property_class', 'gam'))
           .should((q) => q.prefix('property_class', 'lap'))
@@ -3600,7 +3610,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use wildcard in bool mustNot context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
           .mustNot((q) => q.wildcard('property_class', '*refurb*'))
@@ -3631,7 +3641,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use term in bool should context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .should((q) => q.term('property_class', 'laptop'))
           .should((q) => q.term('property_class', 'computer'))
@@ -3668,7 +3678,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use terms in bool filter context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -3703,7 +3713,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use exists in bool should context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .should((q) => q.exists('list_price'))
           .should((q) => q.exists('sqft'))
@@ -3734,7 +3744,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use range in bool filter context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
           .filter((q) => q.range('list_price', { gte: 100, lte: 500 }))
@@ -3768,7 +3778,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use matchAll in bool filter context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .filter((q) => q.matchAll())
           .build();
@@ -3789,7 +3799,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use matchPhrasePrefix with options in bool must context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) =>
             q.matchPhrasePrefix('address', 'gaming lap', {
@@ -3821,7 +3831,7 @@ describe('QueryBuilder', () => {
       });
 
       it('use multiMatch with options in bool should context', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .should((q) =>
             q.multiMatch(['address'], 'gaming laptop', {
@@ -3855,7 +3865,7 @@ describe('QueryBuilder', () => {
 
       it('uses when in ClauseBuilder filter context — true adds clause', () => {
         const category = 'electronics';
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .filter((q) => q.when(category, (q) => q.term('property_class', category)))
           .build();
@@ -3879,7 +3889,7 @@ describe('QueryBuilder', () => {
 
       it('uses when in ClauseBuilder filter context — false emits no filter array', () => {
         const category: string | undefined = undefined;
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
           .filter((q) => q.when(category, (q) => q.term('property_class', category!)))
@@ -3904,7 +3914,7 @@ describe('QueryBuilder', () => {
 
       it('uses when in ClauseBuilder must context — false emits no must array', () => {
         const searchTerm: string | undefined = undefined;
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .filter((q) => q.range('list_price', { gte: 100 }))
           .must((q) => q.when(searchTerm, (q) => q.match('address', searchTerm!)))
@@ -3931,7 +3941,7 @@ describe('QueryBuilder', () => {
 
       it('uses when in ClauseBuilder should context — false emits no should array', () => {
         const tag: string | undefined = undefined;
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
           .should((q) => q.when(tag, (q) => q.term('property_class', tag!)))
@@ -3956,7 +3966,7 @@ describe('QueryBuilder', () => {
 
       it('uses when in ClauseBuilder mustNot context — false emits no must_not array', () => {
         const excluded: string | undefined = undefined;
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
           .mustNot((q) => q.when(excluded, (q) => q.term('property_class', excluded!)))
@@ -3982,7 +3992,7 @@ describe('QueryBuilder', () => {
 
     describe('when() edge cases', () => {
       it('returns identity on false', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .when(false, (q) => q.match('address', 'test'))
           .build();
 
@@ -3990,7 +4000,7 @@ describe('QueryBuilder', () => {
       });
 
       it('executes on 0 — non-null value executes', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .when(0, (q) => q.range('list_price', { gte: 0 }))
           .build();
 
@@ -4008,7 +4018,7 @@ describe('QueryBuilder', () => {
       });
 
       it("executes on '' — non-null value executes", () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .when('', (q) => q.term('property_class', ''))
           .build();
 
@@ -4024,7 +4034,7 @@ describe('QueryBuilder', () => {
       });
 
       it('executes on true', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .when(true, (q) => q.match('address', 'test'))
           .build();
 
@@ -4040,7 +4050,7 @@ describe('QueryBuilder', () => {
       });
 
       it('handles when in bool should context — true adds clause', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
           .when(true, (q) => q.should((q2) => q2.term('property_class', 'featured')))
@@ -4073,7 +4083,7 @@ describe('QueryBuilder', () => {
       it('handles nested when — outer true, inner true', () => {
         const searchTerm = 'laptop';
 
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .when(searchTerm, (q) => q.when(true, (q2) => q2.match('address', searchTerm, { boost: 2 })))
           .build();
 
@@ -4095,7 +4105,7 @@ describe('QueryBuilder', () => {
         const searchTerm = 'laptop';
         const applyBoost = false;
 
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .when(searchTerm, (q) => q.when(applyBoost, (q2) => q2.match('address', searchTerm, { boost: 2 })))
           .build();
 
@@ -4103,7 +4113,7 @@ describe('QueryBuilder', () => {
       });
 
       it('handles when in bool mustNot context — true adds clause', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .bool()
           .must((q) => q.match('address', 'laptop'))
           .when(true, (q) => q.mustNot((q2) => q2.term('property_class', 'refurbished')))
@@ -4136,7 +4146,7 @@ describe('QueryBuilder', () => {
 
     describe('Geo query edge cases', () => {
       it('create geoDistance with numeric distance', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .geoDistance(
             'location',
             { lat: 40.7128, lon: -74.006 },
@@ -4148,7 +4158,7 @@ describe('QueryBuilder', () => {
       });
 
       it('create geoDistance with arc distance_type', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .geoDistance('location', { lat: 40.7128, lon: -74.006 }, { distance: '10km', distance_type: 'arc' })
           .build();
 
@@ -4158,7 +4168,7 @@ describe('QueryBuilder', () => {
       it('use geoDistance at root level (bool geo is not yet supported)', () => {
         // Note: Currently geo queries are only at root level
         // This test documents current behavior
-        const geoResult = query(listingDetailMappings)
+        const geoResult = queryBuilder(listingDetailMappings)
           .geoDistance('location', { lat: 40.7128, lon: -74.006 }, { distance: '5km' })
           .build();
 
@@ -4166,7 +4176,7 @@ describe('QueryBuilder', () => {
       });
 
       it('create geoBoundingBox with edge coordinates', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .geoBoundingBox('location', {
             top: 40.8,
             left: -74.1,
@@ -4193,9 +4203,42 @@ describe('QueryBuilder', () => {
           { lat: 40.7, lon: -73.97 }
         ];
 
-        const result = query(listingDetailMappings).geoPolygon('location', { points }).build();
+        const result = queryBuilder(listingDetailMappings).geoPolygon('location', { points }).build();
 
-        expect(result.query?.geo_polygon?.location?.points).toHaveLength(6);
+        expect(result.query).toMatchInlineSnapshot(`
+          {
+            "geo_polygon": {
+              "location": {
+                "points": [
+                  {
+                    "lat": 40.7128,
+                    "lon": -74.006,
+                  },
+                  {
+                    "lat": 40.75,
+                    "lon": -74.05,
+                  },
+                  {
+                    "lat": 40.78,
+                    "lon": -74.02,
+                  },
+                  {
+                    "lat": 40.76,
+                    "lon": -73.98,
+                  },
+                  {
+                    "lat": 40.73,
+                    "lon": -73.95,
+                  },
+                  {
+                    "lat": 40.7,
+                    "lon": -73.97,
+                  },
+                ],
+              },
+            },
+          }
+        `);
       });
 
       it('build a geo_shape query with polygon shape', () => {
@@ -4212,7 +4255,7 @@ describe('QueryBuilder', () => {
           ]
         };
 
-        const result = query(geoListingMappings).geoShape('boundary', shape).build();
+        const result = queryBuilder(geoListingMappings).geoShape('boundary', shape).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -4261,16 +4304,36 @@ describe('QueryBuilder', () => {
             [-73.9, 40.7]
           ]
         };
-        const result = query(geoListingMappings).geoShape('boundary', shape, { relation: 'within' }).build();
+        const result = queryBuilder(geoListingMappings).geoShape('boundary', shape, { relation: 'within' }).build();
 
-        expect(result.query?.geo_shape?.boundary?.relation).toBe('within');
-        expect(result.query?.geo_shape?.boundary?.shape?.type).toBe('envelope');
+        expect(result.query).toMatchInlineSnapshot(`
+          {
+            "geo_shape": {
+              "boundary": {
+                "relation": "within",
+                "shape": {
+                  "coordinates": [
+                    [
+                      -74.1,
+                      40.8,
+                    ],
+                    [
+                      -73.9,
+                      40.7,
+                    ],
+                  ],
+                  "type": "envelope",
+                },
+              },
+            },
+          }
+        `);
       });
     });
 
     describe('Pattern query edge cases', () => {
       it('create regexp with max_determinized_states option', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .regexp('property_class', 'rest.*ant', {
             max_determinized_states: 10000
           })
@@ -4293,7 +4356,7 @@ describe('QueryBuilder', () => {
       it('create regexp at root level', () => {
         // Note: regexp is currently only at root level
         // This test documents current behavior
-        const result = query(listingDetailMappings).regexp('property_class', 'coffee.*').build();
+        const result = queryBuilder(listingDetailMappings).regexp('property_class', 'coffee.*').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -4307,7 +4370,7 @@ describe('QueryBuilder', () => {
       });
 
       it('create constantScore with range filter', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .constantScore((q) => q.range('list_price', { gte: 100, lte: 500 }), {
             boost: 1.2
           })
@@ -4333,7 +4396,7 @@ describe('QueryBuilder', () => {
       });
 
       it('create constantScore with exists filter', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .constantScore((q) => q.exists('cap_rate'), { boost: 0.5 })
           .build();
 
@@ -4342,7 +4405,7 @@ describe('QueryBuilder', () => {
       });
 
       it('create constantScore with term filter', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .constantScore((q) => q.term('property_class', 'coffee'))
           .build();
 
@@ -4362,7 +4425,7 @@ describe('QueryBuilder', () => {
       });
 
       it('create regexp with all options combined', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .regexp('property_class', 'coff?ee.*shop', {
             flags: 'COMPLEMENT|INTERVAL',
             max_determinized_states: 20000,
@@ -4381,7 +4444,7 @@ describe('QueryBuilder', () => {
 
     describe('Nested query edge cases', () => {
       it('build nested with range query inside', () => {
-        const result = query(reviewMappings)
+        const result = queryBuilder(reviewMappings)
           .nested('comments', (q) => q.range('rating', { gte: 4, lte: 5 }))
           .build();
 
@@ -4389,7 +4452,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build nested with max score_mode', () => {
-        const result = query(reviewMappings)
+        const result = queryBuilder(reviewMappings)
           .nested('comments', (q) => q.match('author', 'alice'), { score_mode: 'max' })
           .build();
 
@@ -4397,11 +4460,177 @@ describe('QueryBuilder', () => {
       });
 
       it('build nested with none score_mode', () => {
-        const result = query(reviewMappings)
+        const result = queryBuilder(reviewMappings)
           .nested('comments', (q) => q.term('status', 'active'), { score_mode: 'none' })
           .build();
 
         expect(result.query?.nested?.score_mode).toBe('none');
+      });
+    });
+
+    // Phase 1 regression tests: regexp/geo clauses inside .nested() must qualify field names
+    // with the nested path prefix. Before the fix, these clauses were only available at the
+    // top-level QueryBuilder, so users could not call them inside nested contexts at all.
+    describe('Clause-level regexp and geo queries qualify nested paths', () => {
+      const storeBranchesMappings = mappings({
+        name: text(),
+        branches: nested({
+          code: keyword(),
+          location: geoPoint(),
+          coverage: geoShape()
+        })
+      });
+
+      it('regexpInsideNestedQualifiesFieldName', () => {
+        const result = queryBuilder(storeBranchesMappings)
+          .bool()
+          .filter((q) => q.nested('branches', (n) => n.regexp('code', 'nyc-.*')))
+          .build();
+
+        expect(result.query).toStrictEqual({
+          bool: {
+            filter: [
+              {
+                nested: {
+                  path: 'branches',
+                  query: { regexp: { 'branches.code': 'nyc-.*' } }
+                }
+              }
+            ]
+          }
+        });
+      });
+
+      it('geoDistanceInsideNestedQualifiesFieldName', () => {
+        const result = queryBuilder(storeBranchesMappings)
+          .bool()
+          .filter((q) =>
+            q.nested('branches', (n) => n.geoDistance('location', { lat: 40.7128, lon: -74.006 }, { distance: '5km' }))
+          )
+          .build();
+
+        expect(result.query).toStrictEqual({
+          bool: {
+            filter: [
+              {
+                nested: {
+                  path: 'branches',
+                  query: {
+                    geo_distance: {
+                      'branches.location': { lat: 40.7128, lon: -74.006 },
+                      distance: '5km'
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        });
+      });
+
+      it('geoBoundingBoxInsideNestedQualifiesFieldName', () => {
+        const result = queryBuilder(storeBranchesMappings)
+          .bool()
+          .filter((q) =>
+            q.nested('branches', (n) =>
+              n.geoBoundingBox('location', {
+                top_left: { lat: 40.73, lon: -74.1 },
+                bottom_right: { lat: 40.01, lon: -71.12 }
+              })
+            )
+          )
+          .build();
+
+        expect(result.query).toStrictEqual({
+          bool: {
+            filter: [
+              {
+                nested: {
+                  path: 'branches',
+                  query: {
+                    geo_bounding_box: {
+                      'branches.location': {
+                        top_left: { lat: 40.73, lon: -74.1 },
+                        bottom_right: { lat: 40.01, lon: -71.12 }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        });
+      });
+
+      it('geoPolygonInsideNestedQualifiesFieldName', () => {
+        const result = queryBuilder(storeBranchesMappings)
+          .bool()
+          .filter((q) =>
+            q.nested('branches', (n) =>
+              n.geoPolygon('location', {
+                points: [
+                  { lat: 40.0, lon: -74.0 },
+                  { lat: 41.0, lon: -74.0 },
+                  { lat: 40.5, lon: -73.0 }
+                ]
+              })
+            )
+          )
+          .build();
+
+        expect(result.query).toStrictEqual({
+          bool: {
+            filter: [
+              {
+                nested: {
+                  path: 'branches',
+                  query: {
+                    geo_polygon: {
+                      'branches.location': {
+                        points: [
+                          { lat: 40.0, lon: -74.0 },
+                          { lat: 41.0, lon: -74.0 },
+                          { lat: 40.5, lon: -73.0 }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        });
+      });
+
+      it('geoShapeInsideNestedQualifiesFieldName', () => {
+        const shape = {
+          type: 'envelope',
+          coordinates: [
+            [-75, 41],
+            [-73, 40]
+          ]
+        };
+        const result = queryBuilder(storeBranchesMappings)
+          .bool()
+          .filter((q) => q.nested('branches', (n) => n.geoShape('coverage', shape, { relation: 'within' })))
+          .build();
+
+        expect(result.query).toStrictEqual({
+          bool: {
+            filter: [
+              {
+                nested: {
+                  path: 'branches',
+                  query: {
+                    geo_shape: {
+                      'branches.coverage': { shape, relation: 'within' }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        });
       });
     });
   });
@@ -4409,7 +4638,7 @@ describe('QueryBuilder', () => {
   describe('Completeness and real-world scenarios', () => {
     describe('Sorting and meta property edge cases', () => {
       it('add multiple sorts (chained calls)', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .match('address', 'laptop')
           .sort('list_price', 'asc')
           .sort('sqft', 'desc')
@@ -4428,7 +4657,7 @@ describe('QueryBuilder', () => {
       });
 
       it('add sort with desc direction explicitly', () => {
-        const result = query(listingMappings).match('address', 'laptop').sort('list_price', 'desc').build();
+        const result = queryBuilder(listingMappings).match('address', 'laptop').sort('list_price', 'desc').build();
 
         expect(result.sort).toMatchInlineSnapshot(`
           [
@@ -4440,27 +4669,27 @@ describe('QueryBuilder', () => {
       });
 
       it('handle empty _source array', () => {
-        const result = query(listingMappings).match('address', 'laptop')._source([]).build();
+        const result = queryBuilder(listingMappings).match('address', 'laptop')._source([]).build();
 
         expect(result._source).toStrictEqual([]);
       });
 
       it('handle large pagination values', () => {
-        const result = query(listingMappings).match('address', 'laptop').from(10000).size(100).build();
+        const result = queryBuilder(listingMappings).match('address', 'laptop').from(10000).size(100).build();
 
         expect(result.from).toBe(10000);
         expect(result.size).toBe(100);
       });
 
       it('handle zero values for pagination', () => {
-        const result = query(listingMappings).match('address', 'laptop').from(0).size(0).build();
+        const result = queryBuilder(listingMappings).match('address', 'laptop').from(0).size(0).build();
 
         expect(result.from).toBe(0);
         expect(result.size).toBe(0);
       });
 
       it('combine all meta properties', () => {
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .match('address', 'laptop')
           .from(20)
           .size(10)
@@ -4509,7 +4738,13 @@ describe('QueryBuilder', () => {
       });
 
       it('allow overriding meta properties with subsequent calls', () => {
-        const result = query(listingMappings).match('address', 'laptop').size(10).size(20).from(0).from(50).build();
+        const result = queryBuilder(listingMappings)
+          .match('address', 'laptop')
+          .size(10)
+          .size(20)
+          .from(0)
+          .from(50)
+          .build();
 
         expect(result.size).toBe(20);
         expect(result.from).toBe(50);
@@ -4523,7 +4758,7 @@ describe('QueryBuilder', () => {
         const minPrice = 500;
         const maxPrice = 2000;
 
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .bool()
           .must((q) => q.match('title', searchTerm, { operator: 'and', boost: 2 }))
           .filter((q) => q.term('property_class', category))
@@ -4666,7 +4901,7 @@ describe('QueryBuilder', () => {
       it('build autocomplete search: matchPhrasePrefix + highlighting + size limit', () => {
         const prefix = 'gam';
 
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .matchPhrasePrefix('address', prefix, { max_expansions: 50 })
           .highlight(['address'], {
             pre_tags: ['<b>'],
@@ -4707,7 +4942,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build analytics dashboard: aggregations only with size=0', () => {
-        const result = query(listingDetailMappings, false)
+        const result = queryBuilder(listingDetailMappings, false)
           .aggs((agg) =>
             agg
               .dateHistogram('sales_by_day', 'listed_date', {
@@ -4769,7 +5004,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build geo-based search: location + radius + category filter + rating sort', () => {
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .geoDistance('location', { lat: 40.7128, lon: -74.006 }, { distance: '10km', distance_type: 'arc' })
           .build();
 
@@ -4790,7 +5025,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build time-series query: date range + date histogram + metrics', () => {
-        const result = query(listingDetailMappings, false)
+        const result = queryBuilder(listingDetailMappings, false)
           .aggs((agg) =>
             agg
               .dateHistogram('by_hour', 'listed_date', {
@@ -4859,7 +5094,7 @@ describe('QueryBuilder', () => {
       it('build multi-field search: multiMatch with boost + highlighting', () => {
         const searchQuery = 'premium coffee beans';
 
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .multiMatch(['title', 'description', 'address'], searchQuery, {
             type: 'best_fields',
             operator: 'or',
@@ -4912,7 +5147,7 @@ describe('QueryBuilder', () => {
         const selectedCategory = 'electronics';
         const selectedBrand = 'Apple';
 
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .bool()
           .filter((q) => q.term('property_class', selectedCategory))
           .filter((q) => q.match('title', selectedBrand))
@@ -4977,7 +5212,7 @@ describe('QueryBuilder', () => {
           minPrice: 500 as number | undefined
         };
 
-        const result = query(listingDetailMappings)
+        const result = queryBuilder(listingDetailMappings)
           .bool()
           .when(filters.searchTerm, (q) => q.must((q2) => q2.match('title', filters.searchTerm!)))
           .when(filters.category, (q) => q.filter((q2) => q2.term('property_class', filters.category!)))
@@ -5013,7 +5248,7 @@ describe('QueryBuilder', () => {
 
     describe('Builder behavior', () => {
       it('verify builder immutability (original not modified)', () => {
-        const base = query(listingMappings).match('address', 'laptop');
+        const base = queryBuilder(listingMappings).match('address', 'laptop');
         const withSize = base.size(10);
         const withFrom = base.from(20);
 
@@ -5035,7 +5270,7 @@ describe('QueryBuilder', () => {
       });
 
       it('allow build to be called multiple times on same builder', () => {
-        const builder = query(listingMappings).match('address', 'laptop').size(10);
+        const builder = queryBuilder(listingMappings).match('address', 'laptop').size(10);
 
         const result1 = builder.build();
         const result2 = builder.build();
@@ -5046,7 +5281,7 @@ describe('QueryBuilder', () => {
       });
 
       it('allow reusing partial builder chains', () => {
-        const baseFilters = query(listingMappings)
+        const baseFilters = queryBuilder(listingMappings)
           .bool()
           .filter((q) => q.exists('address'))
           .filter((q) => q.range('list_price', { gte: 0 }));
@@ -5120,7 +5355,7 @@ describe('QueryBuilder', () => {
       });
 
       it('handle empty query builder (just build)', () => {
-        const result = query(listingMappings).build();
+        const result = queryBuilder(listingMappings).build();
 
         // Should return an object, possibly with undefined query
         expect(result).toBeDefined();
@@ -5128,7 +5363,7 @@ describe('QueryBuilder', () => {
       });
 
       it('handle query builder with only meta properties (no query)', () => {
-        const result = query(listingMappings).size(10).from(0).sort('list_price', 'asc').build();
+        const result = queryBuilder(listingMappings).size(10).from(0).sort('list_price', 'asc').build();
 
         expect(result.size).toBe(10);
         expect(result.from).toBe(0);
@@ -5144,7 +5379,7 @@ describe('QueryBuilder', () => {
 
       it('maintain method chaining fluency', () => {
         // Verify that all methods return QueryBuilder for chaining
-        const result = query(listingMappings)
+        const result = queryBuilder(listingMappings)
           .matchAll()
           .from(0)
           .size(10)
@@ -5168,7 +5403,7 @@ describe('QueryBuilder', () => {
     describe('KNN vector search', () => {
       describe('Basic KNN queries', () => {
         it('build a basic knn query', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.5, 0.3, 0.8], {
               k: 10,
               num_candidates: 100
@@ -5192,7 +5427,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build knn query with boost', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.1, 0.2, 0.3], {
               k: 5,
               num_candidates: 50,
@@ -5218,7 +5453,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build knn query with similarity threshold', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.9, 0.1, 0.5], {
               k: 20,
               num_candidates: 200,
@@ -5244,7 +5479,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build knn query with filter', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.4, 0.6, 0.2], {
               k: 10,
               num_candidates: 100,
@@ -5276,7 +5511,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build knn query with all options', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.2, 0.4, 0.6, 0.8], {
               k: 15,
               num_candidates: 150,
@@ -5318,7 +5553,7 @@ describe('QueryBuilder', () => {
 
       describe('KNN with query parameters', () => {
         it('combine knn with size and from', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.5, 0.5], {
               k: 10,
               num_candidates: 100
@@ -5345,7 +5580,7 @@ describe('QueryBuilder', () => {
         });
 
         it('combine knn with _source', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.3, 0.7], {
               k: 5,
               num_candidates: 50
@@ -5374,7 +5609,7 @@ describe('QueryBuilder', () => {
         });
 
         it('combine knn with sort', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.1, 0.9], {
               k: 10,
               num_candidates: 100
@@ -5403,7 +5638,7 @@ describe('QueryBuilder', () => {
         });
 
         it('combine knn with timeout and other meta params', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.6, 0.4], {
               k: 10,
               num_candidates: 100
@@ -5435,7 +5670,7 @@ describe('QueryBuilder', () => {
       describe('KNN with different vector dimensions', () => {
         it('handle 128-dimensional vectors', () => {
           const vector128 = new Array(128).fill(0).map((_, i) => i / 128);
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', vector128, {
               k: 10,
               num_candidates: 100
@@ -5448,7 +5683,7 @@ describe('QueryBuilder', () => {
 
         it('handle 384-dimensional vectors', () => {
           const vector384 = new Array(384).fill(0).map((_, i) => i / 384);
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', vector384, {
               k: 5,
               num_candidates: 50
@@ -5460,7 +5695,7 @@ describe('QueryBuilder', () => {
 
         it('handle 768-dimensional vectors', () => {
           const vector768 = new Array(768).fill(0).map((_, i) => i / 768);
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', vector768, {
               k: 20,
               num_candidates: 200
@@ -5472,7 +5707,7 @@ describe('QueryBuilder', () => {
 
         it('handle 1536-dimensional vectors (OpenAI ada-002)', () => {
           const vector1536 = new Array(1536).fill(0).map((_, i) => i / 1536);
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', vector1536, {
               k: 10,
               num_candidates: 100
@@ -5485,7 +5720,7 @@ describe('QueryBuilder', () => {
 
       describe('KNN with complex filters', () => {
         it('support bool filter with knn', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.5, 0.5], {
               k: 10,
               num_candidates: 100,
@@ -5534,7 +5769,7 @@ describe('QueryBuilder', () => {
         });
 
         it('support multiple term filters with knn', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.3, 0.7], {
               k: 15,
               num_candidates: 150,
@@ -5547,13 +5782,16 @@ describe('QueryBuilder', () => {
             .build();
 
           expect(result.knn?.filter).toBeDefined();
-          expect(result.knn?.filter.bool.must).toHaveLength(2);
+
+          const filterClause = result.knn?.filter as { bool: { must: unknown[] } };
+
+          expect(filterClause.bool.must).toHaveLength(2);
         });
       });
 
       describe('KNN edge cases', () => {
         it('handle empty vector', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [], {
               k: 10,
               num_candidates: 100
@@ -5564,7 +5802,7 @@ describe('QueryBuilder', () => {
         });
 
         it('handle single-dimensional vector', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.5], {
               k: 10,
               num_candidates: 100
@@ -5575,7 +5813,7 @@ describe('QueryBuilder', () => {
         });
 
         it('handle k = 1', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.5, 0.5], {
               k: 1,
               num_candidates: 10
@@ -5586,7 +5824,7 @@ describe('QueryBuilder', () => {
         });
 
         it('handle large k value', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.5, 0.5], {
               k: 10000,
               num_candidates: 50000
@@ -5598,7 +5836,7 @@ describe('QueryBuilder', () => {
         });
 
         it('handle similarity = 0', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.5, 0.5], {
               k: 10,
               num_candidates: 100,
@@ -5610,7 +5848,7 @@ describe('QueryBuilder', () => {
         });
 
         it('handle similarity = 1', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.5, 0.5], {
               k: 10,
               num_candidates: 100,
@@ -5622,7 +5860,7 @@ describe('QueryBuilder', () => {
         });
 
         it('handle negative vector values', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [-0.5, -0.3, 0.8], {
               k: 10,
               num_candidates: 100
@@ -5633,7 +5871,7 @@ describe('QueryBuilder', () => {
         });
 
         it('handle very small vector values', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.000001, 0.000002, 0.000003], {
               k: 10,
               num_candidates: 100
@@ -5646,7 +5884,7 @@ describe('QueryBuilder', () => {
 
       describe('KNN method chaining', () => {
         it('support fluent chaining with other methods', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.5, 0.5], {
               k: 10,
               num_candidates: 100
@@ -5665,7 +5903,7 @@ describe('QueryBuilder', () => {
         });
 
         it('maintain knn when chained before other methods', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .size(20)
             .knn('embedding', [0.7, 0.3], {
               k: 5,
@@ -5682,7 +5920,7 @@ describe('QueryBuilder', () => {
 
       describe('Hybrid search patterns', () => {
         it('support knn with aggregations', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.5, 0.5], {
               k: 10,
               num_candidates: 100,
@@ -5697,7 +5935,7 @@ describe('QueryBuilder', () => {
         });
 
         it('support knn-only search (no text query)', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.8, 0.2], {
               k: 20,
               num_candidates: 200
@@ -5713,7 +5951,7 @@ describe('QueryBuilder', () => {
 
       describe('KNN in ClauseBuilder context', () => {
         it('support knn in bool query filter', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .bool()
             .filter((q) =>
               q.knn('embedding', [0.5, 0.5], {
@@ -5747,7 +5985,7 @@ describe('QueryBuilder', () => {
         });
 
         it('support knn in bool query must', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .bool()
             .must((q) =>
               q.knn('embedding', [0.3, 0.7], {
@@ -5783,7 +6021,7 @@ describe('QueryBuilder', () => {
         });
 
         it('support knn in bool query should', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .bool()
             .should((q) =>
               q.knn('embedding', [0.6, 0.4], {
@@ -5793,12 +6031,29 @@ describe('QueryBuilder', () => {
             )
             .build();
 
-          expect(result.query?.bool?.should).toHaveLength(1);
-          expect(result.query?.bool?.should[0].knn).toBeDefined();
+          expect(result.query).toMatchInlineSnapshot(`
+            {
+              "bool": {
+                "should": [
+                  {
+                    "knn": {
+                      "field": "embedding",
+                      "k": 10,
+                      "num_candidates": 100,
+                      "query_vector": [
+                        0.6,
+                        0.4,
+                      ],
+                    },
+                  },
+                ],
+              },
+            }
+          `);
         });
 
         it('support multiple knn queries in bool', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .bool()
             .should((q) =>
               q.knn('embedding', [0.5, 0.5], {
@@ -5816,7 +6071,7 @@ describe('QueryBuilder', () => {
 
       describe('Real-world KNN scenarios', () => {
         it('build semantic product search query', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.23, 0.45, 0.67, 0.89], {
               k: 10,
               num_candidates: 100,
@@ -5839,7 +6094,7 @@ describe('QueryBuilder', () => {
 
         it('build image similarity search query', () => {
           const imageEmbedding = new Array(512).fill(0).map(() => Math.random());
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', imageEmbedding, {
               k: 20,
               num_candidates: 200,
@@ -5854,7 +6109,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build recommendation engine query', () => {
-          const result = query(instrumentWithEmbeddingMappings)
+          const result = queryBuilder(instrumentWithEmbeddingMappings)
             .knn('embedding', [0.1, 0.2, 0.3, 0.4, 0.5], {
               k: 50,
               num_candidates: 500,
@@ -5867,7 +6122,9 @@ describe('QueryBuilder', () => {
             .size(10)
             .build();
 
-          expect(result.knn?.filter?.bool?.must_not).toBeDefined();
+          const filterClause = result.knn?.filter as { bool: { must_not: unknown[] } };
+
+          expect(filterClause.bool.must_not).toBeDefined();
         });
       });
     });
@@ -5875,7 +6132,7 @@ describe('QueryBuilder', () => {
     describe('Script queries', () => {
       describe('Basic script queries', () => {
         it('build a basic script query', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .script({
               source: "doc['list_price'].value > 100"
             })
@@ -5896,7 +6153,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build script query with parameters', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .script({
               source: "doc['list_price'].value > params.min_price",
               params: { min_price: 100 }
@@ -5921,7 +6178,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build script query with boost', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .script({
               source: "doc['liquidity_score'].value > 1000",
               boost: 2.0
@@ -5944,18 +6201,27 @@ describe('QueryBuilder', () => {
         });
 
         it('build script query with expression language', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .script({
               source: "doc['list_price'].value * 1.1",
               lang: 'expression'
             })
             .build();
 
-          expect(result.query?.script?.script?.lang).toBe('expression');
+          expect(result.query).toMatchInlineSnapshot(`
+            {
+              "script": {
+                "script": {
+                  "lang": "expression",
+                  "source": "doc['list_price'].value * 1.1",
+                },
+              },
+            }
+          `);
         });
 
         it('build script query with mustache template', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .script({
               source: '{"term": {"name": "{{product_name}}"}}',
               lang: 'mustache',
@@ -5963,14 +6229,23 @@ describe('QueryBuilder', () => {
             })
             .build();
 
-          expect(result.query?.script?.script?.lang).toBe('mustache');
-          expect(result.query?.script?.script?.params).toStrictEqual({
-            product_name: 'laptop'
-          });
+          expect(result.query).toMatchInlineSnapshot(`
+            {
+              "script": {
+                "script": {
+                  "lang": "mustache",
+                  "params": {
+                    "product_name": "laptop",
+                  },
+                  "source": "{"term": {"name": "{{product_name}}"}}",
+                },
+              },
+            }
+          `);
         });
 
         it('build script query with complex parameters', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .script({
               source: "doc['list_price'].value * params.multiplier + params.offset",
               params: {
@@ -5981,15 +6256,30 @@ describe('QueryBuilder', () => {
             })
             .build();
 
-          expect(result.query?.script?.script?.params?.multiplier).toBe(1.5);
-          expect(result.query?.script?.script?.params?.offset).toBe(10);
-          expect(result.query?.script?.script?.params?.categories).toHaveLength(2);
+          expect(result.query).toMatchInlineSnapshot(`
+            {
+              "script": {
+                "script": {
+                  "lang": "painless",
+                  "params": {
+                    "categories": [
+                      "electronics",
+                      "computers",
+                    ],
+                    "multiplier": 1.5,
+                    "offset": 10,
+                  },
+                  "source": "doc['list_price'].value * params.multiplier + params.offset",
+                },
+              },
+            }
+          `);
         });
       });
 
       describe('Script in bool query context', () => {
         it('support script in bool must', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .bool()
             .must((q) =>
               q.script({
@@ -6019,7 +6309,7 @@ describe('QueryBuilder', () => {
         });
 
         it('support script in bool filter', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .bool()
             .filter((q) =>
               q.script({
@@ -6029,12 +6319,29 @@ describe('QueryBuilder', () => {
             )
             .build();
 
-          expect(result.query?.bool?.filter).toHaveLength(1);
-          expect(result.query?.bool?.filter[0].script).toBeDefined();
+          expect(result.query).toMatchInlineSnapshot(`
+            {
+              "bool": {
+                "filter": [
+                  {
+                    "script": {
+                      "script": {
+                        "lang": "painless",
+                        "params": {
+                          "min_quality": 8,
+                        },
+                        "source": "doc['cap_rate'].value >= params.min_quality",
+                      },
+                    },
+                  },
+                ],
+              },
+            }
+          `);
         });
 
         it('combine script with other queries', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .bool()
             .must((q) => q.match('address', 'laptop'))
             .filter((q) =>
@@ -6052,7 +6359,7 @@ describe('QueryBuilder', () => {
 
       describe('Script score queries', () => {
         it('build basic script_score query', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .scriptScore((q) => q.matchAll(), {
               source: "doc['list_price'].value * 0.1"
             })
@@ -6076,29 +6383,59 @@ describe('QueryBuilder', () => {
         });
 
         it('build script_score with inner query', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .scriptScore((q) => q.match('address', 'laptop'), {
               source: "_score * doc['list_price'].value"
             })
             .build();
 
-          expect(result.query?.script_score?.query?.match).toBeDefined();
-          expect(result.query?.script_score?.script?.source).toContain('_score');
+          expect(result.query).toMatchInlineSnapshot(`
+            {
+              "script_score": {
+                "query": {
+                  "match": {
+                    "address": "laptop",
+                  },
+                },
+                "script": {
+                  "lang": "painless",
+                  "source": "_score * doc['list_price'].value",
+                },
+              },
+            }
+          `);
         });
 
         it('build script_score with parameters', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .scriptScore((q) => q.term('property_class', 'electronics'), {
               source: '_score * params.boost_factor',
               params: { boost_factor: 2.5 }
             })
             .build();
 
-          expect(result.query?.script_score?.script?.params?.boost_factor).toBe(2.5);
+          expect(result.query).toMatchInlineSnapshot(`
+            {
+              "script_score": {
+                "query": {
+                  "term": {
+                    "property_class": "electronics",
+                  },
+                },
+                "script": {
+                  "lang": "painless",
+                  "params": {
+                    "boost_factor": 2.5,
+                  },
+                  "source": "_score * params.boost_factor",
+                },
+              },
+            }
+          `);
         });
 
         it('build script_score with min_score', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .scriptScore((q) => q.matchAll(), { source: "doc['cap_rate'].value" }, { min_score: 5.0 })
             .build();
 
@@ -6121,7 +6458,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build script_score with boost', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .scriptScore(
               (q) => q.term('property_class', 'premium'),
               { source: "Math.log(2 + doc['sqft'].value)" },
@@ -6133,7 +6470,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build script_score with min_score and boost', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .scriptScore(
               (q) => q.range('list_price', { gte: 100 }),
               {
@@ -6149,7 +6486,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build script_score with complex scoring formula', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .scriptScore((q) => q.match('description', 'quality'), {
               source: `
                   double popularity = doc['liquidity_score'].value;
@@ -6159,14 +6496,29 @@ describe('QueryBuilder', () => {
             })
             .build();
 
-          expect(result.query?.script_score?.script?.source).toContain('liquidity_score');
-          expect(result.query?.script_score?.script?.source).toContain('quality');
+          expect(result.query).toMatchInlineSnapshot(`
+            {
+              "script_score": {
+                "query": {
+                  "match": {
+                    "description": "quality",
+                  },
+                },
+                "script": {
+                  "lang": "painless",
+                  "source": "double popularity = doc['liquidity_score'].value;
+                              double quality = doc['cap_rate'].value;
+                              return _score * (popularity * 0.3 + quality * 0.7);",
+                },
+              },
+            }
+          `);
         });
       });
 
       describe('Script edge cases', () => {
         it('defaults scriptScore inner query to match_all when callback returns undefined', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .scriptScore(() => undefined as any, { source: '_score' })
             .build();
@@ -6175,23 +6527,51 @@ describe('QueryBuilder', () => {
         });
 
         it('handle empty script source', () => {
-          const result = query(listingDetailMappings).script({ source: '' }).build();
+          const result = queryBuilder(listingDetailMappings).script({ source: '' }).build();
 
-          expect(result.query?.script?.script?.source).toBe('');
+          expect(result.query).toMatchInlineSnapshot(`
+            {
+              "script": {
+                "script": {
+                  "lang": "painless",
+                  "source": "",
+                },
+              },
+            }
+          `);
         });
 
         it('handle script without parameters', () => {
-          const result = query(listingDetailMappings).script({ source: 'true' }).build();
+          const result = queryBuilder(listingDetailMappings).script({ source: 'true' }).build();
 
-          expect(result.query?.script?.script?.params).toBeUndefined();
+          expect(result.query).toMatchInlineSnapshot(`
+            {
+              "script": {
+                "script": {
+                  "lang": "painless",
+                  "source": "true",
+                },
+              },
+            }
+          `);
         });
 
         it('handle empty params object', () => {
-          const result = query(listingDetailMappings)
+          const result = queryBuilder(listingDetailMappings)
             .script({ source: "doc['list_price'].value > 0", params: {} })
             .build();
 
-          expect(result.query?.script?.script?.params).toStrictEqual({});
+          expect(result.query).toMatchInlineSnapshot(`
+            {
+              "script": {
+                "script": {
+                  "lang": "painless",
+                  "params": {},
+                  "source": "doc['list_price'].value > 0",
+                },
+              },
+            }
+          `);
         });
       });
     });
@@ -6199,7 +6579,7 @@ describe('QueryBuilder', () => {
     describe('Percolate queries', () => {
       describe('Basic percolate queries', () => {
         it('build percolate query with inline document', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               document: {
@@ -6225,7 +6605,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build percolate query with multiple documents', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               documents: [
@@ -6239,7 +6619,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build percolate query with stored document reference', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               index: 'articles',
@@ -6261,7 +6641,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build percolate query with routing', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               index: 'articles',
@@ -6274,7 +6654,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build percolate query with preference', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               document: { title: 'Test' },
@@ -6286,7 +6666,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build percolate query with version', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               index: 'articles',
@@ -6299,7 +6679,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build percolate query with name', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               document: { content: 'urgent news' },
@@ -6313,7 +6693,7 @@ describe('QueryBuilder', () => {
 
       describe('Percolate with query parameters', () => {
         it('combine percolate with size and from', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               document: { title: 'News', content: 'Important update' }
@@ -6328,7 +6708,7 @@ describe('QueryBuilder', () => {
         });
 
         it('combine percolate with sort', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               document: { content: 'Breaking news' }
@@ -6346,7 +6726,7 @@ describe('QueryBuilder', () => {
         });
 
         it('combine percolate with _source', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               document: { title: 'Alert' }
@@ -6360,7 +6740,7 @@ describe('QueryBuilder', () => {
 
       describe('Percolate in bool context', () => {
         it('support percolator field mappings in bool filter', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .bool()
             .filter((q) => q.term('property_class', 'news'))
             .build();
@@ -6371,7 +6751,7 @@ describe('QueryBuilder', () => {
 
       describe('Real-world percolate scenarios', () => {
         it('build alert matching query', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               document: {
@@ -6388,7 +6768,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build content classification query', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               documents: [
@@ -6404,7 +6784,7 @@ describe('QueryBuilder', () => {
         });
 
         it('build saved search matching query', () => {
-          const result = query(percolatorDocMappings)
+          const result = queryBuilder(percolatorDocMappings)
             .percolate({
               field: 'query',
               index: 'user_documents',
@@ -6425,7 +6805,7 @@ describe('QueryBuilder', () => {
   describe('Object and nested field type safety', () => {
     describe('object() fields — dot-notation queries without a wrapper', () => {
       it('term-query an object sub-field via dot-notation', () => {
-        const result = query(productMappings).term('address.city', 'Portland').build();
+        const result = queryBuilder(productMappings).term('address.city', 'Portland').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -6439,7 +6819,7 @@ describe('QueryBuilder', () => {
       });
 
       it('match-query a text object sub-field via dot-notation', () => {
-        const result = query(productMappings).match('address.street', '1 Main St').build();
+        const result = queryBuilder(productMappings).match('address.street', '1 Main St').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -6453,7 +6833,7 @@ describe('QueryBuilder', () => {
       });
 
       it('filter on multiple object sub-fields in a bool', () => {
-        const result = query(productMappings)
+        const result = queryBuilder(productMappings)
           .bool()
           .filter((q) => q.term('address.country', 'US'))
           .filter((q) => q.term('address.city', 'Portland'))
@@ -6484,7 +6864,7 @@ describe('QueryBuilder', () => {
 
     describe('nested() fields — typed inner ClauseBuilder', () => {
       it('build a typed nested query with a term clause', () => {
-        const result = query(productMappings)
+        const result = queryBuilder(productMappings)
           .nested('variants', (q) => q.term('color', 'black'))
           .build();
 
@@ -6505,7 +6885,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a typed nested query with a range clause', () => {
-        const result = query(productMappings)
+        const result = queryBuilder(productMappings)
           .nested('variants', (q) => q.range('price', { lte: 120 }))
           .build();
 
@@ -6528,7 +6908,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a typed nested query with a match clause', () => {
-        const result = query(productMappings)
+        const result = queryBuilder(productMappings)
           .nested('variants', (q) => q.term('sku', 'RS-BLK-10'))
           .build();
 
@@ -6549,7 +6929,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a nested query with score_mode', () => {
-        const result = query(productMappings)
+        const result = queryBuilder(productMappings)
           .nested('variants', (q) => q.range('price', { lte: 100 }), { score_mode: 'avg' })
           .build();
 
@@ -6593,7 +6973,7 @@ describe('QueryBuilder', () => {
 
     describe('object-within-object — 2-level dot-notation queries', () => {
       it('term-query a 2-level deep object sub-field via dot-notation', () => {
-        const result = query(deepObjectMappings).term('address.billing.city', 'Austin').build();
+        const result = queryBuilder(deepObjectMappings).term('address.billing.city', 'Austin').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -6607,7 +6987,7 @@ describe('QueryBuilder', () => {
       });
 
       it('filter on sibling 2-level deep fields in a bool', () => {
-        const result = query(deepObjectMappings)
+        const result = queryBuilder(deepObjectMappings)
           .bool()
           .filter((q) => q.term('address.billing.city', 'Austin'))
           .filter((q) => q.term('address.shipping.country', 'US'))
@@ -6638,7 +7018,7 @@ describe('QueryBuilder', () => {
 
     describe('nested-with-object-sub-field — 2-level inner dot-notation queries', () => {
       it('build a nested query where the inner clause uses a dot-notation object sub-field', () => {
-        const result = query(deepNestedMappings)
+        const result = queryBuilder(deepNestedMappings)
           .nested('shipments', (q) => q.term('address.city', 'London'))
           .build();
 
@@ -6659,7 +7039,7 @@ describe('QueryBuilder', () => {
       });
 
       it('build a nested query using a sibling 2-level dot-notation object sub-field', () => {
-        const result = query(deepNestedMappings)
+        const result = queryBuilder(deepNestedMappings)
           .nested('shipments', (q) => q.term('address.country', 'DE'))
           .build();
 
@@ -6682,7 +7062,7 @@ describe('QueryBuilder', () => {
 
     describe('ClauseBuilder.nested() — composable inside bool contexts', () => {
       it('builds a nested clause inside filter', () => {
-        const result = query(productMappings)
+        const result = queryBuilder(productMappings)
           .bool()
           .filter((q) => q.nested('variants', (qn) => qn.term('color', 'black')))
           .build();
@@ -6710,7 +7090,7 @@ describe('QueryBuilder', () => {
       });
 
       it('builds a nested clause inside must', () => {
-        const result = query(productMappings)
+        const result = queryBuilder(productMappings)
           .bool()
           .must((q) => q.nested('variants', (qn) => qn.range('price', { lte: 100 })))
           .build();
@@ -6740,7 +7120,7 @@ describe('QueryBuilder', () => {
       });
 
       it('passes score_mode option through to DSL', () => {
-        const result = query(productMappings)
+        const result = queryBuilder(productMappings)
           .bool()
           .filter((q) => q.nested('variants', (qn) => qn.term('color', 'red'), { score_mode: 'avg' }))
           .build();
@@ -6770,7 +7150,7 @@ describe('QueryBuilder', () => {
 
       it('when() returning undefined inside nested callback is a no-op — filter array omitted', () => {
         const flag = false;
-        const result = query(productMappings)
+        const result = queryBuilder(productMappings)
           .bool()
           .filter((q) => q.nested('variants', (qn) => qn.when(flag, (q2) => q2.term('color', 'red'))))
           .build();
@@ -6787,7 +7167,7 @@ describe('QueryBuilder', () => {
 
     describe('field-type narrowing — sort, collapse, highlight', () => {
       it('accept keyword object sub-field for sort', () => {
-        const result = query(productMappings).matchAll().sort('address.city', 'asc').build();
+        const result = queryBuilder(productMappings).matchAll().sort('address.city', 'asc').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -6804,7 +7184,7 @@ describe('QueryBuilder', () => {
       });
 
       it('accept top-level keyword field for collapse', () => {
-        const result = query(productMappings).matchAll().collapse('category').build();
+        const result = queryBuilder(productMappings).matchAll().collapse('category').build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -6819,7 +7199,7 @@ describe('QueryBuilder', () => {
       });
 
       it('accept text object sub-field for highlight', () => {
-        const result = query(productMappings).match('name', 'shoe').highlight(['address.street']).build();
+        const result = queryBuilder(productMappings).match('name', 'shoe').highlight(['address.street']).build();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -6840,37 +7220,43 @@ describe('QueryBuilder', () => {
       // eslint-disable-next-line vitest/expect-expect
       it('rejects object parent field for sort — @ts-expect-error', () => {
         // @ts-expect-error — 'address' (object parent) is not in SortableFields<M>
-        query(productMappings).sort('address', 'asc');
+        queryBuilder(productMappings).sort('address', 'asc');
       });
 
       // eslint-disable-next-line vitest/expect-expect
       it('rejects nested parent field for sort — @ts-expect-error', () => {
         // @ts-expect-error — 'variants' (nested parent) is not in SortableFields<M>
-        query(productMappings).sort('variants', 'asc');
+        queryBuilder(productMappings).sort('variants', 'asc');
       });
 
       // eslint-disable-next-line vitest/expect-expect
       it('rejects object parent field for collapse — @ts-expect-error', () => {
         // @ts-expect-error — 'address' (object parent) is not in CollapsibleFields<M>
-        query(productMappings).collapse('address');
+        queryBuilder(productMappings).collapse('address');
       });
 
       // eslint-disable-next-line vitest/expect-expect
       it('rejects nested parent field for collapse — @ts-expect-error', () => {
         // @ts-expect-error — 'variants' (nested parent) is not in CollapsibleFields<M>
-        query(productMappings).collapse('variants');
+        queryBuilder(productMappings).collapse('variants');
       });
 
       // eslint-disable-next-line vitest/expect-expect
       it('rejects object parent field for highlight — @ts-expect-error', () => {
         // @ts-expect-error — 'address' (object parent) is not in HighlightableFields<M>
-        query(productMappings).highlight(['address']);
+        queryBuilder(productMappings).highlight(['address']);
       });
 
       // eslint-disable-next-line vitest/expect-expect
       it('rejects nested sub-field at root level for match — @ts-expect-error', () => {
         // @ts-expect-error — 'variants.color' is a nested descendant and excluded at root
-        query(productMappings).match('variants.color', 'red');
+        queryBuilder(productMappings).match('variants.color', 'red');
+      });
+
+      // eslint-disable-next-line vitest/expect-expect
+      it('rejects non-dense-vector field for knn — @ts-expect-error', () => {
+        // @ts-expect-error — 'title' is a text field, not in DenseVectorFields<M>
+        queryBuilder(listingDetailMappings).knn('title', [0.1, 0.2, 0.3], { k: 5, num_candidates: 50 });
       });
     });
 
@@ -6894,6 +7280,696 @@ describe('QueryBuilder', () => {
 
         expect(shipment.address.city).toBe('Berlin');
       });
+    });
+
+    describe('Multi-field sub-field expansion', () => {
+      const multiFieldMappings = mappings({
+        name: text({ fields: { raw: keyword(), trigram: text({ analyzer: 'trigram' }) } }),
+        price: float({ fields: { string: keyword() } }),
+        tag: keyword()
+      });
+
+      it('multi-field sub-field is accepted by term() as a keyword field', () => {
+        const result = queryBuilder(multiFieldMappings).term('name.raw', 'Exact Match').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "term": {
+                "name.raw": "Exact Match",
+              },
+            },
+          }
+        `);
+      });
+
+      it('multi-field sub-field is accepted by match() as a text field', () => {
+        const result = queryBuilder(multiFieldMappings).match('name.trigram', 'fuzzy search').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "match": {
+                "name.trigram": "fuzzy search",
+              },
+            },
+          }
+        `);
+      });
+
+      it('numeric multi-field sub-field is accepted by term()', () => {
+        const result = queryBuilder(multiFieldMappings).term('price.string', '99.99').build();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "query": {
+              "term": {
+                "price.string": "99.99",
+              },
+            },
+          }
+        `);
+      });
+
+      it('rejects invalid multi-field sub-field names at compile time', () => {
+        expect(
+          queryBuilder(multiFieldMappings)
+            // @ts-expect-error name.nope is not a defined multi-field
+            .term('name.nope', 'value')
+            .build()
+        ).toBeDefined();
+      });
+
+      it('multi-fields do NOT appear in Infer<> (they are indexing sub-fields, not document properties)', () => {
+        type Doc = Infer<typeof multiFieldMappings>;
+        const doc: Doc = { name: 'test', price: 42, tag: 'sale' };
+
+        expect(doc.name).toBe('test');
+        // name.raw is not a property on the document type — compile-time only query constraint
+      });
+    });
+  });
+
+  describe('Intervals query', () => {
+    it('build an intervals match query', () => {
+      const result = queryBuilder(reviewMappings)
+        .intervals('title', { match: { query: 'hot water', max_gaps: 0, ordered: true } })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "intervals": {
+              "title": {
+                "match": {
+                  "max_gaps": 0,
+                  "ordered": true,
+                  "query": "hot water",
+                },
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('build an intervals all_of query with filter', () => {
+      const result = queryBuilder(reviewMappings)
+        .intervals('title', {
+          all_of: {
+            intervals: [{ match: { query: 'hot', max_gaps: 0 } }, { match: { query: 'water' } }],
+            ordered: true,
+            filter: {
+              not_containing: { match: { query: 'salty' } }
+            }
+          }
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "intervals": {
+              "title": {
+                "all_of": {
+                  "filter": {
+                    "not_containing": {
+                      "match": {
+                        "query": "salty",
+                      },
+                    },
+                  },
+                  "intervals": [
+                    {
+                      "match": {
+                        "max_gaps": 0,
+                        "query": "hot",
+                      },
+                    },
+                    {
+                      "match": {
+                        "query": "water",
+                      },
+                    },
+                  ],
+                  "ordered": true,
+                },
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('build an intervals any_of query', () => {
+      const result = queryBuilder(reviewMappings)
+        .intervals('title', {
+          any_of: {
+            intervals: [{ match: { query: 'quick fox' } }, { match: { query: 'fast fox' } }]
+          }
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "intervals": {
+              "title": {
+                "any_of": {
+                  "intervals": [
+                    {
+                      "match": {
+                        "query": "quick fox",
+                      },
+                    },
+                    {
+                      "match": {
+                        "query": "fast fox",
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('build an intervals prefix query', () => {
+      const result = queryBuilder(reviewMappings)
+        .intervals('title', { prefix: { prefix: 'sta' } })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "intervals": {
+              "title": {
+                "prefix": {
+                  "prefix": "sta",
+                },
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('build an intervals wildcard query', () => {
+      const result = queryBuilder(reviewMappings)
+        .intervals('title', { wildcard: { pattern: 'qu*ck' } })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "intervals": {
+              "title": {
+                "wildcard": {
+                  "pattern": "qu*ck",
+                },
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('build an intervals fuzzy query', () => {
+      const result = queryBuilder(reviewMappings)
+        .intervals('title', { fuzzy: { term: 'quikc', fuzziness: 'AUTO' } })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "intervals": {
+              "title": {
+                "fuzzy": {
+                  "fuzziness": "AUTO",
+                  "term": "quikc",
+                },
+              },
+            },
+          },
+        }
+      `);
+    });
+  });
+
+  describe('Span queries', () => {
+    it('build a span_term query', () => {
+      const result = queryBuilder(reviewMappings).spanTerm('title', 'quick').build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "span_term": {
+              "title": {
+                "value": "quick",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('build a span_near query via bool composition', () => {
+      const result = queryBuilder(reviewMappings)
+        .bool()
+        .must((q) =>
+          q.spanNear([q.spanTerm('title', 'quick'), q.spanTerm('title', 'fox')], { slop: 1, in_order: true })
+        )
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "span_near": {
+                    "clauses": [
+                      {
+                        "span_term": {
+                          "title": {
+                            "value": "quick",
+                          },
+                        },
+                      },
+                      {
+                        "span_term": {
+                          "title": {
+                            "value": "fox",
+                          },
+                        },
+                      },
+                    ],
+                    "in_order": true,
+                    "slop": 1,
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('build a span_or query via bool composition', () => {
+      const result = queryBuilder(reviewMappings)
+        .bool()
+        .must((q) => q.spanOr([q.spanTerm('title', 'quick'), q.spanTerm('title', 'fast')]))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "span_or": {
+                    "clauses": [
+                      {
+                        "span_term": {
+                          "title": {
+                            "value": "quick",
+                          },
+                        },
+                      },
+                      {
+                        "span_term": {
+                          "title": {
+                            "value": "fast",
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('build a span_not query with options', () => {
+      const result = queryBuilder(reviewMappings)
+        .bool()
+        .must((q) =>
+          q.spanNot(
+            q.spanNear([q.spanTerm('title', 'quick'), q.spanTerm('title', 'fox')], { slop: 1, in_order: true }),
+            q.spanTerm('title', 'lazy'),
+            { pre: 1, post: 1 }
+          )
+        )
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "span_not": {
+                    "exclude": {
+                      "span_term": {
+                        "title": {
+                          "value": "lazy",
+                        },
+                      },
+                    },
+                    "include": {
+                      "span_near": {
+                        "clauses": [
+                          {
+                            "span_term": {
+                              "title": {
+                                "value": "quick",
+                              },
+                            },
+                          },
+                          {
+                            "span_term": {
+                              "title": {
+                                "value": "fox",
+                              },
+                            },
+                          },
+                        ],
+                        "in_order": true,
+                        "slop": 1,
+                      },
+                    },
+                    "post": 1,
+                    "pre": 1,
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('build a span_first query', () => {
+      const result = queryBuilder(reviewMappings)
+        .bool()
+        .must((q) => q.spanFirst(q.spanTerm('title', 'quick'), 3))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "span_first": {
+                    "end": 3,
+                    "match": {
+                      "span_term": {
+                        "title": {
+                          "value": "quick",
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('build a span_containing query', () => {
+      const result = queryBuilder(reviewMappings)
+        .bool()
+        .must((q) =>
+          q.spanContaining(
+            q.spanNear([q.spanTerm('title', 'quick'), q.spanTerm('title', 'fox')], { slop: 5, in_order: false }),
+            q.spanTerm('title', 'brown')
+          )
+        )
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "span_containing": {
+                    "big": {
+                      "span_near": {
+                        "clauses": [
+                          {
+                            "span_term": {
+                              "title": {
+                                "value": "quick",
+                              },
+                            },
+                          },
+                          {
+                            "span_term": {
+                              "title": {
+                                "value": "fox",
+                              },
+                            },
+                          },
+                        ],
+                        "in_order": false,
+                        "slop": 5,
+                      },
+                    },
+                    "little": {
+                      "span_term": {
+                        "title": {
+                          "value": "brown",
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('build a span_within query', () => {
+      const result = queryBuilder(reviewMappings)
+        .bool()
+        .must((q) =>
+          q.spanWithin(
+            q.spanNear([q.spanTerm('title', 'quick'), q.spanTerm('title', 'fox')], { slop: 5, in_order: false }),
+            q.spanTerm('title', 'brown')
+          )
+        )
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "span_within": {
+                    "big": {
+                      "span_near": {
+                        "clauses": [
+                          {
+                            "span_term": {
+                              "title": {
+                                "value": "quick",
+                              },
+                            },
+                          },
+                          {
+                            "span_term": {
+                              "title": {
+                                "value": "fox",
+                              },
+                            },
+                          },
+                        ],
+                        "in_order": false,
+                        "slop": 5,
+                      },
+                    },
+                    "little": {
+                      "span_term": {
+                        "title": {
+                          "value": "brown",
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('build a span_multi query wrapping a prefix query', () => {
+      const result = queryBuilder(reviewMappings)
+        .spanMultiTerm({ prefix: { title: { value: 'qui' } } })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "span_multi": {
+              "match": {
+                "prefix": {
+                  "title": {
+                    "value": "qui",
+                  },
+                },
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('build a span_field_masking query', () => {
+      const result = queryBuilder(reviewMappings)
+        .bool()
+        .must((q) => q.spanFieldMasking('title', q.spanTerm('title', 'quick')))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "span_field_masking": {
+                    "field": "title",
+                    "query": {
+                      "span_term": {
+                        "title": {
+                          "value": "quick",
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('use spanTerm from clause builder to compose span queries', () => {
+      const result = queryBuilder(reviewMappings)
+        .bool()
+        .must((q) => q.spanFirst(q.spanTerm('title', 'quick'), 5))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "span_first": {
+                    "end": 5,
+                    "match": {
+                      "span_term": {
+                        "title": {
+                          "value": "quick",
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('build span_near with no options (defaults)', () => {
+      const result = queryBuilder(reviewMappings)
+        .bool()
+        .must((q) => q.spanNear([q.spanTerm('title', 'quick'), q.spanTerm('title', 'fox')]))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "span_near": {
+                    "clauses": [
+                      {
+                        "span_term": {
+                          "title": {
+                            "value": "quick",
+                          },
+                        },
+                      },
+                      {
+                        "span_term": {
+                          "title": {
+                            "value": "fox",
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('build span_not with no options', () => {
+      const result = queryBuilder(reviewMappings)
+        .bool()
+        .must((q) => q.spanNot(q.spanTerm('title', 'quick'), q.spanTerm('title', 'lazy')))
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "span_not": {
+                    "exclude": {
+                      "span_term": {
+                        "title": {
+                          "value": "lazy",
+                        },
+                      },
+                    },
+                    "include": {
+                      "span_term": {
+                        "title": {
+                          "value": "quick",
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        }
+      `);
     });
   });
 });

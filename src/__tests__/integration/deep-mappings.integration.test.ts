@@ -1,4 +1,4 @@
-import { query, indexBuilder } from '../../index.js';
+import { queryBuilder, indexBuilder } from '../../index.js';
 import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from '../helpers';
 import { deepObjectMappings, deepNestedMappings } from '../fixtures/logistics.schema.js';
 import { DEEP_OBJECT_DOCS, DEEP_NESTED_DOCS } from '../fixtures/logistics.data.js';
@@ -25,7 +25,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     it('finds a document by a 2-level deep billing city', async () => {
       const result = await search(
         OBJECT_INDEX,
-        query(deepObjectMappings).term('address.billing.city', 'Austin').build()
+        queryBuilder(deepObjectMappings).term('address.billing.city', 'Austin').build()
       );
 
       expect(result.hits.total.value).toBe(1);
@@ -35,7 +35,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     it('finds a document by a 2-level deep shipping country', async () => {
       const result = await search(
         OBJECT_INDEX,
-        query(deepObjectMappings).term('address.shipping.country', 'DE').build()
+        queryBuilder(deepObjectMappings).term('address.shipping.country', 'DE').build()
       );
 
       expect(result.hits.total.value).toBe(1);
@@ -45,7 +45,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     it('returns all US-shipping documents via 2-level deep field', async () => {
       const result = await search(
         OBJECT_INDEX,
-        query(deepObjectMappings).term('address.shipping.country', 'US').build()
+        queryBuilder(deepObjectMappings).term('address.shipping.country', 'US').build()
       );
 
       expect(result.hits.total.value).toBe(2);
@@ -54,7 +54,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     it('filters on two sibling 2-level deep fields via outer bool', async () => {
       const result = await search(
         OBJECT_INDEX,
-        query(deepObjectMappings)
+        queryBuilder(deepObjectMappings)
           .bool()
           .filter((q) => q.term('address.billing.city', 'Austin'))
           .filter((q) => q.term('address.shipping.country', 'US'))
@@ -70,7 +70,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     it('sorts documents by a 2-level deep object sub-field (keyword)', async () => {
       const result = await search(
         OBJECT_INDEX,
-        query(deepObjectMappings).matchAll().sort('address.billing.city', 'asc').build()
+        queryBuilder(deepObjectMappings).matchAll().sort('address.billing.city', 'asc').build()
       );
 
       const cities = result.hits.hits.map(
@@ -83,7 +83,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     it('sorts documents by a nested 2-level shipping country (keyword)', async () => {
       const result = await search(
         OBJECT_INDEX,
-        query(deepObjectMappings).matchAll().sort('address.shipping.country', 'asc').build()
+        queryBuilder(deepObjectMappings).matchAll().sort('address.shipping.country', 'asc').build()
       );
 
       const countries = result.hits.hits.map(
@@ -96,7 +96,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     it('highlights text sub-field matches in query results', async () => {
       const result = await search(
         OBJECT_INDEX,
-        query(deepObjectMappings).match('name', 'Widget').highlight(['name']).build()
+        queryBuilder(deepObjectMappings).match('name', 'Widget').highlight(['name']).build()
       );
 
       expect(result.hits.total.value).toBe(3);
@@ -112,7 +112,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     it('finds a document by a direct nested sub-field', async () => {
       const result = await search(
         NESTED_INDEX,
-        query(deepNestedMappings)
+        queryBuilder(deepNestedMappings)
           .nested('shipments', (q) => q.term('tracking', 'TRK-003'))
           .build()
       );
@@ -124,7 +124,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     it('finds a document by a 2-level nested object sub-field (address.city)', async () => {
       const result = await search(
         NESTED_INDEX,
-        query(deepNestedMappings)
+        queryBuilder(deepNestedMappings)
           .nested('shipments', (q) => q.term('address.city', 'Paris'))
           .build()
       );
@@ -136,7 +136,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     it('finds a document by a 2-level nested object sub-field (address.country)', async () => {
       const result = await search(
         NESTED_INDEX,
-        query(deepNestedMappings)
+        queryBuilder(deepNestedMappings)
           .nested('shipments', (q) => q.term('address.country', 'GB'))
           .build()
       );
@@ -148,7 +148,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     it('finds documents by a range on a direct nested numeric sub-field', async () => {
       const result = await search(
         NESTED_INDEX,
-        query(deepNestedMappings)
+        queryBuilder(deepNestedMappings)
           .nested('shipments', (q) => q.range('price', { gte: 100 }))
           .build()
       );
@@ -160,7 +160,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
     it('matches a document that has any shipment going to a given country', async () => {
       const result = await search(
         NESTED_INDEX,
-        query(deepNestedMappings)
+        queryBuilder(deepNestedMappings)
           .nested('shipments', (q) => q.term('address.country', 'DE'))
           .build()
       );
@@ -175,7 +175,7 @@ describe('Deep object/nested mappings — 2-level field access', () => {
       // so both conditions are met even though no single shipment satisfies both.
       const result = await search(
         NESTED_INDEX,
-        query(deepNestedMappings)
+        queryBuilder(deepNestedMappings)
           .bool()
           .must((q) => q.nested('shipments', (qn) => qn.term('tracking', 'TRK-001')))
           .must((q) => q.nested('shipments', (qn) => qn.term('address.country', 'DE')))

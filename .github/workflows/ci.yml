@@ -5,6 +5,21 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish to npm after CI passes'
+        required: false
+        type: boolean
+        default: false
+      npm_tag:
+        description: 'npm dist-tag (latest or beta)'
+        required: false
+        type: choice
+        options:
+          - latest
+          - beta
+        default: beta
 
 jobs:
   test:
@@ -86,7 +101,9 @@ jobs:
   publish:
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish)
 
     steps:
       - uses: actions/checkout@v4
@@ -103,18 +120,37 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Publish release
+      - name: Determine npm tag
+        id: tag
         run: |
-          VERSION="$(node -p "require('./package.json').version")"
-          npm publish --tag latest --ignore-scripts
-          npm dist-tag add "elasticlink@$VERSION" beta
+          # workflow_dispatch: use the chosen tag; push-to-main: auto-detect from version
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="$(node -p "require('./package.json').version")"
+            if echo "$VERSION" | grep -q "beta" && [ "${{ inputs.npm_tag }}" = "latest" ]; then
+              echo "::error::Refusing to publish beta version $VERSION with 'latest' dist-tag"
+              exit 1
+            fi
+            echo "npm_tag=${{ inputs.npm_tag }}" >> $GITHUB_OUTPUT
+          else
+            VERSION="$(node -p "require('./package.json').version")"
+            if echo "$VERSION" | grep -q "beta"; then
+              echo "npm_tag=beta" >> $GITHUB_OUTPUT
+            else
+              echo "npm_tag=latest" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Publish to npm
+        run: npm publish --tag ${{ steps.tag.outputs.npm_tag }} --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   github-release:
     needs: publish
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish)
     permissions:
       contents: write
 
@@ -125,9 +161,20 @@ jobs:
         id: pkg
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
+      - name: Detect prerelease
+        id: tag
+        run: |
+          VERSION="${{ steps.pkg.outputs.version }}"
+          if echo "$VERSION" | grep -q "beta"; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.pkg.outputs.version }}
           name: v${{ steps.pkg.outputs.version }}
           generate_release_notes: true
+          prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}

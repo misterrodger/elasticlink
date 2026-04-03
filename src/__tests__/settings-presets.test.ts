@@ -83,26 +83,54 @@ describe('Settings Presets', () => {
       `);
     });
 
-    it('should compose with other settings via spread', () => {
+    it('should compose with other settings via spread at the top level', () => {
       const result = {
         ...productionSearchSettings(),
-        index: indexSortSettings({ timestamp: 'desc' })
+        ...indexSortSettings({ timestamp: 'desc' })
       };
 
       expect(result).toMatchInlineSnapshot(`
         {
-          "index": {
-            "sort": {
-              "field": [
-                "timestamp",
-              ],
-              "order": [
-                "desc",
-              ],
-            },
-          },
           "number_of_replicas": 1,
           "refresh_interval": "5s",
+          "sort": {
+            "field": [
+              "timestamp",
+            ],
+            "order": [
+              "desc",
+            ],
+          },
+        }
+      `);
+    });
+
+    it('supportsFullSortSpecWithModeAndMissing', () => {
+      const result = indexSortSettings({
+        price: { order: 'asc', mode: 'min', missing: '_last' },
+        created_at: 'desc'
+      });
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "sort": {
+            "field": [
+              "price",
+              "created_at",
+            ],
+            "missing": [
+              "_last",
+              "_last",
+            ],
+            "mode": [
+              "min",
+              "min",
+            ],
+            "order": [
+              "asc",
+              "desc",
+            ],
+          },
         }
       `);
     });

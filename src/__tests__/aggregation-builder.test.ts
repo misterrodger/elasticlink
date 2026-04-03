@@ -1,6 +1,7 @@
-import { aggregations, integer, keyword, mappings, nested } from '..';
+import { aggregations, queryBuilder, mappings, integer, keyword, nested } from '..';
 import { listingDetailMappings } from './fixtures/real-estate.schema.js';
-import { productMappings } from './fixtures/ecommerce.schema.js';
+import { productMappings, searchProductMappings } from './fixtures/ecommerce.schema.js';
+import { matterMappings } from './fixtures/legal.schema.js';
 
 describe('AggregationBuilder', () => {
   describe('Builder behavior', () => {
@@ -136,6 +137,131 @@ describe('AggregationBuilder', () => {
             },
           }
         `);
+    });
+
+    it('should create a date_range aggregation with every supported option', () => {
+      const result = aggregations(matterMappings)
+        .dateRange('matters_by_age', 'opened_at', {
+          format: 'yyyy-MM-dd',
+          time_zone: 'UTC',
+          keyed: true,
+          missing: '1970-01-01',
+          ranges: [
+            { key: 'last_week', from: 'now-7d/d', to: 'now' },
+            { key: 'last_month', from: 'now-30d/d', to: 'now-7d/d' },
+            { key: 'older', to: 'now-30d/d' }
+          ]
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "matters_by_age": {
+            "date_range": {
+              "field": "opened_at",
+              "format": "yyyy-MM-dd",
+              "keyed": true,
+              "missing": "1970-01-01",
+              "ranges": [
+                {
+                  "from": "now-7d/d",
+                  "key": "last_week",
+                  "to": "now",
+                },
+                {
+                  "from": "now-30d/d",
+                  "key": "last_month",
+                  "to": "now-7d/d",
+                },
+                {
+                  "key": "older",
+                  "to": "now-30d/d",
+                },
+              ],
+              "time_zone": "UTC",
+            },
+          },
+        }
+      `);
+    });
+
+    it('should create a filters (multi-filter) aggregation with named buckets', () => {
+      const q = queryBuilder(matterMappings);
+      const result = aggregations(matterMappings)
+        .filters(
+          'by_open_date',
+          {
+            recent: q.range('opened_at', { gte: 'now-7d/d' }).build().query!,
+            stale: q.range('opened_at', { lt: 'now-30d/d' }).build().query!
+          },
+          { other_bucket: true, other_bucket_key: 'middle', keyed: true }
+        )
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "by_open_date": {
+            "filters": {
+              "filters": {
+                "recent": {
+                  "range": {
+                    "opened_at": {
+                      "gte": "now-7d/d",
+                    },
+                  },
+                },
+                "stale": {
+                  "range": {
+                    "opened_at": {
+                      "lt": "now-30d/d",
+                    },
+                  },
+                },
+              },
+              "keyed": true,
+              "other_bucket": true,
+              "other_bucket_key": "middle",
+            },
+          },
+        }
+      `);
+    });
+
+    it('should create a significant_terms aggregation with scoring and filtering options', () => {
+      const result = aggregations(matterMappings)
+        .significantTerms('notable_practice_areas', 'practice_area', {
+          size: 10,
+          min_doc_count: 3,
+          shard_min_doc_count: 1,
+          include: ['litigation', 'ip'],
+          exclude: ['internal'],
+          chi_square: { background_is_superset: true, include_negatives: false }
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "notable_practice_areas": {
+            "significant_terms": {
+              "chi_square": {
+                "background_is_superset": true,
+                "include_negatives": false,
+              },
+              "exclude": [
+                "internal",
+              ],
+              "field": "practice_area",
+              "include": [
+                "litigation",
+                "ip",
+              ],
+              "min_doc_count": 3,
+              "shard_min_doc_count": 1,
+              "size": 10,
+            },
+          },
+        }
+      `);
     });
   });
 
@@ -1051,6 +1177,358 @@ describe('AggregationBuilder', () => {
           }
         });
       });
+    });
+  });
+
+  describe('Aggregation field constraints (type ratchet)', () => {
+    it('dateRange rejects non-date fields', () => {
+      // @ts-expect-error billing_rate is integer, dateRange requires a date field
+      expect(() => aggregations(matterMappings).dateRange('bad', 'billing_rate').build()).toBeDefined();
+    });
+
+    it('significantTerms rejects non-text/keyword fields', () => {
+      // @ts-expect-error billing_rate is integer, significantTerms requires text/keyword
+      expect(() => aggregations(matterMappings).significantTerms('bad', 'billing_rate').build()).toBeDefined();
+    });
+
+    it('cardinality accepts aggregatable fields', () => {
+      expect(aggregations(searchProductMappings).cardinality('unique_slugs', 'slug').build()).toBeDefined();
+      expect(aggregations(searchProductMappings).cardinality('unique_dates', 'listed_at').build()).toBeDefined();
+      expect(aggregations(searchProductMappings).cardinality('unique_names', 'name').build()).toBeDefined();
+    });
+
+    it('cardinality rejects non-aggregatable field types', () => {
+      // @ts-expect-error embedding is a dense_vector, not aggregatable
+      expect(() => aggregations(searchProductMappings).cardinality('bad', 'embedding').build()).toBeDefined();
+      // @ts-expect-error store_location is geo_point, not aggregatable via cardinality
+      expect(() => aggregations(searchProductMappings).cardinality('bad', 'store_location').build()).toBeDefined();
+    });
+
+    it('valueCount rejects non-aggregatable field types', () => {
+      expect(aggregations(searchProductMappings).valueCount('ok', 'slug').build()).toBeDefined();
+      // @ts-expect-error ml_tokens is sparse_vector, not aggregatable
+      expect(() => aggregations(searchProductMappings).valueCount('bad', 'ml_tokens').build()).toBeDefined();
+    });
+  });
+
+  describe('Long-tail bucket aggregations', () => {
+    it('rareTerms builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings)
+        .rareTerms('rare_classes', 'property_class', { max_doc_count: 5 })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "rare_classes": {
+            "rare_terms": {
+              "field": "property_class",
+              "max_doc_count": 5,
+            },
+          },
+        }
+      `);
+    });
+
+    it('rareTerms rejects non-aggregable fields', () => {
+      // @ts-expect-error location is geo_point, not valid for rare_terms
+      expect(() => aggregations(listingDetailMappings).rareTerms('bad', 'location').build()).toBeDefined();
+    });
+
+    it('multiTerms builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings)
+        .multiTerms('multi', {
+          terms: [{ field: 'property_class' }, { field: 'address' }],
+          size: 10
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "multi": {
+            "multi_terms": {
+              "size": 10,
+              "terms": [
+                {
+                  "field": "property_class",
+                },
+                {
+                  "field": "address",
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('geoDistance builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings)
+        .geoDistance('distance_rings', 'location', {
+          origin: { lat: 40.7128, lon: -74.006 },
+          ranges: [{ to: 5000 }, { from: 5000, to: 20000 }, { from: 20000 }]
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "distance_rings": {
+            "geo_distance": {
+              "field": "location",
+              "origin": {
+                "lat": 40.7128,
+                "lon": -74.006,
+              },
+              "ranges": [
+                {
+                  "to": 5000,
+                },
+                {
+                  "from": 5000,
+                  "to": 20000,
+                },
+                {
+                  "from": 20000,
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('geoDistance rejects non-geo fields', () => {
+      expect(() =>
+        aggregations(listingDetailMappings)
+          // @ts-expect-error property_class is keyword, not geo_point
+          .geoDistance('bad', 'property_class', { origin: { lat: 0, lon: 0 }, ranges: [] })
+          .build()
+      ).toBeDefined();
+    });
+
+    it('geohashGrid builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings)
+        .geohashGrid('grid', 'location', { precision: 5, size: 100 })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "grid": {
+            "geohash_grid": {
+              "field": "location",
+              "precision": 5,
+              "size": 100,
+            },
+          },
+        }
+      `);
+    });
+
+    it('geotileGrid builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings).geotileGrid('tiles', 'location', { precision: 8 }).build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "tiles": {
+            "geotile_grid": {
+              "field": "location",
+              "precision": 8,
+            },
+          },
+        }
+      `);
+    });
+  });
+
+  describe('Long-tail metric aggregations', () => {
+    it('geoBounds builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings)
+        .geoBounds('bounds', 'location', { wrap_longitude: true })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "bounds": {
+            "geo_bounds": {
+              "field": "location",
+              "wrap_longitude": true,
+            },
+          },
+        }
+      `);
+    });
+
+    it('geoCentroid builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings).geoCentroid('center', 'location').build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "center": {
+            "geo_centroid": {
+              "field": "location",
+            },
+          },
+        }
+      `);
+    });
+
+    it('missing builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings).missing('no_price', 'list_price').build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "no_price": {
+            "missing": {
+              "field": "list_price",
+            },
+          },
+        }
+      `);
+    });
+
+    it('missing rejects non-aggregatable fields', () => {
+      // @ts-expect-error embedding is dense_vector, not aggregatable
+      expect(() => aggregations(listingDetailMappings).missing('bad', 'embedding').build()).toBeDefined();
+    });
+
+    it('topMetrics builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings)
+        .topMetrics('top', {
+          metrics: [{ field: 'list_price' }, { field: 'sqft' }],
+          sort: [{ listed_date: 'desc' }],
+          size: 3
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "top": {
+            "top_metrics": {
+              "metrics": [
+                {
+                  "field": "list_price",
+                },
+                {
+                  "field": "sqft",
+                },
+              ],
+              "size": 3,
+              "sort": [
+                {
+                  "listed_date": "desc",
+                },
+              ],
+            },
+          },
+        }
+      `);
+    });
+
+    it('weightedAvg builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings)
+        .weightedAvg('weighted_price', {
+          value: { field: 'list_price' },
+          weight: { field: 'sqft' }
+        })
+        .build();
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "weighted_price": {
+            "weighted_avg": {
+              "value": {
+                "field": "list_price",
+              },
+              "weight": {
+                "field": "sqft",
+              },
+            },
+          },
+        }
+      `);
+    });
+  });
+
+  describe('Pipeline aggregations', () => {
+    it('bucketScript builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings)
+        .dateHistogram('monthly', 'listed_date', { calendar_interval: 'month' })
+        .subAgg((sub) => sub.avg('avg_price', 'list_price').avg('avg_sqft', 'sqft'))
+        .bucketScript('price_per_sqft', {
+          buckets_path: { avg_price: 'monthly>avg_price', avg_sqft: 'monthly>avg_sqft' },
+          script: { source: 'params.avg_price / params.avg_sqft' }
+        })
+        .build();
+
+      expect(result.monthly.aggs.avg_price).toStrictEqual({ avg: { field: 'list_price' } });
+      expect(result.price_per_sqft).toMatchInlineSnapshot(`
+        {
+          "bucket_script": {
+            "buckets_path": {
+              "avg_price": "monthly>avg_price",
+              "avg_sqft": "monthly>avg_sqft",
+            },
+            "script": {
+              "source": "params.avg_price / params.avg_sqft",
+            },
+          },
+        }
+      `);
+    });
+
+    it('bucketSelector builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings)
+        .terms('by_class', 'property_class')
+        .subAgg((sub) => sub.avg('avg_price', 'list_price'))
+        .bucketSelector('high_value', {
+          buckets_path: { avg_price: 'by_class>avg_price' },
+          script: { source: 'params.avg_price > 1000000' }
+        })
+        .build();
+
+      expect(result.high_value).toMatchInlineSnapshot(`
+        {
+          "bucket_selector": {
+            "buckets_path": {
+              "avg_price": "by_class>avg_price",
+            },
+            "script": {
+              "source": "params.avg_price > 1000000",
+            },
+          },
+        }
+      `);
+    });
+
+    it('derivative builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings)
+        .dateHistogram('monthly', 'listed_date', { calendar_interval: 'month' })
+        .subAgg((sub) => sub.avg('avg_price', 'list_price'))
+        .derivative('price_trend', { buckets_path: 'monthly>avg_price' })
+        .build();
+
+      expect(result.price_trend).toMatchInlineSnapshot(`
+        {
+          "derivative": {
+            "buckets_path": "monthly>avg_price",
+          },
+        }
+      `);
+    });
+
+    it('cumulativeSum builds correct DSL', () => {
+      const result = aggregations(listingDetailMappings)
+        .dateHistogram('monthly', 'listed_date', { calendar_interval: 'month' })
+        .subAgg((sub) => sub.sum('total_sales', 'list_price'))
+        .cumulativeSum('running_total', { buckets_path: 'monthly>total_sales' })
+        .build();
+
+      expect(result.running_total).toMatchInlineSnapshot(`
+        {
+          "cumulative_sum": {
+            "buckets_path": "monthly>total_sales",
+          },
+        }
+      `);
     });
   });
 });

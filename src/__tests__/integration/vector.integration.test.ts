@@ -1,4 +1,4 @@
-import { query, indexBuilder } from '../../index.js';
+import { queryBuilder, indexBuilder } from '../../index.js';
 import { ensureIndex, deleteIndex, indexDoc, refreshIndex, search } from '../helpers';
 import { vectorProductMappings } from '../fixtures/ecommerce.schema.js';
 import { VECTOR_PRODUCTS } from '../fixtures/ecommerce.data.js';
@@ -17,7 +17,7 @@ describe('QueryBuilder — knn (vector search)', () => {
   it('returns the nearest neighbor for a query vector aligned with x-axis', async () => {
     const result = await search(
       INDEX,
-      query(vectorProductMappings).knn('embedding', [1, 0, 0], { k: 1, num_candidates: 10 }).build()
+      queryBuilder(vectorProductMappings).knn('embedding', [1, 0, 0], { k: 1, num_candidates: 10 }).build()
     );
 
     expect(result.hits.hits).toHaveLength(1);
@@ -28,7 +28,7 @@ describe('QueryBuilder — knn (vector search)', () => {
     // Query vector aligned with y-axis — beta (0,1,0) is exact match, delta (0.707,0.707,0) next
     const result = await search(
       INDEX,
-      query(vectorProductMappings).knn('embedding', [0, 1, 0], { k: 3, num_candidates: 10 }).build()
+      queryBuilder(vectorProductMappings).knn('embedding', [0, 1, 0], { k: 3, num_candidates: 10 }).build()
     );
 
     const titles = result.hits.hits.map((h: { _source: { title: string } }) => h._source.title);
@@ -42,7 +42,7 @@ describe('QueryBuilder — knn (vector search)', () => {
     // With category=b filter only beta and delta qualify; delta (0.707,0.707,0) is nearer.
     const result = await search(
       INDEX,
-      query(vectorProductMappings)
+      queryBuilder(vectorProductMappings)
         .knn('embedding', [1, 0, 0], {
           k: 1,
           num_candidates: 10,

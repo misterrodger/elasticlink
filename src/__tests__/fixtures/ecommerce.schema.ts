@@ -1,4 +1,19 @@
-import { mappings, keyword, text, float, integer, boolean, object, nested, denseVector } from '../../index.js';
+import {
+  mappings,
+  keyword,
+  text,
+  float,
+  integer,
+  boolean,
+  object,
+  nested,
+  denseVector,
+  sparseVector,
+  rankFeature,
+  rankFeatures,
+  date,
+  geoPoint
+} from '../../index.js';
 import type { Infer } from '../../index.js';
 
 /**
@@ -34,3 +49,16 @@ export const vectorProductMappings = mappings({
 });
 
 export type VectorProduct = Infer<typeof vectorProductMappings>;
+
+export const searchProductMappings = mappings({
+  name: text(),
+  slug: keyword(),
+  listed_at: date(),
+  store_location: geoPoint(),
+  ml_tokens: sparseVector(),
+  popularity: rankFeature(),
+  category_scores: rankFeatures(),
+  embedding: denseVector({ dims: 4 })
+});
+
+export type SearchProduct = Infer<typeof searchProductMappings>;

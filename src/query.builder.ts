@@ -1,3 +1,4 @@
+import type { QueryDslQueryContainer } from '@elastic/elasticsearch/lib/api/types';
 import type { FieldTypeString } from './index-management.types.js';
 import type {
   QueryState,
@@ -14,7 +15,23 @@ import type {
   MatchBoolPrefixOptions,
   NestedOptions,
   ScriptQueryOptions,
-  HighlightOptions
+  HighlightOptions,
+  RegexpOptions,
+  GeoDistanceOptions,
+  GeoBoundingBoxOptions,
+  GeoPolygonOptions,
+  GeoShapeQueryOptions,
+  DistanceFeatureOptions,
+  RankFeatureQueryOptions,
+  SparseVectorQueryOptions,
+  FunctionScoreOptions,
+  HasChildOptions,
+  HasParentOptions,
+  ParentIdOptions,
+  IntervalsOptions,
+  SpanNearOptions,
+  SpanNotOptions,
+  SpanQuery
 } from './query.types.js';
 import type { SubFieldsOf } from './mapping.types.js';
 import type { KnnOptions } from './vector.types.js';
@@ -100,7 +117,53 @@ const createClauseMethods = <R>(wrap: (dsl: any) => R, qualifyField: (f: string)
     }),
 
   matchBoolPrefix: (field: string, value: string, options?: MatchBoolPrefixOptions) =>
-    wrap({ match_bool_prefix: { [qualifyField(field)]: options ? { query: value, ...options } : value } })
+    wrap({ match_bool_prefix: { [qualifyField(field)]: options ? { query: value, ...options } : value } }),
+
+  regexp: (field: string, value: string, options?: RegexpOptions) =>
+    wrap({ regexp: { [qualifyField(field)]: options ? { value, ...options } : value } }),
+
+  geoDistance: (field: string, center: { lat: number; lon: number }, options: GeoDistanceOptions) =>
+    wrap({ geo_distance: { [qualifyField(field)]: center, ...options } }),
+
+  geoBoundingBox: (field: string, options: GeoBoundingBoxOptions) =>
+    wrap({ geo_bounding_box: { [qualifyField(field)]: options } }),
+
+  geoPolygon: (field: string, options: GeoPolygonOptions) => wrap({ geo_polygon: { [qualifyField(field)]: options } }),
+
+  geoShape: (field: string, shape: Record<string, unknown>, options?: GeoShapeQueryOptions) =>
+    wrap({ geo_shape: { [qualifyField(field)]: { shape, ...options } } }),
+
+  distanceFeature: (field: string, options: DistanceFeatureOptions) =>
+    wrap({ distance_feature: { field: qualifyField(field), ...options } }),
+
+  rankFeature: (field: string, options?: RankFeatureQueryOptions) =>
+    wrap({ rank_feature: { field: qualifyField(field), ...options } }),
+
+  sparseVector: (field: string, options: SparseVectorQueryOptions) =>
+    wrap({ sparse_vector: { field: qualifyField(field), ...options } }),
+
+  intervals: (field: string, options: IntervalsOptions) => wrap({ intervals: { [qualifyField(field)]: options } }),
+
+  spanTerm: (field: string, value: string) => wrap({ span_term: { [qualifyField(field)]: { value } } }),
+
+  spanNear: (clauses: ReadonlyArray<SpanQuery>, options?: SpanNearOptions) =>
+    wrap({ span_near: { clauses: [...clauses], ...options } }),
+
+  spanOr: (clauses: ReadonlyArray<SpanQuery>) => wrap({ span_or: { clauses: [...clauses] } }),
+
+  spanNot: (include: SpanQuery, exclude: SpanQuery, options?: SpanNotOptions) =>
+    wrap({ span_not: { include, exclude, ...options } }),
+
+  spanFirst: (match: SpanQuery, end: number) => wrap({ span_first: { match, end } }),
+
+  spanContaining: (big: SpanQuery, little: SpanQuery) => wrap({ span_containing: { big, little } }),
+
+  spanWithin: (big: SpanQuery, little: SpanQuery) => wrap({ span_within: { big, little } }),
+
+  spanMultiTerm: (query: Record<string, unknown>) => wrap({ span_multi: { match: query } }),
+
+  spanFieldMasking: (field: string, query: SpanQuery) =>
+    wrap({ span_field_masking: { field: qualifyField(field), query } })
 });
 
 const createClauseBuilder = <M extends Record<string, FieldTypeString>>(prefix?: string): ClauseBuilder<M> => {
@@ -130,247 +193,313 @@ const createClauseBuilder = <M extends Record<string, FieldTypeString>>(prefix?:
       return nestedQuery === undefined ? undefined : { nested: { path: nestedPath, query: nestedQuery, ...options } };
     },
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    functionScore: (queryFn: (q: any) => any, options?: FunctionScoreOptions) => {
+      const innerQuery = queryFn(createClauseBuilder(prefix)) ?? { match_all: {} };
+      return { function_score: { query: innerQuery, ...options } };
+    },
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    hasChild: (type: string, queryFn: (q: any) => any, options?: HasChildOptions) => {
+      const childQuery = queryFn(createClauseBuilder<M>()) ?? { match_all: {} };
+      return { has_child: { type, query: childQuery, ...options } };
+    },
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    hasParent: (type: string, queryFn: (q: any) => any, options?: HasParentOptions) => {
+      const parentQuery = queryFn(createClauseBuilder<M>()) ?? { match_all: {} };
+      return { has_parent: { parent_type: type, query: parentQuery, ...options } };
+    },
+
+    parentId: (type: string, id: string, options?: ParentIdOptions) => ({
+      parent_id: { type, id, ...options }
+    }),
+
     when: (condition, thenFn) => (resolveCondition(condition) ? thenFn(createClauseBuilder(prefix)) : undefined)
   };
 };
 
 export const createQueryBuilder = <M extends Record<string, FieldTypeString>>(
   state: QueryState<M> = {}
-): QueryBuilder<M> => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ...createClauseMethods((dsl: any) => createQueryBuilder<M>({ ...state, query: dsl })),
+): QueryBuilder<M> => {
+  // Internal bool accumulator — during construction we always treat bool.must/filter/etc.
+  // as arrays (the Elastic `QueryDslQueryContainer | QueryDslQueryContainer[]` union
+  // exists for callers who pass a single clause; the builder never does).
+  type BoolAcc = {
+    bool?: {
+      must?: unknown[];
+      must_not?: unknown[];
+      should?: unknown[];
+      filter?: unknown[];
+      minimum_should_match?: number;
+    };
+  };
+  const q = (state.query ?? {}) as BoolAcc;
 
-  // eslint-disable-next-line functional/functional-parameters
-  bool: () => createQueryBuilder<M>({ ...state, query: { bool: {} } }),
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...createClauseMethods((dsl: any) => createQueryBuilder<M>({ ...state, query: dsl })),
 
-  must: (builderFn) => {
-    const clause = builderFn(createClauseBuilder<M>());
-    const existing = state.query?.bool?.must || [];
-    return clause === undefined
-      ? createQueryBuilder<M>(state)
-      : createQueryBuilder<M>({ ...state, query: { bool: { ...state.query.bool, must: [...existing, clause] } } });
-  },
+    // eslint-disable-next-line functional/functional-parameters
+    bool: () => createQueryBuilder<M>({ ...state, query: { bool: {} } as QueryDslQueryContainer }),
 
-  mustNot: (builderFn) => {
-    const clause = builderFn(createClauseBuilder<M>());
-    const existing = state.query?.bool?.must_not || [];
-    return clause === undefined
-      ? createQueryBuilder<M>(state)
-      : createQueryBuilder<M>({ ...state, query: { bool: { ...state.query.bool, must_not: [...existing, clause] } } });
-  },
+    must: (builderFn) => {
+      const clause = builderFn(createClauseBuilder<M>());
+      const existing = q.bool?.must ?? [];
+      return clause === undefined
+        ? createQueryBuilder<M>(state)
+        : createQueryBuilder<M>({
+            ...state,
+            query: { bool: { ...q.bool, must: [...existing, clause] } } as QueryDslQueryContainer
+          });
+    },
 
-  should: (builderFn) => {
-    const clause = builderFn(createClauseBuilder<M>());
-    const existing = state.query?.bool?.should || [];
-    return clause === undefined
-      ? createQueryBuilder<M>(state)
-      : createQueryBuilder<M>({ ...state, query: { bool: { ...state.query.bool, should: [...existing, clause] } } });
-  },
+    mustNot: (builderFn) => {
+      const clause = builderFn(createClauseBuilder<M>());
+      const existing = q.bool?.must_not ?? [];
+      return clause === undefined
+        ? createQueryBuilder<M>(state)
+        : createQueryBuilder<M>({
+            ...state,
+            query: { bool: { ...q.bool, must_not: [...existing, clause] } } as QueryDslQueryContainer
+          });
+    },
 
-  filter: (builderFn) => {
-    const clause = builderFn(createClauseBuilder<M>());
-    const existing = state.query?.bool?.filter || [];
-    return clause === undefined
-      ? createQueryBuilder<M>(state)
-      : createQueryBuilder<M>({ ...state, query: { bool: { ...state.query.bool, filter: [...existing, clause] } } });
-  },
+    should: (builderFn) => {
+      const clause = builderFn(createClauseBuilder<M>());
+      const existing = q.bool?.should ?? [];
+      return clause === undefined
+        ? createQueryBuilder<M>(state)
+        : createQueryBuilder<M>({
+            ...state,
+            query: { bool: { ...q.bool, should: [...existing, clause] } } as QueryDslQueryContainer
+          });
+    },
 
-  minimumShouldMatch: (value) =>
-    createQueryBuilder<M>({
-      ...state,
-      query: { bool: { ...state.query.bool, minimum_should_match: value } }
-    }),
+    filter: (builderFn) => {
+      const clause = builderFn(createClauseBuilder<M>());
+      const existing = q.bool?.filter ?? [];
+      return clause === undefined
+        ? createQueryBuilder<M>(state)
+        : createQueryBuilder<M>({
+            ...state,
+            query: { bool: { ...q.bool, filter: [...existing, clause] } } as QueryDslQueryContainer
+          });
+    },
 
-  knn: (field, queryVector, options) => {
-    const { k, num_candidates, ...restOptions } = options;
-    return createQueryBuilder<M>({
-      ...state,
-      knn: {
-        field,
-        query_vector: queryVector,
-        k,
-        num_candidates,
-        ...restOptions
-      }
-    });
-  },
+    minimumShouldMatch: (value) =>
+      createQueryBuilder<M>({
+        ...state,
+        query: { bool: { ...q.bool, minimum_should_match: value } } as QueryDslQueryContainer
+      }),
 
-  nested: (path, fn, options) => {
-    const nestedQuery = fn(createClauseBuilder<SubFieldsOf<M, typeof path>>(path));
-    return nestedQuery === undefined
-      ? createQueryBuilder<M>(state)
-      : createQueryBuilder<M>({
-          ...state,
-          query: { nested: { path, query: nestedQuery, ...options } }
-        });
-  },
-
-  scriptScore: (queryFn, script, options) => {
-    const innerQuery = queryFn(createClauseBuilder<M>()) ?? { match_all: {} };
-    const { source, lang = 'painless', params } = script;
-    return createQueryBuilder<M>({
-      ...state,
-      query: {
-        script_score: {
-          query: innerQuery,
-          script: { source, lang, ...(params !== undefined && { params }) },
-          ...(options?.min_score !== undefined && { min_score: options.min_score }),
-          ...(options?.boost !== undefined && { boost: options.boost })
+    knn: (field, queryVector, options) => {
+      const { k, num_candidates, ...restOptions } = options;
+      return createQueryBuilder<M>({
+        ...state,
+        knn: {
+          field,
+          query_vector: queryVector,
+          k,
+          num_candidates,
+          ...restOptions
         }
-      }
-    });
-  },
+      });
+    },
 
-  percolate: (options) => createQueryBuilder<M>({ ...state, query: { percolate: { ...options } } }),
+    nested: (path, fn, options) => {
+      const nestedQuery = fn(createClauseBuilder<SubFieldsOf<M, typeof path>>(path));
+      return nestedQuery === undefined
+        ? createQueryBuilder<M>(state)
+        : createQueryBuilder<M>({
+            ...state,
+            query: { nested: { path, query: nestedQuery, ...options } }
+          });
+    },
 
-  when: (condition, thenFn) =>
-    resolveCondition(condition) ? thenFn(createQueryBuilder<M>(state)) : createQueryBuilder<M>(state),
-
-  sort: (field, direction = 'asc') => {
-    const existing = state.sort || [];
-    return createQueryBuilder<M>({
-      ...state,
-      sort: [...existing, { [field]: direction }]
-    });
-  },
-
-  from: (from) => createQueryBuilder<M>({ ...state, from }),
-
-  size: (size) => createQueryBuilder<M>({ ...state, size }),
-
-  _source: (_source) => createQueryBuilder<M>({ ...state, _source }),
-
-  timeout: (timeout) => createQueryBuilder<M>({ ...state, timeout }),
-
-  trackScores: (track_scores) => createQueryBuilder<M>({ ...state, track_scores }),
-
-  explain: (explain) => createQueryBuilder<M>({ ...state, explain }),
-
-  minScore: (min_score) => createQueryBuilder<M>({ ...state, min_score }),
-
-  version: (version) => createQueryBuilder<M>({ ...state, version }),
-
-  seqNoPrimaryTerm: (seq_no_primary_term) => createQueryBuilder<M>({ ...state, seq_no_primary_term }),
-
-  trackTotalHits: (track_total_hits = true) => createQueryBuilder<M>({ ...state, track_total_hits }),
-
-  highlight: (fields, options) => {
-    const { pre_tags, post_tags, ...fieldOptions } = options || {};
-    const fieldValue = Object.keys(fieldOptions).length > 0 ? fieldOptions : {};
-    const highlightFields: Record<string, HighlightOptions> = Object.fromEntries(
-      fields.map((field) => [field, fieldValue])
-    );
-    return createQueryBuilder<M>({
-      ...state,
-      highlight: {
-        fields: highlightFields,
-        ...(pre_tags && { pre_tags }),
-        ...(post_tags && { post_tags })
-      }
-    });
-  },
-
-  geoDistance: (field, center, options) =>
-    createQueryBuilder<M>({
-      ...state,
-      query: { geo_distance: { [field]: center, ...options } }
-    }),
-
-  geoBoundingBox: (field, options) =>
-    createQueryBuilder<M>({
-      ...state,
-      query: { geo_bounding_box: { [field]: options } }
-    }),
-
-  geoPolygon: (field, options) =>
-    createQueryBuilder<M>({
-      ...state,
-      query: { geo_polygon: { [field]: options } }
-    }),
-
-  geoShape: (field, shape, options) =>
-    createQueryBuilder<M>({
-      ...state,
-      query: { geo_shape: { [field]: { shape, ...options } } }
-    }),
-
-  regexp: (field, value, options) =>
-    createQueryBuilder<M>({
-      ...state,
-      query: { regexp: { [field]: options ? { value, ...options } : value } }
-    }),
-
-  constantScore: (fn, options) => {
-    const clause = fn(createClauseBuilder<M>());
-    return createQueryBuilder<M>({
-      ...state,
-      query: {
-        constant_score: {
-          filter: clause,
-          ...options
-        }
-      }
-    });
-  },
-
-  searchAfter: (values) => createQueryBuilder<M>({ ...state, search_after: values }),
-
-  preference: (value) => createQueryBuilder<M>({ ...state, preference: value }),
-
-  collapse: (field, options) =>
-    createQueryBuilder<M>({
-      ...state,
-      collapse: {
-        field,
-        ...options
-      } as typeof state.collapse
-    }),
-
-  rescore: (queryFn, windowSize, options) => {
-    const rescoreQuery = queryFn(createClauseBuilder<M>());
-    return createQueryBuilder<M>({
-      ...state,
-      rescore: {
-        window_size: windowSize,
+    scriptScore: (queryFn, script, options) => {
+      const innerQuery = queryFn(createClauseBuilder<M>()) ?? { match_all: {} };
+      const { source, lang = 'painless', params } = script;
+      return createQueryBuilder<M>({
+        ...state,
         query: {
-          rescore_query: rescoreQuery,
-          ...options
+          script_score: {
+            query: innerQuery,
+            script: { source, lang, ...(params !== undefined && { params }) },
+            ...(options?.min_score !== undefined && { min_score: options.min_score }),
+            ...(options?.boost !== undefined && { boost: options.boost })
+          }
         }
+      });
+    },
+
+    percolate: (options) => createQueryBuilder<M>({ ...state, query: { percolate: { ...options } } }),
+
+    functionScore: (queryFn, options) => {
+      const innerQuery = queryFn(createClauseBuilder<M>()) ?? { match_all: {} };
+      return createQueryBuilder<M>({
+        ...state,
+        query: { function_score: { query: innerQuery, ...options } }
+      });
+    },
+
+    hasChild: (type, queryFn, options) => {
+      const childQuery = queryFn(createClauseBuilder<M>()) ?? { match_all: {} };
+      return createQueryBuilder<M>({
+        ...state,
+        query: { has_child: { type, query: childQuery, ...options } }
+      });
+    },
+
+    hasParent: (type, queryFn, options) => {
+      const parentQuery = queryFn(createClauseBuilder<M>()) ?? { match_all: {} };
+      return createQueryBuilder<M>({
+        ...state,
+        query: { has_parent: { parent_type: type, query: parentQuery, ...options } }
+      });
+    },
+
+    parentId: (type, id, options) =>
+      createQueryBuilder<M>({ ...state, query: { parent_id: { type, id, ...options } } }),
+
+    when: (condition, thenFn) =>
+      resolveCondition(condition) ? thenFn(createQueryBuilder<M>(state)) : createQueryBuilder<M>(state),
+
+    sort: (field, direction = 'asc') => {
+      const existing = state.sort || [];
+      return createQueryBuilder<M>({
+        ...state,
+        sort: [...existing, { [field]: direction }]
+      });
+    },
+
+    from: (from) => createQueryBuilder<M>({ ...state, from }),
+
+    size: (size) => createQueryBuilder<M>({ ...state, size }),
+
+    _source: (_source) => createQueryBuilder<M>({ ...state, _source }),
+
+    sourceIncludes: (paths) => createQueryBuilder<M>({ ...state, _source_includes: paths }),
+
+    sourceExcludes: (paths) => createQueryBuilder<M>({ ...state, _source_excludes: paths }),
+
+    runtimeMappings: (runtime_mappings) => createQueryBuilder<M>({ ...state, runtime_mappings }),
+
+    docValueFields: (docvalue_fields) => createQueryBuilder<M>({ ...state, docvalue_fields }),
+
+    fields: (fields) => createQueryBuilder<M>({ ...state, fields }),
+
+    postFilter: (fn) => {
+      const clause = fn(createClauseBuilder<M>());
+      return clause === undefined
+        ? createQueryBuilder<M>(state)
+        : createQueryBuilder<M>({ ...state, post_filter: clause });
+    },
+
+    scriptFields: (script_fields) => createQueryBuilder<M>({ ...state, script_fields }),
+
+    timeout: (timeout) => createQueryBuilder<M>({ ...state, timeout }),
+
+    trackScores: (track_scores) => createQueryBuilder<M>({ ...state, track_scores }),
+
+    explain: (explain) => createQueryBuilder<M>({ ...state, explain }),
+
+    minScore: (min_score) => createQueryBuilder<M>({ ...state, min_score }),
+
+    version: (version) => createQueryBuilder<M>({ ...state, version }),
+
+    seqNoPrimaryTerm: (seq_no_primary_term) => createQueryBuilder<M>({ ...state, seq_no_primary_term }),
+
+    trackTotalHits: (track_total_hits = true) => createQueryBuilder<M>({ ...state, track_total_hits }),
+
+    highlight: (fields, options) => {
+      const { pre_tags, post_tags, ...fieldOptions } = options || {};
+      const fieldValue = Object.keys(fieldOptions).length > 0 ? fieldOptions : {};
+      const highlightFields: Record<string, HighlightOptions> = Object.fromEntries(
+        fields.map((field) => [field, fieldValue])
+      );
+      return createQueryBuilder<M>({
+        ...state,
+        highlight: {
+          fields: highlightFields,
+          ...(pre_tags && { pre_tags }),
+          ...(post_tags && { post_tags })
+        }
+      });
+    },
+
+    constantScore: (fn, options) => {
+      const clause = fn(createClauseBuilder<M>());
+      return createQueryBuilder<M>({
+        ...state,
+        query: {
+          constant_score: {
+            filter: clause,
+            ...options
+          }
+        }
+      });
+    },
+
+    searchAfter: (values) => createQueryBuilder<M>({ ...state, search_after: values }),
+
+    preference: (value) => createQueryBuilder<M>({ ...state, preference: value }),
+
+    collapse: (field, options) =>
+      createQueryBuilder<M>({
+        ...state,
+        collapse: {
+          field,
+          ...options
+        } as typeof state.collapse
+      }),
+
+    rescore: (queryFn, windowSize, options) => {
+      const rescoreQuery = queryFn(createClauseBuilder<M>());
+      return createQueryBuilder<M>({
+        ...state,
+        rescore: {
+          window_size: windowSize,
+          query: {
+            rescore_query: rescoreQuery,
+            ...options
+          }
+        }
+      });
+    },
+
+    storedFields: (fields) => createQueryBuilder<M>({ ...state, stored_fields: fields }),
+
+    terminateAfter: (count) => createQueryBuilder<M>({ ...state, terminate_after: count }),
+
+    pit: (id, keepAlive) => createQueryBuilder<M>({ ...state, pit: { id, keep_alive: keepAlive } }),
+
+    indicesBoost: (boosts) => createQueryBuilder<M>({ ...state, indices_boost: boosts }),
+
+    aggs: (fn) => {
+      const aggBuilder = createAggregationBuilder<M>();
+      const builtAggs = fn(aggBuilder).build();
+      return createQueryBuilder<M>({ ...state, aggs: builtAggs });
+    },
+
+    suggest: (fn) => {
+      const suggesterBuilder = createSuggesterBuilder<M>();
+      const builtSuggestions = fn(suggesterBuilder).build();
+      return createQueryBuilder<M>({
+        ...state,
+        suggest: builtSuggestions.suggest
+      });
+    },
+
+    // eslint-disable-next-line functional/functional-parameters
+    build: () => {
+      const { _includeQuery, ...rest } = state;
+      // eslint-disable-next-line functional/no-conditional-statements
+      if (_includeQuery === false) {
+        const { query: _q, ...noQuery } = rest;
+        return noQuery as QueryState<M>;
       }
-    });
-  },
-
-  storedFields: (fields) => createQueryBuilder<M>({ ...state, stored_fields: fields }),
-
-  terminateAfter: (count) => createQueryBuilder<M>({ ...state, terminate_after: count }),
-
-  pit: (id, keepAlive) => createQueryBuilder<M>({ ...state, pit: { id, keep_alive: keepAlive } }),
-
-  indicesBoost: (boosts) => createQueryBuilder<M>({ ...state, indices_boost: boosts }),
-
-  aggs: (fn) => {
-    const aggBuilder = createAggregationBuilder<M>();
-    const builtAggs = fn(aggBuilder).build();
-    return createQueryBuilder<M>({ ...state, aggs: builtAggs });
-  },
-
-  suggest: (fn) => {
-    const suggesterBuilder = createSuggesterBuilder<M>();
-    const builtSuggestions = fn(suggesterBuilder).build();
-    return createQueryBuilder<M>({
-      ...state,
-      suggest: builtSuggestions.suggest
-    });
-  },
-
-  // eslint-disable-next-line functional/functional-parameters
-  build: () => {
-    const { _includeQuery, ...rest } = state;
-    // eslint-disable-next-line functional/no-conditional-statements
-    if (_includeQuery === false) {
-      const { query: _q, ...noQuery } = rest;
-      return noQuery as QueryState<M>;
+      return rest as QueryState<M>;
     }
-    return rest as QueryState<M>;
-  }
-});
+  };
+};

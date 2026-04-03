@@ -20,8 +20,27 @@ import type {
   QueryDslMoreLikeThisQuery,
   QueryDslMatchBoolPrefixQuery,
   QueryDslNestedQuery,
+  QueryDslQueryContainer,
+  QueryDslDistanceFeatureQuery,
+  QueryDslRankFeatureQuery,
+  QueryDslSparseVectorQuery,
+  QueryDslFunctionScoreQuery,
+  QueryDslHasChildQuery,
+  QueryDslHasParentQuery,
+  QueryDslParentIdQuery,
+  QueryDslIntervalsQuery,
+  QueryDslSpanNearQuery,
+  QueryDslSpanNotQuery,
+  QueryDslSpanQuery,
+  MappingRuntimeField,
+  QueryDslFieldAndFormat,
+  ScriptField,
   SearchHighlightBase,
-  Script
+  SearchInnerHits,
+  RescoreVector,
+  QueryVectorBuilder,
+  Script,
+  SortResults
 } from '@elastic/elasticsearch/lib/api/types';
 import type { FieldTypeString } from './index-management.types.js';
 import type {
@@ -32,7 +51,9 @@ import type {
   BooleanFields,
   GeoPointFields,
   GeoShapeFields,
-  VectorFields,
+  DenseVectorFields,
+  SparseVectorFields,
+  RankFeatureFields,
   IpFields,
   NestedPathFields,
   SubFieldsOf,
@@ -88,6 +109,56 @@ export type SimpleQueryStringOptions = Omit<QueryDslSimpleQueryStringQuery, 'que
 export type MoreLikeThisOptions = Omit<QueryDslMoreLikeThisQuery, 'fields' | 'like'>;
 export type MatchBoolPrefixOptions = Omit<QueryDslMatchBoolPrefixQuery, 'query'>;
 export type NestedOptions = Omit<QueryDslNestedQuery, 'path' | 'query'>;
+export type FunctionScoreOptions = Omit<QueryDslFunctionScoreQuery, 'query'>;
+export type HasChildOptions = Omit<QueryDslHasChildQuery, 'query' | 'type'>;
+export type HasParentOptions = Omit<QueryDslHasParentQuery, 'query' | 'parent_type'>;
+export type ParentIdOptions = Omit<QueryDslParentIdQuery, 'id' | 'type'>;
+
+/**
+ * Options for the `intervals` query — the field is supplied as the first argument.
+ * The value is the full `QueryDslIntervalsQuery` rule (match, prefix, wildcard, fuzzy, all_of, any_of, etc.).
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-intervals-query.html
+ */
+export type IntervalsOptions = QueryDslIntervalsQuery;
+
+/**
+ * Options for `spanNear` — `clauses` is supplied as the first argument.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-span-near-query.html
+ */
+export type SpanNearOptions = Omit<QueryDslSpanNearQuery, 'clauses'>;
+
+/**
+ * Options for `spanNot` — `include` and `exclude` are supplied as the first two arguments.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-span-not-query.html
+ */
+export type SpanNotOptions = Omit<QueryDslSpanNotQuery, 'include' | 'exclude'>;
+
+/** Re-export the Elastic span query container for composing span clauses. */
+export type SpanQuery = QueryDslSpanQuery;
+
+/**
+ * Options for the `distance_feature` query — boosts documents by proximity of a
+ * `date`, `date_nanos`, or `geo_point` field to a given origin. The builder
+ * supplies `field` as an explicit argument and constrains it to date/geo fields.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-distance-feature-query.html
+ */
+export type DistanceFeatureOptions = Omit<QueryDslDistanceFeatureQuery, 'field'>;
+
+/**
+ * Options for the `rank_feature` query — boosts relevance using a numeric feature
+ * stored in a `rank_feature` or `rank_features` field. The builder supplies
+ * `field` as an explicit argument.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-rank-feature-query.html
+ */
+export type RankFeatureQueryOptions = Omit<QueryDslRankFeatureQuery, 'field'>;
+
+/**
+ * Options for the `sparse_vector` query — scores documents using token-weight
+ * vectors produced by a learned sparse model (e.g. ELSER). The builder supplies
+ * `field` as an explicit argument.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-sparse-vector-query.html
+ */
+export type SparseVectorQueryOptions = Omit<QueryDslSparseVectorQuery, 'field'>;
 
 // ---------------------------------------------------------------------------
 // Derived field groups
@@ -118,15 +189,19 @@ type Val<M extends Record<string, FieldTypeString>, K extends keyof M> = FieldVa
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type QueryState<M extends Record<string, FieldTypeString>> = {
   _includeQuery?: boolean;
-  query?: any;
+  query?: QueryDslQueryContainer;
   knn?: {
     field: string;
-    query_vector: number[];
+    query_vector?: number[];
+    query_vector_builder?: QueryVectorBuilder;
     k?: number;
     num_candidates?: number;
-    filter?: any;
+    filter?: QueryDslQueryContainer | QueryDslQueryContainer[];
     boost?: number;
     similarity?: number;
+    inner_hits?: SearchInnerHits;
+    rescore_vector?: RescoreVector;
+    visit_percentage?: number;
   };
   aggs?: AggregationState;
   suggest?: SuggesterState;
@@ -146,17 +221,17 @@ export type QueryState<M extends Record<string, FieldTypeString>> = {
     pre_tags?: string[];
     post_tags?: string[];
   };
-  search_after?: unknown[];
+  search_after?: SortResults;
   preference?: string;
   collapse?: {
     field: string;
-    inner_hits?: any;
+    inner_hits?: SearchInnerHits;
     max_concurrent_group_searches?: number;
   };
   rescore?: {
     window_size: number;
     query: {
-      rescore_query: any;
+      rescore_query: QueryDslQueryContainer;
       query_weight?: number;
       rescore_query_weight?: number;
       score_mode?: 'total' | 'multiply' | 'avg' | 'max' | 'min';
@@ -166,6 +241,13 @@ export type QueryState<M extends Record<string, FieldTypeString>> = {
   terminate_after?: number;
   pit?: { id: string; keep_alive: string };
   indices_boost?: Array<Record<string, number>>;
+  runtime_mappings?: Record<string, MappingRuntimeField>;
+  docvalue_fields?: Array<QueryDslFieldAndFormat | string>;
+  fields?: Array<QueryDslFieldAndFormat | string>;
+  post_filter?: QueryDslQueryContainer;
+  script_fields?: Record<string, ScriptField>;
+  _source_includes?: string[];
+  _source_excludes?: string[];
 };
 
 // ---------------------------------------------------------------------------
@@ -199,7 +281,29 @@ export type ClauseBuilder<M extends Record<string, FieldTypeString>> = {
   wildcard: <K extends KeywordFields<M> & string>(field: K, value: string) => any;
   fuzzy: <K extends FuzzyableFields<M> & string>(field: K, value: string, options?: FuzzyOptions) => any;
   ids: (values: string[]) => any;
-  knn: <K extends VectorFields<M> & string>(field: K, queryVector: number[], options: KnnOptions) => any;
+  knn: <K extends DenseVectorFields<M> & string>(field: K, queryVector: number[], options: KnnOptions) => any;
+  regexp: <K extends KeywordFields<M> & string>(field: K, value: string, options?: RegexpOptions) => any;
+  geoDistance: <K extends GeoPointFields<M> & string>(
+    field: K,
+    center: { lat: number; lon: number },
+    options: GeoDistanceOptions
+  ) => any;
+  geoBoundingBox: <K extends GeoPointFields<M> & string>(field: K, options: GeoBoundingBoxOptions) => any;
+  geoPolygon: <K extends GeoPointFields<M> & string>(field: K, options: GeoPolygonOptions) => any;
+  geoShape: <K extends GeoShapeFields<M> & string>(
+    field: K,
+    shape: Record<string, unknown>,
+    options?: GeoShapeQueryOptions
+  ) => any;
+  /** Distance-feature query — boost relevance by proximity of a date or geo_point field to an origin. */
+  distanceFeature: <K extends (DateFields<M> | GeoPointFields<M>) & string>(
+    field: K,
+    options: DistanceFeatureOptions
+  ) => any;
+  /** Rank-feature query — boost relevance using a numeric feature in a `rank_feature`/`rank_features` field. */
+  rankFeature: <K extends RankFeatureFields<M> & string>(field: K, options?: RankFeatureQueryOptions) => any;
+  /** Sparse-vector query — score with token-weight pairs from a learned sparse model (e.g. ELSER). */
+  sparseVector: <K extends SparseVectorFields<M> & string>(field: K, options: SparseVectorQueryOptions) => any;
   /**
    * Script query — executes a Painless script to filter documents.
    *
@@ -250,7 +354,7 @@ export type ClauseBuilder<M extends Record<string, FieldTypeString>> = {
    * Nested query inside a clause context — use inside `must`, `filter`, `should`, or `mustNot`.
    *
    * ```ts
-   * query(m).bool().filter(q => q.nested('variants', qn => qn.term('color', 'red')))
+   * queryBuilder(m).bool().filter(q => q.nested('variants', qn => qn.term('color', 'red')))
    * ```
    */
   nested: <K extends NestedPathFields<M> & string>(
@@ -258,6 +362,34 @@ export type ClauseBuilder<M extends Record<string, FieldTypeString>> = {
     fn: (q: ClauseBuilder<SubFieldsOf<M, K>>) => any,
     options?: NestedOptions
   ) => any;
+  /** Function score query — wraps an inner query and applies scoring functions (field_value_factor, decay, script_score, etc.). */
+  functionScore: (query: (q: ClauseBuilder<M>) => any, options?: FunctionScoreOptions) => any;
+  /** Has-child query — returns parent documents whose child documents match the inner query. */
+  hasChild: (type: string, query: (q: ClauseBuilder<M>) => any, options?: HasChildOptions) => any;
+  /** Has-parent query — returns child documents whose parent document matches the inner query. */
+  hasParent: (type: string, query: (q: ClauseBuilder<M>) => any, options?: HasParentOptions) => any;
+  /** Parent-ID query — returns child documents joined to a specific parent document. */
+  parentId: (type: string, id: string, options?: ParentIdOptions) => any;
+  /** Intervals query — returns documents based on the order and proximity of matching terms. */
+  intervals: <K extends TextFields<M> & string>(field: K, options: IntervalsOptions) => any;
+  /** Span term — matches a single term; the building block for other span queries. */
+  spanTerm: <K extends TextFields<M> & string>(field: K, value: string) => any;
+  /** Span near — matches spans that are near one another. */
+  spanNear: (clauses: ReadonlyArray<SpanQuery>, options?: SpanNearOptions) => any;
+  /** Span or — matches the union of its span clauses. */
+  spanOr: (clauses: ReadonlyArray<SpanQuery>) => any;
+  /** Span not — removes matches that overlap with another span query. */
+  spanNot: (include: SpanQuery, exclude: SpanQuery, options?: SpanNotOptions) => any;
+  /** Span first — matches spans near the beginning of a field. */
+  spanFirst: (match: SpanQuery, end: number) => any;
+  /** Span containing — returns matches from `big` that contain a match from `little`. */
+  spanContaining: (big: SpanQuery, little: SpanQuery) => any;
+  /** Span within — returns matches from `little` that fall within `big`. */
+  spanWithin: (big: SpanQuery, little: SpanQuery) => any;
+  /** Span multi-term — wraps a multi-term query (wildcard, fuzzy, prefix, range, or regexp) as a span query. */
+  spanMultiTerm: (query: Record<string, unknown>) => any;
+  /** Span field masking — allows queries on different fields to be combined. */
+  spanFieldMasking: (field: string, query: SpanQuery) => any;
   when: (condition: unknown, thenFn: (q: ClauseBuilder<M>) => any) => any | undefined;
 };
 
@@ -323,7 +455,11 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
     options?: NestedOptions
   ) => QueryBuilder<M>;
 
-  knn: <K extends VectorFields<M> & string>(field: K, queryVector: number[], options: KnnOptions) => QueryBuilder<M>;
+  knn: <K extends DenseVectorFields<M> & string>(
+    field: K,
+    queryVector: number[],
+    options: KnnOptions
+  ) => QueryBuilder<M>;
 
   /**
    * Script query — executes a Painless script to filter documents.
@@ -344,6 +480,34 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
     options?: ScriptScoreOptions
   ) => QueryBuilder<M>;
   percolate: (options: PercolateOptions) => QueryBuilder<M>;
+  /** Function score query — wraps an inner query and applies scoring functions (field_value_factor, decay, script_score, etc.). */
+  functionScore: (query: (q: ClauseBuilder<M>) => any, options?: FunctionScoreOptions) => QueryBuilder<M>;
+  /** Has-child query — returns parent documents whose child documents match the inner query. */
+  hasChild: (type: string, query: (q: ClauseBuilder<M>) => any, options?: HasChildOptions) => QueryBuilder<M>;
+  /** Has-parent query — returns child documents whose parent document matches the inner query. */
+  hasParent: (type: string, query: (q: ClauseBuilder<M>) => any, options?: HasParentOptions) => QueryBuilder<M>;
+  /** Parent-ID query — returns child documents joined to a specific parent document. */
+  parentId: (type: string, id: string, options?: ParentIdOptions) => QueryBuilder<M>;
+  /** Intervals query — returns documents based on the order and proximity of matching terms. */
+  intervals: <K extends TextFields<M> & string>(field: K, options: IntervalsOptions) => QueryBuilder<M>;
+  /** Span term — matches a single term; the building block for other span queries. */
+  spanTerm: <K extends TextFields<M> & string>(field: K, value: string) => QueryBuilder<M>;
+  /** Span near — matches spans that are near one another. */
+  spanNear: (clauses: ReadonlyArray<SpanQuery>, options?: SpanNearOptions) => QueryBuilder<M>;
+  /** Span or — matches the union of its span clauses. */
+  spanOr: (clauses: ReadonlyArray<SpanQuery>) => QueryBuilder<M>;
+  /** Span not — removes matches that overlap with another span query. */
+  spanNot: (include: SpanQuery, exclude: SpanQuery, options?: SpanNotOptions) => QueryBuilder<M>;
+  /** Span first — matches spans near the beginning of a field. */
+  spanFirst: (match: SpanQuery, end: number) => QueryBuilder<M>;
+  /** Span containing — returns matches from `big` that contain a match from `little`. */
+  spanContaining: (big: SpanQuery, little: SpanQuery) => QueryBuilder<M>;
+  /** Span within — returns matches from `little` that fall within `big`. */
+  spanWithin: (big: SpanQuery, little: SpanQuery) => QueryBuilder<M>;
+  /** Span multi-term — wraps a multi-term query (wildcard, fuzzy, prefix, range, or regexp) as a span query. */
+  spanMultiTerm: (query: Record<string, unknown>) => QueryBuilder<M>;
+  /** Span field masking — allows queries on different fields to be combined. */
+  spanFieldMasking: (field: string, query: SpanQuery) => QueryBuilder<M>;
 
   /**
    * Conditionally apply a branch to the query chain. Returns the result of `thenFn` when `condition` is truthy,
@@ -355,7 +519,7 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
    * **Note:** TypeScript cannot narrow closure variables inside callbacks, so values typed as `T | undefined`
    * still require a non-null assertion (`!`) inside the callback even when `condition` guarantees they are defined:
    * ```ts
-   * query(m).bool()
+   * queryBuilder(m).bool()
    *   .when(searchTerm, q => q.must(q2 => q2.match('name', searchTerm!)))
    *   .when(minPrice, q => q.filter(q2 => q2.range('price', { gte: minPrice! })))
    *   .build()
@@ -371,6 +535,20 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
   from: (from: number) => QueryBuilder<M>;
   size: (size: number) => QueryBuilder<M>;
   _source: (fields: Array<string & keyof M>) => QueryBuilder<M>;
+  /** Include-only subset for `_source` filtering (paths may use wildcards). */
+  sourceIncludes: (paths: string[]) => QueryBuilder<M>;
+  /** Exclude subset for `_source` filtering (paths may use wildcards). */
+  sourceExcludes: (paths: string[]) => QueryBuilder<M>;
+  /** Runtime mappings — define script-computed fields available to the query, sorts, and aggs. */
+  runtimeMappings: (mappings: Record<string, MappingRuntimeField>) => QueryBuilder<M>;
+  /** Retrieve doc-values for the specified fields in the hit response. */
+  docValueFields: (fields: Array<QueryDslFieldAndFormat | string>) => QueryBuilder<M>;
+  /** Retrieve values via the fields API (supports runtime + standard fields with format). */
+  fields: (fields: Array<QueryDslFieldAndFormat | string>) => QueryBuilder<M>;
+  /** Post-filter — applied after aggregations, so aggs see the unfiltered result set. */
+  postFilter: (fn: (q: ClauseBuilder<M>) => any) => QueryBuilder<M>;
+  /** Script fields — compute per-hit values via Painless scripts. */
+  scriptFields: (fields: Record<string, ScriptField>) => QueryBuilder<M>;
   timeout: (timeout: string) => QueryBuilder<M>;
   trackScores: (track: boolean) => QueryBuilder<M>;
   explain: (explain: boolean) => QueryBuilder<M>;
@@ -391,6 +569,22 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
     field: K,
     shape: Record<string, unknown>,
     options?: GeoShapeQueryOptions
+  ) => QueryBuilder<M>;
+
+  /** Distance-feature query — boost relevance by proximity of a date or geo_point field to an origin. */
+  distanceFeature: <K extends (DateFields<M> | GeoPointFields<M>) & string>(
+    field: K,
+    options: DistanceFeatureOptions
+  ) => QueryBuilder<M>;
+  /** Rank-feature query — boost relevance using a numeric feature in a `rank_feature`/`rank_features` field. */
+  rankFeature: <K extends RankFeatureFields<M> & string>(
+    field: K,
+    options?: RankFeatureQueryOptions
+  ) => QueryBuilder<M>;
+  /** Sparse-vector query — score with token-weight pairs from a learned sparse model (e.g. ELSER). */
+  sparseVector: <K extends SparseVectorFields<M> & string>(
+    field: K,
+    options: SparseVectorQueryOptions
   ) => QueryBuilder<M>;
 
   regexp: <K extends KeywordFields<M> & string>(field: K, value: string, options?: RegexpOptions) => QueryBuilder<M>;
@@ -427,12 +621,12 @@ export type QueryBuilder<M extends Record<string, FieldTypeString>> = {
     options?: MatchBoolPrefixOptions
   ) => QueryBuilder<M>;
 
-  searchAfter: (values: unknown[]) => QueryBuilder<M>;
+  searchAfter: (values: SortResults) => QueryBuilder<M>;
   preference: (value: string) => QueryBuilder<M>;
   collapse: (
     field: CollapsibleFields<M> & string,
     options?: {
-      inner_hits?: any;
+      inner_hits?: SearchInnerHits;
       max_concurrent_group_searches?: number;
     }
   ) => QueryBuilder<M>;

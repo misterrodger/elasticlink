@@ -1,4 +1,4 @@
-import { query, msearch, indexBuilder } from '../../index.js';
+import { queryBuilder, msearch, indexBuilder } from '../../index.js';
 import { ensureIndex, deleteIndex, indexDoc, refreshIndex, msearchRequest } from '../helpers';
 import { listingMappings } from '../fixtures/real-estate.schema.js';
 import { LISTINGS } from '../fixtures/real-estate.data.js';
@@ -19,8 +19,8 @@ describe('MSearchBuilder', () => {
       const result = await msearchRequest(
         INDEX,
         msearch(listingMappings)
-          .addQuery(query(listingMappings).term('property_class', 'condo').build())
-          .addQuery(query(listingMappings).term('property_class', 'townhouse').build())
+          .addQuery(queryBuilder(listingMappings).term('property_class', 'condo').build())
+          .addQuery(queryBuilder(listingMappings).term('property_class', 'townhouse').build())
           .build()
       );
 
@@ -32,8 +32,8 @@ describe('MSearchBuilder', () => {
       const result = await msearchRequest(
         INDEX,
         msearch(listingMappings)
-          .addQuery(query(listingMappings).range('list_price', { lte: 2_000_000 }).build())
-          .addQuery(query(listingMappings).range('list_price', { gte: 4_000_000, lte: 5_000_000 }).build())
+          .addQuery(queryBuilder(listingMappings).range('list_price', { lte: 2_000_000 }).build())
+          .addQuery(queryBuilder(listingMappings).range('list_price', { gte: 4_000_000, lte: 5_000_000 }).build())
           .build()
       );
 
@@ -48,14 +48,14 @@ describe('MSearchBuilder', () => {
         INDEX,
         msearch(listingMappings)
           .addQuery(
-            query(listingMappings)
+            queryBuilder(listingMappings)
               .term('property_class', 'condo')
               .aggs((agg) => agg.avg('avg_price', 'list_price'))
               .size(0)
               .build()
           )
           .addQuery(
-            query(listingMappings)
+            queryBuilder(listingMappings)
               .term('property_class', 'townhouse')
               .aggs((agg) => agg.avg('avg_price', 'list_price'))
               .size(0)

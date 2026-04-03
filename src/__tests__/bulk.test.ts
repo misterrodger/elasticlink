@@ -462,6 +462,90 @@ describe('Bulk API', () => {
     });
   });
 
+  describe('Update body + header passthrough (Phase 4)', () => {
+    it('should forward every supported update body field in a single operation', () => {
+      const result = bulk(matterMappings)
+        .update({
+          _index: 'matters',
+          _id: 'kitchen-sink',
+          retry_on_conflict: 3,
+          require_alias: true,
+          doc: { billing_rate: 999 },
+          doc_as_upsert: true,
+          upsert: {
+            matter_id: 'M-9999',
+            title: 'New matter',
+            practice_area: 'corporate',
+            billing_rate: 999
+          },
+          script: { source: 'ctx._source.billing_rate += params.bump', params: { bump: 50 } },
+          scripted_upsert: true,
+          detect_noop: false,
+          _source: ['billing_rate', 'title']
+        })
+        .buildArray();
+
+      expect(result).toMatchInlineSnapshot(`
+        [
+          {
+            "update": {
+              "_id": "kitchen-sink",
+              "_index": "matters",
+              "require_alias": true,
+              "retry_on_conflict": 3,
+            },
+          },
+          {
+            "_source": [
+              "billing_rate",
+              "title",
+            ],
+            "detect_noop": false,
+            "doc": {
+              "billing_rate": 999,
+            },
+            "doc_as_upsert": true,
+            "script": {
+              "params": {
+                "bump": 50,
+              },
+              "source": "ctx._source.billing_rate += params.bump",
+            },
+            "scripted_upsert": true,
+            "upsert": {
+              "billing_rate": 999,
+              "matter_id": "M-9999",
+              "practice_area": "corporate",
+              "title": "New matter",
+            },
+          },
+        ]
+      `);
+    });
+
+    it('should route dynamic_templates and require_alias into the header line', () => {
+      const result = bulk(matterMappings)
+        .index(
+          { matter_id: 'M-1', title: 'X', practice_area: 'corporate', billing_rate: 100 },
+          { _index: 'matters', _id: '1', require_alias: true, dynamic_templates: { title: 'text_multi' } }
+        )
+        .buildArray();
+
+      expect(result[0]).toMatchInlineSnapshot(`
+        {
+          "index": {
+            "_id": "1",
+            "_index": "matters",
+            "dynamic_templates": {
+              "title": "text_multi",
+            },
+            "require_alias": true,
+          },
+        }
+      `);
+    });
+  });
+
   describe('Delete operations', () => {
     it('should build delete operation', () => {
       const result = bulk(matterMappings).delete({ _index: 'matters', _id: '8' }).buildArray();
@@ -653,6 +737,16 @@ describe('Bulk API', () => {
           },
         ]
       `);
+    });
+
+    it('buildArray returns a typed array, not any[]', () => {
+      const ops = bulk(matterMappings)
+        .index({ matter_id: 'M-1', title: 'hello', practice_area: 'lit', billing_rate: 100 }, { _index: 'idx' })
+        .buildArray();
+
+      // Compile-time: ops is no longer `any[]`.
+      // Runtime: verify the alternating header/body layout.
+      expect(ops).toHaveLength(2);
     });
   });
 

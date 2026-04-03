@@ -1,10 +1,10 @@
-import { query, msearch } from '..';
+import { queryBuilder, msearch } from '..';
 import { matterMappings } from './fixtures/legal.schema.js';
 
 describe('Multi-Search API', () => {
   describe('add() method', () => {
     it('should add a raw MSearchRequest with header and body', () => {
-      const body = query(matterMappings).matchAll().build();
+      const body = queryBuilder(matterMappings).matchAll().build();
       const result = msearch(matterMappings)
         .add({ header: { index: 'matters' }, body })
         .build();
@@ -17,7 +17,7 @@ describe('Multi-Search API', () => {
     });
 
     it('should add a raw MSearchRequest without header', () => {
-      const body = query(matterMappings).match('title', 'acquisition').build();
+      const body = queryBuilder(matterMappings).match('title', 'acquisition').build();
       const result = msearch(matterMappings).add({ body }).buildArray();
 
       expect(result).toMatchInlineSnapshot(`
@@ -35,7 +35,7 @@ describe('Multi-Search API', () => {
     });
 
     it('should build NDJSON with empty header when header is omitted', () => {
-      const body = query(matterMappings).match('title', 'acquisition').build();
+      const body = queryBuilder(matterMappings).match('title', 'acquisition').build();
       const result = msearch(matterMappings).add({ body }).build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -54,7 +54,7 @@ describe('Multi-Search API', () => {
     });
 
     it('should build single search', () => {
-      const q1 = query(matterMappings).match('title', 'acquisition').build();
+      const q1 = queryBuilder(matterMappings).match('title', 'acquisition').build();
       const result = msearch(matterMappings).addQuery(q1).build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -65,8 +65,8 @@ describe('Multi-Search API', () => {
     });
 
     it('should build multiple searches', () => {
-      const q1 = query(matterMappings).match('title', 'acquisition').build();
-      const q2 = query(matterMappings).term('practice_area', 'corporate').build();
+      const q1 = queryBuilder(matterMappings).match('title', 'acquisition').build();
+      const q2 = queryBuilder(matterMappings).term('practice_area', 'corporate').build();
 
       const result = msearch(matterMappings).addQuery(q1).addQuery(q2).build();
 
@@ -82,7 +82,7 @@ describe('Multi-Search API', () => {
 
   describe('Multi-search with headers', () => {
     it('should add index to header', () => {
-      const q1 = query(matterMappings).matchAll().build();
+      const q1 = queryBuilder(matterMappings).matchAll().build();
       const result = msearch(matterMappings).addQuery(q1, { index: 'matters' }).build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -93,7 +93,7 @@ describe('Multi-Search API', () => {
     });
 
     it('should add multiple indices', () => {
-      const q1 = query(matterMappings).matchAll().build();
+      const q1 = queryBuilder(matterMappings).matchAll().build();
       const result = msearch(matterMappings)
         .addQuery(q1, { index: ['matters-1', 'matters-2'] })
         .build();
@@ -106,7 +106,7 @@ describe('Multi-Search API', () => {
     });
 
     it('should add routing', () => {
-      const q1 = query(matterMappings).matchAll().build();
+      const q1 = queryBuilder(matterMappings).matchAll().build();
       const result = msearch(matterMappings).addQuery(q1, { routing: 'user-123' }).build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -117,7 +117,7 @@ describe('Multi-Search API', () => {
     });
 
     it('should add preference', () => {
-      const q1 = query(matterMappings).matchAll().build();
+      const q1 = queryBuilder(matterMappings).matchAll().build();
       const result = msearch(matterMappings).addQuery(q1, { preference: '_local' }).build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -128,7 +128,7 @@ describe('Multi-Search API', () => {
     });
 
     it('should add search_type', () => {
-      const q1 = query(matterMappings).matchAll().build();
+      const q1 = queryBuilder(matterMappings).matchAll().build();
       const result = msearch(matterMappings).addQuery(q1, { search_type: 'dfs_query_then_fetch' }).build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -139,7 +139,7 @@ describe('Multi-Search API', () => {
     });
 
     it('should combine index and routing in header', () => {
-      const q1 = query(matterMappings).matchAll().build();
+      const q1 = queryBuilder(matterMappings).matchAll().build();
       const result = msearch(matterMappings).addQuery(q1, { index: 'matters', routing: 'tenant-1' }).buildArray();
 
       expect(result).toMatchInlineSnapshot(`
@@ -158,7 +158,7 @@ describe('Multi-Search API', () => {
     });
 
     it('should combine index and search_type in header', () => {
-      const q1 = query(matterMappings).matchAll().build();
+      const q1 = queryBuilder(matterMappings).matchAll().build();
       const result = msearch(matterMappings)
         .addQuery(q1, {
           index: 'matters',
@@ -184,7 +184,7 @@ describe('Multi-Search API', () => {
 
   describe('Multi-search output formats', () => {
     it('should build as NDJSON string', () => {
-      const q1 = query(matterMappings).match('title', 'test').build();
+      const q1 = queryBuilder(matterMappings).match('title', 'test').build();
       const result = msearch(matterMappings).addQuery(q1).build();
 
       expect(result).toMatchInlineSnapshot(`
@@ -195,7 +195,7 @@ describe('Multi-Search API', () => {
     });
 
     it('should build as array', () => {
-      const q1 = query(matterMappings).match('title', 'test').build();
+      const q1 = queryBuilder(matterMappings).match('title', 'test').build();
       const result = msearch(matterMappings).addQuery(q1).buildArray();
 
       expect(result).toMatchInlineSnapshot(`
@@ -213,8 +213,8 @@ describe('Multi-Search API', () => {
     });
 
     it('should alternate headers and bodies in array', () => {
-      const q1 = query(matterMappings).match('title', 'acquisition').build();
-      const q2 = query(matterMappings).term('practice_area', 'corporate').build();
+      const q1 = queryBuilder(matterMappings).match('title', 'acquisition').build();
+      const q2 = queryBuilder(matterMappings).term('practice_area', 'corporate').build();
 
       const result = msearch(matterMappings)
         .addQuery(q1, { index: 'matters-1' })
@@ -250,9 +250,9 @@ describe('Multi-Search API', () => {
 
   describe('Multi-search method chaining', () => {
     it('should support fluent chaining', () => {
-      const q1 = query(matterMappings).match('title', 'acquisition').build();
-      const q2 = query(matterMappings).term('practice_area', 'corporate').build();
-      const q3 = query(matterMappings).range('billing_rate', { gte: 100 }).build();
+      const q1 = queryBuilder(matterMappings).match('title', 'acquisition').build();
+      const q2 = queryBuilder(matterMappings).term('practice_area', 'corporate').build();
+      const q3 = queryBuilder(matterMappings).range('billing_rate', { gte: 100 }).build();
 
       const result = msearch(matterMappings)
         .addQuery(q1, { index: 'matters' })
@@ -274,7 +274,7 @@ describe('Multi-Search API', () => {
 
   describe('Complex query bodies', () => {
     it('should addQuery with bool query including size and from', () => {
-      const complexQuery = query(matterMappings)
+      const complexQuery = queryBuilder(matterMappings)
         .bool()
         .must((q) => q.match('title', 'acquisition'))
         .filter((q) => q.range('billing_rate', { gte: 100, lte: 2000 }))
@@ -321,12 +321,12 @@ describe('Multi-Search API', () => {
 
   describe('Real-world multi-search scenarios', () => {
     it('should search across multiple indices', () => {
-      const acquisitionQuery = query(matterMappings)
+      const acquisitionQuery = queryBuilder(matterMappings)
         .match('title', 'acquisition')
         .range('billing_rate', { gte: 500, lte: 2000 })
         .build();
 
-      const complianceQuery = query(matterMappings)
+      const complianceQuery = queryBuilder(matterMappings)
         .match('title', 'compliance')
         .range('billing_rate', { gte: 300, lte: 1000 })
         .build();
@@ -346,8 +346,8 @@ describe('Multi-Search API', () => {
     });
 
     it('should search with different preferences', () => {
-      const localQuery = query(matterMappings).matchAll().size(10).build();
-      const primaryQuery = query(matterMappings).matchAll().size(20).build();
+      const localQuery = queryBuilder(matterMappings).matchAll().size(10).build();
+      const primaryQuery = queryBuilder(matterMappings).matchAll().size(20).build();
 
       const result = msearch(matterMappings)
         .addQuery(localQuery, { preference: '_local' })
@@ -375,6 +375,49 @@ describe('Multi-Search API', () => {
             "size": 20,
           },
         ]
+      `);
+    });
+  });
+
+  describe('addQueryBuilder() convenience (Phase 4)', () => {
+    it('should be equivalent to addQuery(qb.build())', () => {
+      const qb = queryBuilder(matterMappings).match('title', 'acquisition').size(5);
+
+      const viaBuilder = msearch(matterMappings).addQueryBuilder(qb, { index: 'matters' }).buildArray();
+
+      const viaState = msearch(matterMappings).addQuery(qb.build(), { index: 'matters' }).buildArray();
+
+      expect(viaBuilder).toStrictEqual(viaState);
+    });
+  });
+
+  describe('withParams() request-level params (Phase 4)', () => {
+    it('should accumulate request-level params for spreading into client.msearch()', () => {
+      const params = msearch(matterMappings)
+        .addQueryBuilder(queryBuilder(matterMappings).matchAll())
+        .withParams({ max_concurrent_searches: 5, typed_keys: true })
+        .withParams({ rest_total_hits_as_int: true })
+        .buildParams();
+
+      expect(params).toMatchInlineSnapshot(`
+        {
+          "max_concurrent_searches": 5,
+          "rest_total_hits_as_int": true,
+          "typed_keys": true,
+        }
+      `);
+    });
+
+    it('should not affect the NDJSON body', () => {
+      const ndjson = msearch(matterMappings)
+        .addQueryBuilder(queryBuilder(matterMappings).matchAll(), { index: 'matters' })
+        .withParams({ max_concurrent_searches: 5 })
+        .build();
+
+      expect(ndjson).toMatchInlineSnapshot(`
+        "{"index":"matters"}
+        {"query":{"match_all":{}}}
+        "
       `);
     });
   });

@@ -4,22 +4,35 @@
  * enabling compile-time field-type inference in the query builder.
  */
 
+import type {
+  MappingDenseVectorIndexOptions,
+  MappingIndexOptions,
+  Script,
+  ScriptSource,
+  MappingSuggestContext
+} from '@elastic/elasticsearch/lib/api/types';
 import type { FieldMapping, FieldTypeString } from './index-management.types.js';
 
 /** Options for text fields */
-export type TextFieldOptions = {
+export type TextFieldOptions<
+  MF extends Record<string, FieldMappingWithLiteralType> = Record<string, FieldMappingWithLiteralType>
+> = {
   analyzer?: string;
   search_analyzer?: string;
+  search_quote_analyzer?: string;
   boost?: number;
   index?: boolean;
   store?: boolean;
   doc_values?: boolean;
   similarity?: string;
-  fields?: Record<string, FieldMapping>;
+  fields?: MF;
   copy_to?: string | string[];
+  index_options?: MappingIndexOptions;
   index_prefixes?: { min_chars?: number; max_chars?: number };
   index_phrases?: boolean;
   eager_global_ordinals?: boolean;
+  position_increment_gap?: number;
+  norms?: boolean;
   term_vector?:
     | 'no'
     | 'yes'
@@ -31,55 +44,79 @@ export type TextFieldOptions = {
 };
 
 /** Options for keyword fields */
-export type KeywordFieldOptions = {
+export type KeywordFieldOptions<
+  MF extends Record<string, FieldMappingWithLiteralType> = Record<string, FieldMappingWithLiteralType>
+> = {
   boost?: number;
   index?: boolean;
   store?: boolean;
   doc_values?: boolean;
   similarity?: string;
   normalizer?: string;
-  fields?: Record<string, FieldMapping>;
+  fields?: MF;
   copy_to?: string | string[];
   null_value?: string;
   eager_global_ordinals?: boolean;
   ignore_above?: number;
+  split_queries_on_whitespace?: boolean;
+  script?: Script | ScriptSource;
+  on_script_error?: 'fail' | 'continue';
 };
 
 /** Options shared by numeric field types (long, integer, short, byte, double, float, half_float) */
-export type NumericFieldOptions = {
+export type NumericFieldOptions<
+  MF extends Record<string, FieldMappingWithLiteralType> = Record<string, FieldMappingWithLiteralType>
+> = {
   boost?: number;
   index?: boolean;
   store?: boolean;
   doc_values?: boolean;
   coerce?: boolean;
-  fields?: Record<string, FieldMapping>;
+  fields?: MF;
   copy_to?: string | string[];
   null_value?: number;
   ignore_malformed?: boolean;
 };
 
 /** Options for scaled_float (extends numeric with scaling_factor) */
-export type ScaledFloatFieldOptions = NumericFieldOptions & {
+export type ScaledFloatFieldOptions<
+  MF extends Record<string, FieldMappingWithLiteralType> = Record<string, FieldMappingWithLiteralType>
+> = NumericFieldOptions<MF> & {
   scaling_factor?: number;
 };
 
 /** Options for unsigned_long fields — null_value accepts string or number for >MAX_SAFE_INTEGER precision */
-export type UnsignedLongFieldOptions = Omit<NumericFieldOptions, 'null_value'> & {
+export type UnsignedLongFieldOptions<
+  MF extends Record<string, FieldMappingWithLiteralType> = Record<string, FieldMappingWithLiteralType>
+> = Omit<NumericFieldOptions<MF>, 'null_value'> & {
   null_value?: string | number;
 };
 
 /** Options for date fields */
-export type DateFieldOptions = {
+export type DateFieldOptions<
+  MF extends Record<string, FieldMappingWithLiteralType> = Record<string, FieldMappingWithLiteralType>
+> = {
   boost?: number;
   format?: string;
+  locale?: string;
   index?: boolean;
   store?: boolean;
   doc_values?: boolean;
-  fields?: Record<string, FieldMapping>;
+  fields?: MF;
   copy_to?: string | string[];
   null_value?: string;
   ignore_malformed?: boolean;
+  script?: Script | ScriptSource;
+  on_script_error?: 'fail' | 'continue';
 };
+
+/**
+ * Options for date_nanos fields — same API as `date` but stores timestamps at nanosecond precision.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/date_nanos.html
+ */
+export type DateNanosFieldOptions<
+  MF extends Record<string, FieldMappingWithLiteralType> = Record<string, FieldMappingWithLiteralType>
+> = DateFieldOptions<MF>;
 
 /** Options for boolean fields */
 export type BooleanFieldOptions = {
@@ -95,9 +132,24 @@ export type DenseVectorFieldOptions = {
   dims?: number;
   element_type?: 'float' | 'byte' | 'bit';
   index?: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  index_options?: any;
+  index_options?: MappingDenseVectorIndexOptions;
   similarity?: 'cosine' | 'dot_product' | 'l2_norm' | 'max_inner_product';
+};
+
+/**
+ * Options for `rank_feature` fields — a single-value numeric feature used to boost relevance.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/rank-feature.html
+ */
+export type RankFeatureFieldOptions = {
+  positive_score_impact?: boolean;
+};
+
+/**
+ * Options for `rank_features` fields — a sparse map of numeric features used to boost relevance.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/rank-features.html
+ */
+export type RankFeaturesFieldOptions = {
+  positive_score_impact?: boolean;
 };
 
 /**
@@ -113,9 +165,18 @@ export type SemanticTextFieldOptions = {
 /** Sub-fields for nested and object field types */
 export type NestedFields = Record<string, FieldMapping>;
 
-/** Options for object fields (enabled flag only — sub-fields are the first argument) */
+/** Options for object fields (sub-fields are the first argument) */
 export type ObjectFieldOptions = {
   enabled?: boolean;
+  dynamic?: boolean | 'strict' | 'runtime';
+};
+
+/** Options for nested fields (sub-fields are the first argument) */
+export type NestedFieldOptions = {
+  enabled?: boolean;
+  dynamic?: boolean | 'strict' | 'runtime';
+  include_in_parent?: boolean;
+  include_in_root?: boolean;
 };
 
 /** Options for completion fields */
@@ -125,6 +186,7 @@ export type CompletionFieldOptions = {
   max_input_length?: number;
   preserve_separators?: boolean;
   preserve_position_increments?: boolean;
+  contexts?: MappingSuggestContext[];
 };
 
 /** Options for geo_point fields */
@@ -133,6 +195,11 @@ export type GeoPointFieldOptions = {
   store?: boolean;
   doc_values?: boolean;
   ignore_malformed?: boolean;
+  ignore_z_value?: boolean;
+  null_value?: string | { lat: number; lon: number };
+  copy_to?: string | string[];
+  script?: Script | ScriptSource;
+  on_script_error?: 'fail' | 'continue';
 };
 
 /** Options for geo_shape fields */
@@ -159,6 +226,19 @@ export type IpFieldOptions = {
   ignore_malformed?: boolean;
 };
 
+/**
+ * Options for `ip_range` fields — range of IPv4 or IPv6 addresses.
+ * Mirrors numeric `RangeFieldOptions` but conceptually scoped to IP ranges.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/range.html
+ */
+export type IpRangeFieldOptions = {
+  boost?: number;
+  index?: boolean;
+  store?: boolean;
+  doc_values?: boolean;
+  coerce?: boolean;
+};
+
 /** Options for range fields (integer_range, float_range, long_range, double_range, date_range) */
 export type RangeFieldOptions = {
   boost?: number;
@@ -172,8 +252,10 @@ export type RangeFieldOptions = {
  * Options for match_only_text fields.
  * Use when you only need filter/match but not relevance scoring — faster and uses less disk.
  */
-export type MatchOnlyTextFieldOptions = {
-  fields?: Record<string, FieldMapping>;
+export type MatchOnlyTextFieldOptions<
+  MF extends Record<string, FieldMappingWithLiteralType> = Record<string, FieldMappingWithLiteralType>
+> = {
+  fields?: MF;
   copy_to?: string | string[];
   meta?: Record<string, string>;
 };
@@ -185,9 +267,21 @@ export type MatchOnlyTextFieldOptions = {
 export type SearchAsYouTypeFieldOptions = {
   analyzer?: string;
   search_analyzer?: string;
-  max_shingle_size?: number;
+  search_quote_analyzer?: string;
+  max_shingle_size?: 2 | 3 | 4;
   index?: boolean;
+  store?: boolean;
+  doc_values?: boolean;
   similarity?: string;
+  norms?: boolean;
+  term_vector?:
+    | 'no'
+    | 'yes'
+    | 'with_positions'
+    | 'with_offsets'
+    | 'with_positions_offsets'
+    | 'with_positions_payloads'
+    | 'with_positions_offsets_payloads';
 };
 
 /**
@@ -220,6 +314,30 @@ export type FlattenedFieldOptions = {
   index?: boolean;
   null_value?: string;
   similarity?: string;
+  eager_global_ordinals?: boolean;
+};
+
+/**
+ * Options for token_count fields — counts the number of tokens in a string.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/token-count.html
+ */
+export type TokenCountFieldOptions = {
+  analyzer?: string;
+  boost?: number;
+  index?: boolean;
+  store?: boolean;
+  doc_values?: boolean;
+  null_value?: number;
+  enable_position_increments?: boolean;
+};
+
+/**
+ * Options for join fields — defines parent/child relationships within a single index.
+ * `relations` is required and maps parent names to child names.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/parent-join.html
+ */
+export type JoinFieldOptions = {
+  relations: Record<string, string | string[]>;
   eager_global_ordinals?: boolean;
 };
 
@@ -276,6 +394,8 @@ export type BinaryFieldMapping = TypedFieldMapping<'binary'>;
 export type IpFieldMapping = TypedFieldMapping<'ip'>;
 export type DenseVectorFieldMapping = TypedFieldMapping<'dense_vector'>;
 export type SparseVectorFieldMapping = TypedFieldMapping<'sparse_vector'>;
+export type RankFeatureFieldMapping = TypedFieldMapping<'rank_feature'>;
+export type RankFeaturesFieldMapping = TypedFieldMapping<'rank_features'>;
 export type SemanticTextFieldMapping = TypedFieldMapping<'semantic_text'>;
 export type UnsignedLongFieldMapping = TypedFieldMapping<'unsigned_long'>;
 export type GeoPointFieldMapping = TypedFieldMapping<'geo_point'>;
@@ -290,8 +410,13 @@ export type FloatRangeFieldMapping = TypedFieldMapping<'float_range'>;
 export type LongRangeFieldMapping = TypedFieldMapping<'long_range'>;
 export type DoubleRangeFieldMapping = TypedFieldMapping<'double_range'>;
 export type DateRangeFieldMapping = TypedFieldMapping<'date_range'>;
+export type IpRangeFieldMapping = TypedFieldMapping<'ip_range'>;
+export type DateNanosFieldMapping = TypedFieldMapping<'date_nanos'>;
 export type MatchOnlyTextFieldMapping = TypedFieldMapping<'match_only_text'>;
 export type SearchAsYouTypeFieldMapping = TypedFieldMapping<'search_as_you_type'>;
 export type ConstantKeywordFieldMapping = TypedFieldMapping<'constant_keyword'>;
 export type WildcardFieldMapping = TypedFieldMapping<'wildcard'>;
 export type FlattenedFieldMapping = TypedFieldMapping<'flattened'>;
+export type TokenCountFieldMapping = TypedFieldMapping<'token_count'>;
+export type Murmur3FieldMapping = TypedFieldMapping<'murmur3'>;
+export type JoinFieldMapping = TypedFieldMapping<'join'>;

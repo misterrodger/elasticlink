@@ -44,15 +44,29 @@ type FlattenSubFields<
   }[keyof F & string]
 >;
 
+type FlattenMultiFields<
+  Prefix extends string,
+  MF extends Record<string, FieldMappingWithLiteralType>
+> = UnionToIntersection<
+  {
+    [K in keyof MF & string]: { [Key in `${Prefix}.${K}`]: MF[K]['type'] };
+  }[keyof MF & string]
+>;
+
 type ExtractFieldTypes<F extends Record<string, FieldMappingWithLiteralType>> = {
   [K in keyof F]: F[K]['type'];
 } & UnionToIntersection<
   {
-    [K in keyof F & string]: F[K] extends {
+    [K in keyof F & string]: (F[K] extends {
       _subFields: infer Sub extends Record<string, FieldMappingWithLiteralType>;
     }
       ? FlattenSubFields<K, Sub>
-      : Record<never, never>;
+      : Record<never, never>) &
+      (F[K] extends {
+        _multiFields: infer MF extends Record<string, FieldMappingWithLiteralType>;
+      }
+        ? FlattenMultiFields<K, MF>
+        : Record<never, never>);
   }[keyof F & string]
 >;
 

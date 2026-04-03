@@ -21,8 +21,13 @@ import type {
   UnsignedLongFieldOptions,
   ScaledFloatFieldOptions,
   DateFieldOptions,
+  DateNanosFieldOptions,
+  IpRangeFieldOptions,
+  NestedFieldOptions,
   BooleanFieldOptions,
   DenseVectorFieldOptions,
+  RankFeatureFieldOptions,
+  RankFeaturesFieldOptions,
   SemanticTextFieldOptions,
   ObjectFieldOptions,
   CompletionFieldOptions,
@@ -36,6 +41,8 @@ import type {
   ConstantKeywordFieldOptions,
   WildcardFieldOptions,
   FlattenedFieldOptions,
+  TokenCountFieldOptions,
+  JoinFieldOptions,
   FieldMappingWithLiteralType,
   TextFieldMapping,
   KeywordFieldMapping,
@@ -48,11 +55,15 @@ import type {
   HalfFloatFieldMapping,
   ScaledFloatFieldMapping,
   DateFieldMapping,
+  DateNanosFieldMapping,
+  IpRangeFieldMapping,
   BooleanFieldMapping,
   BinaryFieldMapping,
   IpFieldMapping,
   DenseVectorFieldMapping,
   SparseVectorFieldMapping,
+  RankFeatureFieldMapping,
+  RankFeaturesFieldMapping,
   SemanticTextFieldMapping,
   UnsignedLongFieldMapping,
   GeoPointFieldMapping,
@@ -71,58 +82,72 @@ import type {
   SearchAsYouTypeFieldMapping,
   ConstantKeywordFieldMapping,
   WildcardFieldMapping,
-  FlattenedFieldMapping
+  FlattenedFieldMapping,
+  TokenCountFieldMapping,
+  Murmur3FieldMapping,
+  JoinFieldMapping
 } from './field.types.js';
 
 // Text & keyword
-export const text = (options?: TextFieldOptions): TextFieldMapping => ({
-  type: 'text',
-  ...options
-});
-export const keyword = (options?: KeywordFieldOptions): KeywordFieldMapping => ({
-  type: 'keyword',
-  ...options
-});
+export const text = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: TextFieldOptions<MF>
+): TextFieldMapping & Readonly<{ _multiFields: MF }> =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ({ type: 'text', ...options }) as any;
+export const keyword = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: KeywordFieldOptions<MF>
+): KeywordFieldMapping & Readonly<{ _multiFields: MF }> =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ({ type: 'keyword', ...options }) as any;
 
 // Numeric
-export const long = (options?: NumericFieldOptions): LongFieldMapping => ({
-  type: 'long',
-  ...options
-});
-export const integer = (options?: NumericFieldOptions): IntegerFieldMapping => ({
-  type: 'integer',
-  ...options
-});
-export const short = (options?: NumericFieldOptions): ShortFieldMapping => ({
-  type: 'short',
-  ...options
-});
-export const byte = (options?: NumericFieldOptions): ByteFieldMapping => ({
-  type: 'byte',
-  ...options
-});
-export const double = (options?: NumericFieldOptions): DoubleFieldMapping => ({
-  type: 'double',
-  ...options
-});
-export const float = (options?: NumericFieldOptions): FloatFieldMapping => ({
-  type: 'float',
-  ...options
-});
-export const halfFloat = (options?: NumericFieldOptions): HalfFloatFieldMapping => ({
-  type: 'half_float',
-  ...options
-});
-export const scaledFloat = (options?: ScaledFloatFieldOptions): ScaledFloatFieldMapping => ({
-  type: 'scaled_float',
-  ...options
-});
+export const long = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: NumericFieldOptions<MF>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): LongFieldMapping & Readonly<{ _multiFields: MF }> => ({ type: 'long', ...options }) as any;
+export const integer = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: NumericFieldOptions<MF>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): IntegerFieldMapping & Readonly<{ _multiFields: MF }> => ({ type: 'integer', ...options }) as any;
+export const short = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: NumericFieldOptions<MF>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): ShortFieldMapping & Readonly<{ _multiFields: MF }> => ({ type: 'short', ...options }) as any;
+export const byte = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: NumericFieldOptions<MF>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): ByteFieldMapping & Readonly<{ _multiFields: MF }> => ({ type: 'byte', ...options }) as any;
+export const double = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: NumericFieldOptions<MF>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): DoubleFieldMapping & Readonly<{ _multiFields: MF }> => ({ type: 'double', ...options }) as any;
+export const float = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: NumericFieldOptions<MF>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): FloatFieldMapping & Readonly<{ _multiFields: MF }> => ({ type: 'float', ...options }) as any;
+export const halfFloat = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: NumericFieldOptions<MF>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): HalfFloatFieldMapping & Readonly<{ _multiFields: MF }> => ({ type: 'half_float', ...options }) as any;
+export const scaledFloat = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: ScaledFloatFieldOptions<MF>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): ScaledFloatFieldMapping & Readonly<{ _multiFields: MF }> => ({ type: 'scaled_float', ...options }) as any;
 
 // Date & boolean
-export const date = (options?: DateFieldOptions): DateFieldMapping => ({
-  type: 'date',
-  ...options
-});
+export const date = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: DateFieldOptions<MF>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): DateFieldMapping & Readonly<{ _multiFields: MF }> => ({ type: 'date', ...options }) as any;
+
+/**
+ * Date field stored with nanosecond precision. Same API as `date()` but supports sub-millisecond timestamps.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/date_nanos.html
+ */
+export const dateNanos = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: DateNanosFieldOptions<MF>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): DateNanosFieldMapping & Readonly<{ _multiFields: MF }> => ({ type: 'date_nanos', ...options }) as any;
 export const boolean = (options?: BooleanFieldOptions): BooleanFieldMapping => ({
   type: 'boolean',
   ...options
@@ -164,7 +189,7 @@ export const denseVector = (options?: DenseVectorFieldOptions): DenseVectorField
  * });
  *
  * // Two-phase search: fast kNN + precise rescore
- * const result = query(schema)
+ * const result = queryBuilder(schema)
  *   .knn('embedding', queryVector, { k: 100, num_candidates: 200 })
  *   .rescore(
  *     (q) => q.scriptScore(
@@ -190,6 +215,26 @@ export const quantizedDenseVector = (options?: DenseVectorFieldOptions): DenseVe
 export const sparseVector = (): SparseVectorFieldMapping => ({ type: 'sparse_vector' });
 
 /**
+ * Rank feature field — a single numeric feature used by the `rank_feature` query to boost relevance.
+ * Use when each document has one named signal (e.g. `pagerank`, `popularity_score`).
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/rank-feature.html
+ */
+export const rankFeature = (options?: RankFeatureFieldOptions): RankFeatureFieldMapping => ({
+  type: 'rank_feature',
+  ...options
+});
+
+/**
+ * Rank features field — a sparse map of numeric features used by the `rank_feature` query.
+ * Use when each document has many named signals (e.g. topic scores).
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/rank-features.html
+ */
+export const rankFeatures = (options?: RankFeaturesFieldOptions): RankFeaturesFieldMapping => ({
+  type: 'rank_features',
+  ...options
+});
+
+/**
  * Semantic text field (ES 9.x) — ML-powered text field for semantic and hybrid search.
  * Automatically generates and stores embeddings at index time using the configured inference endpoint.
  *
@@ -210,10 +255,10 @@ export const semanticText = (options?: SemanticTextFieldOptions): SemanticTextFi
  * Use when values exceed the `long` range.
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/number.html
  */
-export const unsignedLong = (options?: UnsignedLongFieldOptions): UnsignedLongFieldMapping => ({
-  type: 'unsigned_long',
-  ...options
-});
+export const unsignedLong = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: UnsignedLongFieldOptions<MF>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): UnsignedLongFieldMapping & Readonly<{ _multiFields: MF }> => ({ type: 'unsigned_long', ...options }) as any;
 
 // Geo
 export const geoPoint = (options?: GeoPointFieldOptions): GeoPointFieldMapping => ({
@@ -251,7 +296,7 @@ export const completion = (options?: CompletionFieldOptions): CompletionFieldMap
  *     zip: keyword(),
  *   }),
  * });
- * query(m).term('address.city', 'NYC').build();
+ * queryBuilder(m).term('address.city', 'NYC').build();
  */
 export function object<F extends Record<string, FieldMappingWithLiteralType>>(
   fields: F,
@@ -281,11 +326,14 @@ export function object<F extends Record<string, FieldMappingWithLiteralType>>(
  *     weight: float(),
  *   }),
  * });
- * query(m).nested('tags', q => q.term('label', 'sale')).build();
+ * queryBuilder(m).nested('tags', q => q.term('label', 'sale')).build();
  */
-export function nested<F extends Record<string, FieldMappingWithLiteralType>>(fields: F): TypedNestedFieldMapping<F> {
+export function nested<F extends Record<string, FieldMappingWithLiteralType>>(
+  fields: F,
+  options?: NestedFieldOptions
+): TypedNestedFieldMapping<F> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return { type: 'nested', properties: fields } as any;
+  return { type: 'nested', ...(options ?? {}), properties: fields } as any;
 }
 
 // Alias
@@ -323,13 +371,22 @@ export const dateRange = (options?: RangeFieldOptions): DateRangeFieldMapping =>
 });
 
 /**
+ * IP range field — stores a range of IPv4/IPv6 addresses.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/range.html
+ */
+export const ipRange = (options?: IpRangeFieldOptions): IpRangeFieldMapping => ({
+  type: 'ip_range',
+  ...options
+});
+
+/**
  * No-score text field — faster and uses less disk than `text()`.
  * Use when you only need filter/match but not relevance scoring (e.g., logs, simple field matches).
  */
-export const matchOnlyText = (options?: MatchOnlyTextFieldOptions): MatchOnlyTextFieldMapping => ({
-  type: 'match_only_text',
-  ...options
-});
+export const matchOnlyText = <MF extends Record<string, FieldMappingWithLiteralType>>(
+  options?: MatchOnlyTextFieldOptions<MF>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): MatchOnlyTextFieldMapping & Readonly<{ _multiFields: MF }> => ({ type: 'match_only_text', ...options }) as any;
 
 /**
  * Autocomplete / typeahead field. Creates sub-fields for edge n-gram matching
@@ -364,5 +421,39 @@ export const wildcardField = (options?: WildcardFieldOptions): WildcardFieldMapp
  */
 export const flattened = (options?: FlattenedFieldOptions): FlattenedFieldMapping => ({
   type: 'flattened',
+  ...options
+});
+
+/**
+ * Token count field — stores the number of tokens produced by an analyzer.
+ * Useful for enforcing minimum/maximum field lengths via queries or aggregations.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/token-count.html
+ */
+export const tokenCount = (options?: TokenCountFieldOptions): TokenCountFieldMapping => ({
+  type: 'token_count',
+  ...options
+});
+
+/**
+ * Murmur3 hash field — computes and stores a murmur3 hash of field values at index time.
+ * Requires the `mapper-murmur3` plugin.
+ * @see https://www.elastic.co/guide/en/elasticsearch/plugins/current/mapper-murmur3.html
+ */
+// eslint-disable-next-line functional/functional-parameters
+export const murmur3Hash = (): Murmur3FieldMapping => ({ type: 'murmur3' });
+
+/**
+ * Join field — defines parent/child relationships within a single index.
+ * `relations` is required: maps parent names to one or more child names.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/parent-join.html
+ *
+ * @example
+ * const m = mappings({
+ *   title: text(),
+ *   relation: join({ relations: { question: 'answer' } }),
+ * });
+ */
+export const join = (options: JoinFieldOptions): JoinFieldMapping => ({
+  type: 'join',
   ...options
 });

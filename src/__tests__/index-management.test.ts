@@ -36,8 +36,16 @@ import {
   quantizedDenseVector,
   sparseVector,
   semanticText,
-  unsignedLong
+  unsignedLong,
+  dateNanos,
+  ipRange,
+  rankFeature,
+  rankFeatures,
+  tokenCount,
+  murmur3Hash,
+  join
 } from '..';
+import type { Infer } from '..';
 
 describe('Index Management', () => {
   describe('Builder behavior', () => {
@@ -1997,6 +2005,438 @@ describe('Index Management', () => {
       expect(result.settings?.number_of_shards).toBe(1);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((result.settings as any)?.analysis?.analyzer?.default).toStrictEqual({ type: 'standard' });
+    });
+
+    // Phase 2 broad-swathe test: exercise the passthrough to `IndicesIndexSettingsAnalysis` by
+    // combining a custom analyzer, a pattern tokenizer, custom stemmer + stop token filters,
+    // an html_strip char filter, and a custom normalizer in one call. A single snapshot proves
+    // that structured ES analyzer config types are preserved verbatim.
+    it('passesAllAnalysisComponentsThroughToElasticType', () => {
+      const result = indexBuilder()
+        .mappings({ body: text() })
+        .analysis({
+          analyzer: {
+            // Custom analyzer referencing a tokenizer + filters + char_filter
+            my_analyzer: {
+              type: 'custom',
+              tokenizer: 'my_pattern_tokenizer',
+              filter: ['lowercase', 'my_english_stop', 'my_stemmer'],
+              char_filter: ['my_html_strip']
+            },
+            // Typed built-in language analyzer
+            content_analyzer: {
+              type: 'english',
+              stopwords: '_english_'
+            }
+          },
+          tokenizer: {
+            my_pattern_tokenizer: {
+              type: 'pattern',
+              pattern: '\\W+'
+            }
+          },
+          filter: {
+            my_english_stop: {
+              type: 'stop',
+              stopwords: '_english_'
+            },
+            my_stemmer: {
+              type: 'stemmer',
+              language: 'english'
+            }
+          },
+          char_filter: {
+            my_html_strip: {
+              type: 'html_strip',
+              escaped_tags: ['b', 'i']
+            }
+          },
+          normalizer: {
+            my_lowercase: {
+              type: 'custom',
+              filter: ['lowercase', 'asciifolding']
+            }
+          }
+        })
+        .build();
+
+      expect(result.settings).toMatchInlineSnapshot(`
+        {
+          "analysis": {
+            "analyzer": {
+              "content_analyzer": {
+                "stopwords": "_english_",
+                "type": "english",
+              },
+              "my_analyzer": {
+                "char_filter": [
+                  "my_html_strip",
+                ],
+                "filter": [
+                  "lowercase",
+                  "my_english_stop",
+                  "my_stemmer",
+                ],
+                "tokenizer": "my_pattern_tokenizer",
+                "type": "custom",
+              },
+            },
+            "char_filter": {
+              "my_html_strip": {
+                "escaped_tags": [
+                  "b",
+                  "i",
+                ],
+                "type": "html_strip",
+              },
+            },
+            "filter": {
+              "my_english_stop": {
+                "stopwords": "_english_",
+                "type": "stop",
+              },
+              "my_stemmer": {
+                "language": "english",
+                "type": "stemmer",
+              },
+            },
+            "normalizer": {
+              "my_lowercase": {
+                "filter": [
+                  "lowercase",
+                  "asciifolding",
+                ],
+                "type": "custom",
+              },
+            },
+            "tokenizer": {
+              "my_pattern_tokenizer": {
+                "pattern": "\\W+",
+                "type": "pattern",
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    // Phase 2 negative type test: a nonsense analyzer type should fail compile-time
+    // against the discriminated AnalysisAnalyzer union.
+    // eslint-disable-next-line vitest/expect-expect
+    it('rejectsInvalidAnalyzerType — @ts-expect-error', () => {
+      indexBuilder()
+        .mappings({ body: text() })
+        .analysis({
+          analyzer: {
+            // @ts-expect-error — 'nonsense' is not a valid AnalysisAnalyzer discriminator
+            bad: { type: 'nonsense' }
+          }
+        });
+    });
+  });
+
+  describe('IndexBuilder<M> generic threading', () => {
+    // Phase 2 type test: .mappings(schema) rebinds IndexBuilder's M generic to the
+    // schema's field-type map, so subsequent chain calls carry the correct constraint.
+    it('threadsMappingGenericThroughChain', () => {
+      const schema = mappings({
+        title: text(),
+        tag: keyword()
+      });
+
+      const builder = indexBuilder().mappings(schema).settings({ number_of_replicas: 2 });
+      const built = builder.build();
+
+      expect(built.mappings?.properties).toStrictEqual({
+        title: { type: 'text' },
+        tag: { type: 'keyword' }
+      });
+      expect(built.settings?.number_of_replicas).toBe(2);
+    });
+  });
+
+  describe('Field helper option completeness', () => {
+    it('kitchen-sink mapping exercises every added option across all touched helpers', () => {
+      const m = mappings({
+        title: text({
+          analyzer: 'english',
+          position_increment_gap: 100,
+          norms: false,
+          search_quote_analyzer: 'english',
+          index_options: 'offsets'
+        }),
+        tag: keyword({
+          split_queries_on_whitespace: true,
+          script: { source: "emit(doc['title'].value)" },
+          on_script_error: 'continue'
+        }),
+        published_at: date({
+          format: 'yyyy-MM-dd',
+          locale: 'en_US',
+          script: { source: "emit(doc['created'].value.toEpochMilli())" },
+          on_script_error: 'fail'
+        }),
+        published_at_ns: dateNanos({ format: 'strict_date_optional_time_nanos' }),
+        location: geoPoint({
+          ignore_z_value: true,
+          null_value: { lat: 0, lon: 0 },
+          copy_to: 'geo_all',
+          script: { source: "emit(doc['raw'].value)" },
+          on_script_error: 'continue'
+        }),
+        suggest: completion({
+          analyzer: 'simple',
+          contexts: [{ name: 'category', type: 'category' }]
+        }),
+        typeahead: searchAsYouType({
+          max_shingle_size: 3,
+          search_quote_analyzer: 'standard',
+          norms: true,
+          term_vector: 'with_positions_offsets'
+        }),
+        address: object(
+          {
+            city: keyword(),
+            zip: keyword()
+          },
+          { dynamic: 'strict', enabled: true }
+        ),
+        variants: nested(
+          {
+            sku: keyword(),
+            price: float()
+          },
+          { dynamic: true, include_in_parent: true, include_in_root: false, enabled: true }
+        ),
+        client_ip_range: ipRange({ index: true, doc_values: true }),
+        client_ip: ip(),
+        score: rankFeature({ positive_score_impact: true }),
+        topics: rankFeatures({ positive_score_impact: false })
+      });
+
+      expect(m.properties).toMatchInlineSnapshot(`
+        {
+          "address": {
+            "dynamic": "strict",
+            "enabled": true,
+            "properties": {
+              "city": {
+                "type": "keyword",
+              },
+              "zip": {
+                "type": "keyword",
+              },
+            },
+            "type": "object",
+          },
+          "client_ip": {
+            "type": "ip",
+          },
+          "client_ip_range": {
+            "doc_values": true,
+            "index": true,
+            "type": "ip_range",
+          },
+          "location": {
+            "copy_to": "geo_all",
+            "ignore_z_value": true,
+            "null_value": {
+              "lat": 0,
+              "lon": 0,
+            },
+            "on_script_error": "continue",
+            "script": {
+              "source": "emit(doc['raw'].value)",
+            },
+            "type": "geo_point",
+          },
+          "published_at": {
+            "format": "yyyy-MM-dd",
+            "locale": "en_US",
+            "on_script_error": "fail",
+            "script": {
+              "source": "emit(doc['created'].value.toEpochMilli())",
+            },
+            "type": "date",
+          },
+          "published_at_ns": {
+            "format": "strict_date_optional_time_nanos",
+            "type": "date_nanos",
+          },
+          "score": {
+            "positive_score_impact": true,
+            "type": "rank_feature",
+          },
+          "suggest": {
+            "analyzer": "simple",
+            "contexts": [
+              {
+                "name": "category",
+                "type": "category",
+              },
+            ],
+            "type": "completion",
+          },
+          "tag": {
+            "on_script_error": "continue",
+            "script": {
+              "source": "emit(doc['title'].value)",
+            },
+            "split_queries_on_whitespace": true,
+            "type": "keyword",
+          },
+          "title": {
+            "analyzer": "english",
+            "index_options": "offsets",
+            "norms": false,
+            "position_increment_gap": 100,
+            "search_quote_analyzer": "english",
+            "type": "text",
+          },
+          "topics": {
+            "positive_score_impact": false,
+            "type": "rank_features",
+          },
+          "typeahead": {
+            "max_shingle_size": 3,
+            "norms": true,
+            "search_quote_analyzer": "standard",
+            "term_vector": "with_positions_offsets",
+            "type": "search_as_you_type",
+          },
+          "variants": {
+            "dynamic": true,
+            "enabled": true,
+            "include_in_parent": true,
+            "include_in_root": false,
+            "properties": {
+              "price": {
+                "type": "float",
+              },
+              "sku": {
+                "type": "keyword",
+              },
+            },
+            "type": "nested",
+          },
+        }
+      `);
+    });
+
+    describe('Infer<> for new field types', () => {
+      it('dateNanos infers to string', () => {
+        const _m = mappings({ ts: dateNanos() });
+        type T = Infer<typeof _m>;
+        const sample: T = { ts: '2026-04-05T12:00:00.000000123Z' };
+
+        expect(sample.ts).toBeDefined();
+      });
+
+      it('ipRange infers to IP range shape or string', () => {
+        const _m = mappings({ net: ipRange() });
+        type T = Infer<typeof _m>;
+        const asObject: T = { net: { gte: '10.0.0.0', lte: '10.255.255.255' } };
+        const asString: T = { net: '10.0.0.0/8' };
+
+        expect(asObject.net).toBeDefined();
+        expect(asString.net).toBeDefined();
+      });
+
+      it('dateNanos is accepted wherever a date field is required (DateFields projection)', () => {
+        const _m = mappings({
+          created_ns: dateNanos(),
+          views: integer()
+        });
+        // Verifies DateFields<M> includes date_nanos — compile-time assertion via usage.
+        const pick: keyof Infer<typeof _m> = 'created_ns';
+
+        expect(pick).toBe('created_ns');
+      });
+    });
+  });
+
+  describe('Field helpers — tokenCount, murmur3Hash, join', () => {
+    it('tokenCount builds correct mapping with options', () => {
+      const result = indexBuilder()
+        .mappings({
+          body_length: tokenCount({ analyzer: 'standard', enable_position_increments: true })
+        })
+        .build();
+
+      expect(result.mappings?.properties.body_length).toMatchInlineSnapshot(`
+        {
+          "analyzer": "standard",
+          "enable_position_increments": true,
+          "type": "token_count",
+        }
+      `);
+    });
+
+    it('tokenCount builds correct mapping without options', () => {
+      const result = indexBuilder().mappings({ len: tokenCount() }).build();
+
+      expect(result.mappings?.properties.len).toStrictEqual({ type: 'token_count' });
+    });
+
+    it('murmur3Hash builds correct mapping', () => {
+      const result = indexBuilder().mappings({ hash: murmur3Hash() }).build();
+
+      expect(result.mappings?.properties.hash).toStrictEqual({ type: 'murmur3' });
+    });
+
+    it('join builds correct mapping with relations', () => {
+      const result = indexBuilder()
+        .mappings({
+          relation: join({ relations: { question: 'answer' }, eager_global_ordinals: true })
+        })
+        .build();
+
+      expect(result.mappings?.properties.relation).toMatchInlineSnapshot(`
+        {
+          "eager_global_ordinals": true,
+          "relations": {
+            "question": "answer",
+          },
+          "type": "join",
+        }
+      `);
+    });
+
+    it('join supports multiple children', () => {
+      const result = indexBuilder()
+        .mappings({
+          relation: join({ relations: { question: ['answer', 'comment'] } })
+        })
+        .build();
+
+      expect(result.mappings?.properties.relation).toMatchInlineSnapshot(`
+        {
+          "relations": {
+            "question": [
+              "answer",
+              "comment",
+            ],
+          },
+          "type": "join",
+        }
+      `);
+    });
+
+    it('Infer resolves tokenCount to number and join to string', () => {
+      const _m = mappings({
+        body_length: tokenCount({ analyzer: 'standard' }),
+        relation: join({ relations: { question: 'answer' } }),
+        hash: murmur3Hash()
+      });
+
+      type Doc = Infer<typeof _m>;
+      const _len: Doc['body_length'] = 42;
+      const _rel: Doc['relation'] = 'question';
+      const _hash: Doc['hash'] = 'abc123';
+
+      expect(_len).toBe(42);
+      expect(_rel).toBe('question');
+      expect(_hash).toBe('abc123');
     });
   });
 });

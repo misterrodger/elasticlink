@@ -23,6 +23,23 @@ import type {
   AggregationsAutoDateHistogramAggregation,
   AggregationsCompositeAggregation,
   AggregationsCompositeAggregationSource,
+  AggregationsDateRangeAggregation,
+  AggregationsFiltersAggregation,
+  AggregationsSignificantTermsAggregation,
+  AggregationsRareTermsAggregation,
+  AggregationsMultiTermsAggregation,
+  AggregationsGeoDistanceAggregation,
+  AggregationsGeoHashGridAggregation,
+  AggregationsGeoTileGridAggregation,
+  AggregationsGeoBoundsAggregation,
+  AggregationsGeoCentroidAggregation,
+  AggregationsMissingAggregation,
+  AggregationsTopMetricsAggregation,
+  AggregationsWeightedAverageAggregation,
+  AggregationsBucketScriptAggregation,
+  AggregationsBucketSelectorAggregation,
+  AggregationsDerivativeAggregation,
+  AggregationsCumulativeSumAggregation,
   QueryDslQueryContainer
 } from '@elastic/elasticsearch/lib/api/types';
 import type { FieldTypeString } from './index-management.types.js';
@@ -32,6 +49,8 @@ import type {
   KeywordFields,
   BooleanFields,
   IpFields,
+  TextFields,
+  GeoPointFields,
   NestedPathFields,
   SubFieldsOf
 } from './mapping.types.js';
@@ -133,6 +152,71 @@ export type TopHitsAggOptions = AggregationsTopHitsAggregation;
 export type AutoDateHistogramAggOptions = Omit<AggregationsAutoDateHistogramAggregation, 'field'>;
 
 /**
+ * Options for date_range aggregation (excludes 'field' which is handled by the builder).
+ * Complement to `range` for date-typed fields; supports date-math expressions in `ranges[].from`/`to`.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-daterange-aggregation.html
+ */
+export type DateRangeAggOptions = Omit<AggregationsDateRangeAggregation, 'field'>;
+
+/**
+ * Options for filters aggregation — multi-filter buckets. Distinct from the single-query
+ * `.filter(name, query)` metric-wrapping aggregation. `filters` creates one named bucket per
+ * supplied query, plus an optional `other_bucket` for non-matches.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-filters-aggregation.html
+ */
+export type FiltersAggOptions = Omit<AggregationsFiltersAggregation, 'filters'>;
+
+/**
+ * Options for significant_terms aggregation (excludes 'field' which is handled by the builder).
+ * Text-analytics staple — returns terms that are statistically significant in the foreground
+ * set relative to the background set.
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-significantterms-aggregation.html
+ */
+export type SignificantTermsAggOptions = Omit<AggregationsSignificantTermsAggregation, 'field'>;
+
+/** Options for rare_terms aggregation (excludes 'field' which is handled by the builder) */
+export type RareTermsAggOptions = Omit<AggregationsRareTermsAggregation, 'field'>;
+
+/** Options for multi_terms aggregation — full passthrough (field is inside `terms` array) */
+export type MultiTermsAggOptions = AggregationsMultiTermsAggregation;
+
+/** Options for geo_distance aggregation (excludes 'field' which is handled by the builder) */
+export type GeoDistanceAggOptions = Omit<AggregationsGeoDistanceAggregation, 'field'>;
+
+/** Options for geohash_grid aggregation (excludes 'field' which is handled by the builder) */
+export type GeohashGridAggOptions = Omit<AggregationsGeoHashGridAggregation, 'field'>;
+
+/** Options for geotile_grid aggregation (excludes 'field' which is handled by the builder) */
+export type GeotileGridAggOptions = Omit<AggregationsGeoTileGridAggregation, 'field'>;
+
+/** Options for geo_bounds aggregation (excludes 'field' which is handled by the builder) */
+export type GeoBoundsAggOptions = Omit<AggregationsGeoBoundsAggregation, 'field'>;
+
+/** Options for geo_centroid aggregation (excludes 'field' which is handled by the builder) */
+export type GeoCentroidAggOptions = Omit<AggregationsGeoCentroidAggregation, 'field'>;
+
+/** Options for missing aggregation (excludes 'field' which is handled by the builder) */
+export type MissingAggOptions = Omit<AggregationsMissingAggregation, 'field'>;
+
+/** Options for top_metrics aggregation — full passthrough (metrics and sort in options) */
+export type TopMetricsAggOptions = AggregationsTopMetricsAggregation;
+
+/** Options for weighted_avg aggregation — full passthrough (value and weight in options) */
+export type WeightedAvgAggOptions = AggregationsWeightedAverageAggregation;
+
+/** Options for bucket_script pipeline aggregation — full passthrough */
+export type BucketScriptAggOptions = AggregationsBucketScriptAggregation;
+
+/** Options for bucket_selector pipeline aggregation — full passthrough */
+export type BucketSelectorAggOptions = AggregationsBucketSelectorAggregation;
+
+/** Options for derivative pipeline aggregation — full passthrough */
+export type DerivativeAggOptions = AggregationsDerivativeAggregation;
+
+/** Options for cumulative_sum pipeline aggregation — full passthrough */
+export type CumulativeSumAggOptions = AggregationsCumulativeSumAggregation;
+
+/**
  * Source entry for composite aggregation — a named single-value source definition
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-composite-aggregation.html
  */
@@ -170,6 +254,22 @@ export type BaseAggMethods<M extends Record<string, FieldTypeString>, Self> = {
     options?: RangeAggOptions
   ) => Self;
 
+  /** Date-range aggregation — complement to `range` for date-typed fields. Supports date-math in range bounds. */
+  dateRange: <K extends DateFields<M> & string>(name: string, field: K, options?: DateRangeAggOptions) => Self;
+
+  /**
+   * Multi-filter aggregation — creates one named bucket per supplied query, plus an optional
+   * `other_bucket` for non-matches. Distinct from the single-query `.filter(name, query)`.
+   */
+  filters: (name: string, filters: Record<string, QueryDslQueryContainer>, options?: FiltersAggOptions) => Self;
+
+  /** Significant-terms aggregation — statistically significant terms relative to the background set. */
+  significantTerms: <K extends (KeywordFields<M> | TextFields<M>) & string>(
+    name: string,
+    field: K,
+    options?: SignificantTermsAggOptions
+  ) => Self;
+
   histogram: <K extends NumericFields<M> & string>(name: string, field: K, options?: HistogramAggOptions) => Self;
 
   avg: <K extends NumericFields<M> & string>(name: string, field: K, options?: AvgAggOptions) => Self;
@@ -177,13 +277,27 @@ export type BaseAggMethods<M extends Record<string, FieldTypeString>, Self> = {
   min: <K extends NumericFields<M> & string>(name: string, field: K, options?: MinAggOptions) => Self;
   max: <K extends NumericFields<M> & string>(name: string, field: K, options?: MaxAggOptions) => Self;
 
-  cardinality: <K extends string & keyof M>(name: string, field: K, options?: CardinalityAggOptions) => Self;
+  cardinality: <
+    K extends (KeywordFields<M> | TextFields<M> | NumericFields<M> | DateFields<M> | BooleanFields<M> | IpFields<M>) &
+      string
+  >(
+    name: string,
+    field: K,
+    options?: CardinalityAggOptions
+  ) => Self;
 
   percentiles: <K extends NumericFields<M> & string>(name: string, field: K, options?: PercentilesAggOptions) => Self;
 
   stats: <K extends NumericFields<M> & string>(name: string, field: K, options?: StatsAggOptions) => Self;
 
-  valueCount: <K extends string & keyof M>(name: string, field: K, options?: ValueCountAggOptions) => Self;
+  valueCount: <
+    K extends (KeywordFields<M> | TextFields<M> | NumericFields<M> | DateFields<M> | BooleanFields<M> | IpFields<M>) &
+      string
+  >(
+    name: string,
+    field: K,
+    options?: ValueCountAggOptions
+  ) => Self;
 
   extendedStats: <K extends NumericFields<M> & string>(
     name: string,
@@ -202,6 +316,59 @@ export type BaseAggMethods<M extends Record<string, FieldTypeString>, Self> = {
   composite: (name: string, sources: CompositeAggSource[], options?: CompositeAggOptions) => Self;
 
   filter: (name: string, query: QueryDslQueryContainer) => Self;
+
+  /** Rare-terms aggregation — returns terms that are rare in the index (inverse of terms). */
+  rareTerms: <K extends (KeywordFields<M> | NumericFields<M> | IpFields<M>) & string>(
+    name: string,
+    field: K,
+    options?: RareTermsAggOptions
+  ) => Self;
+
+  /** Multi-terms aggregation — creates buckets from combinations of multiple field values. */
+  multiTerms: (name: string, options: MultiTermsAggOptions) => Self;
+
+  /** Geo-distance aggregation — buckets documents by distance from an origin point. */
+  geoDistance: <K extends GeoPointFields<M> & string>(name: string, field: K, options: GeoDistanceAggOptions) => Self;
+
+  /** Geohash-grid aggregation — groups geo_point values into grid cells. */
+  geohashGrid: <K extends GeoPointFields<M> & string>(name: string, field: K, options?: GeohashGridAggOptions) => Self;
+
+  /** Geotile-grid aggregation — groups geo_point values into map tile cells. */
+  geotileGrid: <K extends GeoPointFields<M> & string>(name: string, field: K, options?: GeotileGridAggOptions) => Self;
+
+  /** Geo-bounds aggregation — computes the bounding box containing all geo_point values. */
+  geoBounds: <K extends GeoPointFields<M> & string>(name: string, field: K, options?: GeoBoundsAggOptions) => Self;
+
+  /** Geo-centroid aggregation — computes the weighted centroid of all geo_point values. */
+  geoCentroid: <K extends GeoPointFields<M> & string>(name: string, field: K, options?: GeoCentroidAggOptions) => Self;
+
+  /** Missing aggregation — counts documents with missing or null values for a field. */
+  missing: <
+    K extends (KeywordFields<M> | TextFields<M> | NumericFields<M> | DateFields<M> | BooleanFields<M> | IpFields<M>) &
+      string
+  >(
+    name: string,
+    field: K,
+    options?: MissingAggOptions
+  ) => Self;
+
+  /** Top-metrics aggregation — returns the top document's metrics sorted by a given criterion. */
+  topMetrics: (name: string, options: TopMetricsAggOptions) => Self;
+
+  /** Weighted-average aggregation — computes a weighted average of numeric values. */
+  weightedAvg: (name: string, options: WeightedAvgAggOptions) => Self;
+
+  /** Bucket-script pipeline aggregation — executes a script on bucket values from other aggs. */
+  bucketScript: (name: string, options: BucketScriptAggOptions) => Self;
+
+  /** Bucket-selector pipeline aggregation — filters buckets based on a script predicate. */
+  bucketSelector: (name: string, options: BucketSelectorAggOptions) => Self;
+
+  /** Derivative pipeline aggregation — calculates the derivative of a metric in a parent histogram/date_histogram. */
+  derivative: (name: string, options: DerivativeAggOptions) => Self;
+
+  /** Cumulative-sum pipeline aggregation — calculates the cumulative sum of a metric in a parent histogram/date_histogram. */
+  cumulativeSum: (name: string, options: CumulativeSumAggOptions) => Self;
 
   build: () => AggregationState;
 };

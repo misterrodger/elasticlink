@@ -61,6 +61,7 @@ type ESTypeToTS = {
   half_float: number;
   scaled_float: number;
   date: string;
+  date_nanos: string;
   boolean: boolean;
   binary: string;
   ip: string;
@@ -82,6 +83,12 @@ type ESTypeToTS = {
   long_range: { gte?: number; lte?: number; gt?: number; lt?: number };
   double_range: { gte?: number; lte?: number; gt?: number; lt?: number };
   date_range: { gte?: string; lte?: string; gt?: string; lt?: string };
+  ip_range: { gte?: string; lte?: string; gt?: string; lt?: string } | string;
+  token_count: string | number;
+  murmur3: string;
+  join: string | { name: string; parent?: string };
+  rank_feature: number;
+  rank_features: Record<string, number>;
 };
 
 type InferSubFields<F extends Record<string, FieldMappingWithLiteralType>> = {
@@ -129,7 +136,10 @@ export type NumericFields<M extends Record<string, FieldTypeString>> = FieldsOfT
   'long' | 'integer' | 'short' | 'byte' | 'double' | 'float' | 'half_float' | 'scaled_float' | 'unsigned_long'
 >;
 
-export type DateFields<M extends Record<string, FieldTypeString>> = FieldsOfType<ExcludeNestedDescendants<M>, 'date'>;
+export type DateFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
+  ExcludeNestedDescendants<M>,
+  'date' | 'date_nanos'
+>;
 
 export type BooleanFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
   ExcludeNestedDescendants<M>,
@@ -146,9 +156,50 @@ export type GeoShapeFields<M extends Record<string, FieldTypeString>> = FieldsOf
   'geo_shape'
 >;
 
+/**
+ * Projection covering `rank_feature` and `rank_features` fields — valid targets for
+ * the `rank_feature` query and `distance_feature` (when using the rank_feature origin).
+ */
+export type RankFeatureFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
+  ExcludeNestedDescendants<M>,
+  'rank_feature' | 'rank_features'
+>;
+
+/**
+ * Umbrella projection covering all vector-shaped field types (dense + sparse).
+ * Use the narrower `DenseVectorFields<M>` or `SparseVectorFields<M>` when a
+ * specific vector variant is required (e.g. `.knn()` dense-only, `.sparseVector()` sparse-only).
+ */
 export type VectorFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
   ExcludeNestedDescendants<M>,
+  'dense_vector' | 'sparse_vector'
+>;
+
+/**
+ * Fields valid as the target of a `.knn()` query — dense vector fields only.
+ * Kept as a dedicated alias so the `.knn()` constraint is explicit and so the broader
+ * `VectorFields<M>` umbrella can grow without loosening `.knn()`.
+ */
+export type DenseVectorFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
+  ExcludeNestedDescendants<M>,
   'dense_vector'
+>;
+
+/**
+ * Fields valid as the target of a `.sparseVector()` query — sparse vector fields only.
+ * Used by ELSER and other learned-sparse retrieval models.
+ */
+export type SparseVectorFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
+  ExcludeNestedDescendants<M>,
+  'sparse_vector'
+>;
+
+/**
+ * Fields valid as the target of a completion suggester.
+ */
+export type CompletionFields<M extends Record<string, FieldTypeString>> = FieldsOfType<
+  ExcludeNestedDescendants<M>,
+  'completion'
 >;
 
 export type IpFields<M extends Record<string, FieldTypeString>> = FieldsOfType<ExcludeNestedDescendants<M>, 'ip'>;

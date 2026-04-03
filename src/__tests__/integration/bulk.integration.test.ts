@@ -1,4 +1,4 @@
-import { bulk, query, indexBuilder } from '../../index.js';
+import { bulk, queryBuilder, indexBuilder } from '../../index.js';
 import { createIndex, deleteIndex, refreshIndex, search, bulkRequest } from '../helpers';
 import { tradeMappings } from '../fixtures/finance.schema.js';
 
@@ -22,7 +22,7 @@ describe('BulkBuilder', () => {
 
       expect(bulkResult.errors).toBe(false);
 
-      const searchResult = await search(INDEX, query(tradeMappings).matchAll().build());
+      const searchResult = await search(INDEX, queryBuilder(tradeMappings).matchAll().build());
 
       expect(searchResult.hits.total.value).toBe(3);
     });
@@ -37,7 +37,7 @@ describe('BulkBuilder', () => {
       await bulkRequest(ndjson);
       await refreshIndex(INDEX);
 
-      const result = await search(INDEX, query(tradeMappings).term('status', 'settled').build());
+      const result = await search(INDEX, queryBuilder(tradeMappings).term('status', 'settled').build());
 
       expect(result.hits.total.value).toBe(2);
     });
@@ -59,7 +59,7 @@ describe('BulkBuilder', () => {
       await bulkRequest(ndjson);
       await refreshIndex(INDEX);
 
-      const result = await search(INDEX, query(tradeMappings).matchAll().build());
+      const result = await search(INDEX, queryBuilder(tradeMappings).matchAll().build());
 
       expect(result.hits.total.value).toBe(4);
     });
@@ -72,7 +72,7 @@ describe('BulkBuilder', () => {
       await bulkRequest(ndjson);
       await refreshIndex(INDEX);
 
-      const result = await search(INDEX, query(tradeMappings).matchAll().build());
+      const result = await search(INDEX, queryBuilder(tradeMappings).matchAll().build());
 
       expect(result.hits.total.value).toBe(3);
     });
