@@ -1,5 +1,6 @@
 import type { FieldTypeString } from './index-management.types.js';
-import type { MappingsSchema } from './mapping.types.js';
+import type { FieldMappingWithLiteralType } from './field.types.js';
+import type { Infer, MappingsSchema } from './mapping.types.js';
 import { createQueryBuilder } from './query.builder.js';
 
 // Search API
@@ -19,6 +20,30 @@ export type {
   SpanNotOptions,
   SpanQuery
 } from './query.types.js';
+
+/**
+ * Type inference helper for vanilla JavaScript.
+ *
+ * **Type-only — do not use the returned value at runtime.** This function always returns
+ * `undefined`; its declared return type is a lie used to carry `Infer<typeof schema>` into
+ * JSDoc `@type` annotations. Accessing properties on the return value (e.g. `inferType(s).name`)
+ * will throw `TypeError`.
+ *
+ * @example
+ * const schema = mappings({ name: text() });
+ * const _Product = inferType(schema); // undefined at runtime; type-only
+ *
+ * /** @type {typeof _Product} *\/
+ * const doc = { name: 'Laptop' };
+ *
+ * In TypeScript, prefer `type Product = Infer<typeof schema>` directly.
+ */
+export const inferType = <
+  M extends Record<string, FieldTypeString>,
+  F extends Record<string, FieldMappingWithLiteralType>
+>(
+  _schema: MappingsSchema<M, F>
+): Infer<MappingsSchema<M, F>> => undefined as never;
 
 // Aggregations API
 export { aggregations } from './aggregation.builder.js';
