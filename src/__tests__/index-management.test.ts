@@ -43,7 +43,8 @@ import {
   rankFeatures,
   tokenCount,
   murmur3Hash,
-  join
+  join,
+  inferType
 } from '..';
 import type { Infer } from '..';
 
@@ -2437,6 +2438,19 @@ describe('Index Management', () => {
       expect(_len).toBe(42);
       expect(_rel).toBe('question');
       expect(_hash).toBe('abc123');
+    });
+
+    it('inferType returns undefined at runtime and carries the correct Infer type', () => {
+      const schema = mappings({ name: text(), price: float(), category: keyword() });
+      const inferred = inferType(schema);
+
+      expect(inferred).toBeUndefined();
+
+      // Compile-time check: a literal must be assignable to typeof inferred.
+      // Same pattern as the Infer<> tests above — would fail tsc if the type drifted.
+      const _doc: typeof inferred = { name: 'Laptop', price: 999, category: 'electronics' };
+
+      expect(_doc).toStrictEqual({ name: 'Laptop', price: 999, category: 'electronics' });
     });
   });
 });

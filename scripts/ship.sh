@@ -41,8 +41,12 @@ npm run test:integration
 echo "Staging all changes..."
 git add .
 
-echo "Enter commit message:"
-read -r commit_message
+commit_message="$1"
+
+if [ -z "$commit_message" ]; then
+    echo "Enter commit message:"
+    read -r commit_message
+fi
 
 if [ -z "$commit_message" ]; then
     echo "Error: Commit message cannot be empty"

@@ -304,6 +304,76 @@ const q2 = queryBuilder(userMappings).match('email', 'john@example.com').build()
 const q3 = queryBuilder(userMappings).term('email', 'john@example.com').build();
 ```
 
+## Vanilla JavaScript
+
+elasticlink works in vanilla JavaScript with full IntelliSense — no TypeScript required. The library ships both ESM and CommonJS builds, so `import` and `require()` both work.
+
+### Setup
+
+For project-wide type checking, add a `jsconfig.json` to your project root:
+
+```json
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "strict": true,
+    "module": "commonjs",
+    "moduleResolution": "node10",
+    "target": "ES2022"
+  }
+}
+```
+
+Or enable per-file with `// @ts-check` at the top of any `.js` file.
+
+### Usage
+
+Query builder methods provide field-name autocomplete and type constraints in VS Code even without any configuration:
+
+```js
+const { mappings, text, keyword, float, queryBuilder } = require('elasticlink');
+
+const productSchema = mappings({
+  name: text(),
+  price: float(),
+  category: keyword()
+});
+
+// Field names autocomplete, and are constrained by type:
+const query = queryBuilder(productSchema)
+  .match('name', 'laptop')           // 'name' is text — allowed in match()
+  .range('price', { gte: 500 })      // 'price' is numeric — allowed in range()
+  .term('category', 'electronics')   // 'category' is keyword — allowed in term()
+  .build();
+```
+
+### Deriving Document Types
+
+In TypeScript you'd use `type Product = Infer<typeof schema>`. In JavaScript, use the `inferType()` helper:
+
+> ⚠️ **Type-only helper.** `inferType()` always returns `undefined`. It exists so you can write `typeof _Product` in a JSDoc `@type` annotation. Never use the returned value at runtime — accessing a property on it (e.g. `_Product.name`) will throw `TypeError`.
+
+```js
+const { mappings, text, keyword, float, inferType } = require('elasticlink');
+
+const schema = mappings({ name: text(), price: float(), category: keyword() });
+
+const _Product = inferType(schema); // undefined at runtime; only the type matters
+
+/** @type {typeof _Product} */
+const doc = { name: 'Laptop', price: 999, category: 'electronics' };
+// ^ full autocomplete on all properties
+```
+
+Alternatively, use the JSDoc import syntax directly:
+
+```js
+/** @type {import('elasticlink').Infer<typeof schema>} */
+const doc = { name: 'Laptop', price: 999, category: 'electronics' };
+```
+
+See [`examples/vanilla-js/`](examples/vanilla-js/) for a complete working example.
+
 ## Settings Presets
 
 Ready-made index settings for common lifecycle stages. Use with `.settings()` on `indexBuilder()` or pass directly to the ES `_settings` API.
@@ -903,7 +973,7 @@ const alerts = queryBuilder(alertRuleMappings)
 
 | elasticlink  | Node.js    | Elasticsearch |
 | ------------ | ---------- | ------------- |
-| 1.0.0-beta.1 | 20, 22, 24 | 9.x (≥9.0.0) |
+| 1.0.0-beta.2 | 20, 22, 24 | 9.x (≥9.0.0) |
 
 Tested against the versions listed. Peer dependency is `@elastic/elasticsearch >=9.0.0`.
 

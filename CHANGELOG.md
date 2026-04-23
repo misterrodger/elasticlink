@@ -4,6 +4,21 @@ All notable changes to elasticlink will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
+## [1.0.0-beta.2] - 2026-04-23
+
+Additive release on top of `1.0.0-beta.1` — no breaking changes. Adds a CommonJS build alongside the existing ESM build and a small ergonomics helper for vanilla-JS consumers. ESM users are unaffected; `require('elasticlink')` now works without interop shims.
+
+### Added
+
+- **CommonJS build** — the package now ships both ESM (`dist/index.js`) and CJS (`dist/index.cjs`) entry points with matching `.d.ts` / `.d.cts` declarations via conditional `exports`. Build is a single `tsdown` invocation (Rolldown + Oxc) emitting both formats and matching declaration files. `require('elasticlink')` and `import 'elasticlink'` both resolve to the correct build with full type support.
+- **`inferType(schema)` helper** — a runtime-noop function (returns `undefined`) whose return type is `Infer<typeof schema>`. Lets vanilla-JS users capture a document type via `/** @type {typeof _Product} */` without a TS-only `type` declaration. TypeScript users should continue to use `type Product = Infer<typeof schema>`.
+- **Vanilla-JS example** — `examples/vanilla-js/` demonstrates `require()`-based usage, JSDoc type annotations, and the `inferType()` helper, with a `jsconfig.json` for project-wide `checkJs`.
+- **README "Vanilla JavaScript" section** — setup guidance (`jsconfig.json` / `// @ts-check`), `require()` usage, and two patterns for deriving document types (`inferType()` helper and JSDoc `import()` syntax).
+
+### Changed
+
+- **Build pipeline** — `tsdown` (Rolldown-based) emits dual ESM/CJS runtime bundles with sourcemaps and matching `.d.ts` / `.d.cts` declarations in a single step; the `clean` flag handles `dist/` between builds. `@elastic/elasticsearch` is held out of the bundle via `deps.neverBundle`.
+
 ## [1.0.0-beta.1] - 2026-04-06
 
 First release candidate for v1.0.0. The earlier beta phases (`0.1.0-beta` → `0.8.0-beta`) iterated on the public shape; `1.0.0-beta.1` closes the type-fidelity gaps identified by a full audit of every builder module against `@elastic/elasticsearch` 9.x.

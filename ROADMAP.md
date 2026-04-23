@@ -8,7 +8,7 @@ Sections:
 2. **Won't do (and why)** — decisions *not* to implement, to prevent re-litigation.
 3. **Out-of-scope by design** — architecturally outside elasticlink's value prop.
 
-For everything shipped in v1.0, see [CHANGELOG.md](CHANGELOG.md) `[1.0.0-beta.1]`.
+For everything shipped in v1.0, see [CHANGELOG.md](CHANGELOG.md) `[1.0.0-beta.2]`.
 
 ---
 

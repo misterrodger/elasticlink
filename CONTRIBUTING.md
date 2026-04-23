@@ -55,7 +55,7 @@ Field helpers (`text()`, `keyword()`, `date()`, etc.) are the single documented 
 
 ## Testing Strategy
 
-Tests follow the `test-code-quality` philosophy: **test at the right level; raise up when unit tests would just duplicate integration coverage.**
+Tests follow the `test-code-quality` philosophy: **test at the right level; raise when unit tests would just duplicate integration coverage.**
 
 ### Unit tests ([src/__tests__/](src/__tests__/))
 
