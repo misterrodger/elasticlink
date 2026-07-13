@@ -242,6 +242,22 @@ describe('Index Management', () => {
         }
       `);
     });
+
+    it('should forward dense_vector index_options.flat_index_threshold (ES 9.4 passthrough)', () => {
+      const result = indexBuilder()
+        .mappings({
+          embedding: denseVector({
+            dims: 384,
+            index_options: { type: 'int8_hnsw', flat_index_threshold: 0 }
+          })
+        })
+        .build();
+
+      expect(result.mappings?.properties.embedding?.index_options).toStrictEqual({
+        type: 'int8_hnsw',
+        flat_index_threshold: 0
+      });
+    });
   });
 
   describe('Field type coverage', () => {

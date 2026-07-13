@@ -666,6 +666,34 @@ describe('QueryBuilder Extensions', () => {
           }
         `);
       });
+
+      it('forwards query_vector_builder.lookup (ES 9.4 QueryVectorBuilder passthrough)', () => {
+        const result = queryBuilder(searchProductMappings)
+          .knn('embedding', [], {
+            k: 10,
+            num_candidates: 100,
+            query_vector_builder: { lookup: { id: 'doc-1', index: 'vectors', path: 'embedding' } }
+          })
+          .build();
+
+        expect(result.knn?.query_vector_builder).toStrictEqual({
+          lookup: { id: 'doc-1', index: 'vectors', path: 'embedding' }
+        });
+      });
+
+      it('forwards query_vector_builder.embedding (ES 9.4 QueryVectorBuilder passthrough)', () => {
+        const result = queryBuilder(searchProductMappings)
+          .knn('embedding', [], {
+            k: 10,
+            num_candidates: 100,
+            query_vector_builder: { embedding: { inference_id: 'my-model', input: 'shoes' } }
+          })
+          .build();
+
+        expect(result.knn?.query_vector_builder).toStrictEqual({
+          embedding: { inference_id: 'my-model', input: 'shoes' }
+        });
+      });
     });
 
     describe('field constraints (type ratchet)', () => {
