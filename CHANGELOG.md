@@ -4,10 +4,10 @@ All notable changes to elasticlink will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
-## [1.0.0]
+## [1.0.0] - 2026-07-13
 
-The stable v1.0 release. This section accumulates the work leading up to it; entries below
-`[1.0.0-beta.2]` describe the prior beta phases and remain the migration reference.
+The stable v1.0 release. Entries below `[1.0.0-beta.2]` describe the prior beta phases and remain the
+migration reference.
 
 ### Added
 
@@ -19,11 +19,12 @@ The stable v1.0 release. This section accumulates the work leading up to it; ent
 
 ### Changed
 
-- **Minimum tested Elasticsearch is now 9.4.2** — the `@elastic/elasticsearch` peer/dev dependency
-  and the integration-test service image are bumped from 9.3.x to 9.4.2. The borrowed DSL,
-  aggregation, and mapping container types are unchanged between the two versions.
-- **Dev-toolchain refresh** — eslint 10.5, eslint-plugin-functional 10, jscpd 5, tsdown 0.22,
-  vitest 4.1.9, and related type/lint packages.
+- **Tested against Elasticsearch 9.4.2** — the `@elastic/elasticsearch` dev dependency and the
+  integration-test service image are bumped from 9.3.x to 9.4.2. The supported peer range is
+  unchanged (`>=9.0.0`); 9.4.2 is the tested baseline. The borrowed DSL, aggregation, and mapping
+  container types are unchanged between the two versions.
+- **Dev-toolchain refresh** — eslint 10.5, eslint-plugin-functional 10, jscpd 5, vitest 4.1.9, and
+  related type/lint packages.
 
 ## [1.0.0-beta.2] - 2026-04-23
 
