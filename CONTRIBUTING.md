@@ -126,7 +126,7 @@ npm run test:integration
 npm run type-check && npm run lint && npm test && npm run format:check
 ```
 
-For changes that touch builders in Phases 1, 2, 5, or 7 (see [ROADMAP.md](ROADMAP.md)), also run `npm run test:integration`.
+If a change affects the DSL a builder emits or its runtime behaviour against real Elasticsearch, also run `npm run test:integration`.
 
 ## PR Checklist
 
@@ -137,7 +137,7 @@ Before requesting review, confirm:
 - [ ] Option types use `Omit<ElasticType, '...'>` rather than hand-redeclared fields — unless this is a field helper (see exception above).
 - [ ] Broad-swathe unit tests cover all new options in a single test per method.
 - [ ] Integration test added only if the change affects runtime behavior against real ES.
-- [ ] `CHANGELOG.md` updated with an entry under `Unreleased` in Keep-a-Changelog format.
+- [ ] `CHANGELOG.md` updated with an entry under the top in-progress release section (currently `[1.0.0]`) in Keep-a-Changelog format.
 - [ ] `ROADMAP.md` updated if scope decisions change (e.g. a deferred feature is now landing, or a new deferral is added).
 - [ ] `npm run type-check && npm run lint && npm test && npm run format:check` all pass.
 
