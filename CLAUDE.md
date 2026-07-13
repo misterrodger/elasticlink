@@ -6,8 +6,11 @@ For scope decisions (what belongs in which version), see [ROADMAP.md](ROADMAP.md
 
 ## Core pattern: mapping-aware generics
 
-Everything is generic over a mapping schema `M extends Record<string, FieldTypeString>`. You define
-your fields once with `mappings({ ... })`, and that `M` flows through every builder.
+The mapping-aware builders — query, aggregation, mapping, bulk, multi-search, and suggester — are
+generic over a mapping schema `M extends Record<string, FieldTypeString>`. You define your fields
+once with `mappings({ ... })`, and that `M` flows through them. (The management and settings APIs —
+`indexBuilder()`, `productionSearchSettings()`, and friends — are not mapping-aware; they take no
+schema.)
 
 Field-name parameters are constrained by **projections over `M`** — `TextFields<M>`,
 `KeywordFields<M>`, `NumericFields<M>`, `DenseVectorFields<M>`, and friends — defined in
@@ -30,7 +33,10 @@ and a tidy tooltip matters. Again, see CONTRIBUTING.md.
 
 ## Module layout
 
-Each area is a pair: `X.builder.ts` (the fluent, immutable API) + `X.types.ts` (its types).
+Most builder-backed areas are a pair: `X.builder.ts` (the fluent, immutable API) + `X.types.ts` (its
+types). A couple of exceptions show in the table below: the Search/query area also carries
+`vector.types.ts`, and Settings presets is a single `settings.presets.ts` file with no separate
+builder.
 
 | Area | Files | Entry |
 | --- | --- | --- |
