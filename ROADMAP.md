@@ -18,7 +18,7 @@ Features deferred from v1. Each entry includes a brief rationale and a pointer t
 
 ### Retrievers API
 
-- **`RetrieverContainer`, `KnnRetriever`, `StandardRetriever`, `RRFRetriever`, `TextSimilarityReranker`.** *Why deferred:* architectural change to the top-level query shape. Target v1.2 once the core v1 surface has stabilized.
+- **`RetrieverContainer`, `KnnRetriever`, `StandardRetriever`, `RRFRetriever`, `TextSimilarityReranker`.** *Why deferred:* architectural change to the top-level query shape. Targeted for v1.1+, once the core v1 surface has stabilized.
 
 ---
 

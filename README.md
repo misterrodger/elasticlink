@@ -71,15 +71,7 @@ const facetedSearch = queryBuilder(productMappings)
   .build();
 ```
 
-Type safety in action — wrong field types are caught at compile time:
-
-```typescript
-queryBuilder(productMappings).match('category', 'electronics');
-//                           ^^^^^^^^^^
-// TypeScript error: 'category' is a keyword field — use term(), not match()
-
-queryBuilder(productMappings).term('category', 'electronics'); // ✅ Correct
-```
+Wrong field types are caught at compile time — `.match()` on a keyword field is a TypeScript error, use `.term()`. See [TypeScript Support](#typescript-support) for a worked example.
 
 ## Examples
 
@@ -170,25 +162,6 @@ const result = queryBuilder(ecommerceMappings)
 ```
 
 </details>
-
-### Dynamic Search with Conditional Filters
-
-Build queries dynamically based on runtime values. `.when(condition, fn)` — when the condition is falsy, the builder is returned unchanged.
-
-```typescript
-const buildDynamicQuery = (filters: SearchFilters) => {
-  return queryBuilder(productMappings)
-    .bool()
-    .when(filters.searchTerm, (q) => q.must((q2) => q2.match('name', filters.searchTerm!, { boost: 2 })))
-    .when(filters.category, (q) => q.filter((q2) => q2.term('category', filters.category!)))
-    .when(filters.minPrice != null && filters.maxPrice != null, (q) =>
-      q.filter((q2) => q2.range('price', { gte: filters.minPrice!, lte: filters.maxPrice! }))
-    )
-    .from(filters.offset || 0)
-    .size(filters.limit || 20)
-    .build();
-};
-```
 
 ### Aggregations — Portfolio Analytics
 
@@ -971,9 +944,9 @@ const alerts = queryBuilder(alertRuleMappings)
 
 ## Compatibility
 
-| elasticlink  | Node.js    | Elasticsearch |
-| ------------ | ---------- | ------------- |
-| 1.0.0-beta.2 | 20, 22, 24 | 9.x (≥9.0.0) |
+| elasticlink | Node.js    | Elasticsearch          |
+| ----------- | ---------- | ---------------------- |
+| 1.0.0       | 20, 22, 24 | 9.x (≥9.0.0), tested against 9.4.2 |
 
 Tested against the versions listed. Peer dependency is `@elastic/elasticsearch >=9.0.0`.
 
