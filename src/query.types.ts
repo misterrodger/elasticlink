@@ -165,17 +165,10 @@ export type SparseVectorQueryOptions = Omit<QueryDslSparseVectorQuery, 'field'>;
 // ---------------------------------------------------------------------------
 
 type TermableFields<M extends Record<string, FieldTypeString>> =
-  | KeywordFields<M>
-  | NumericFields<M>
-  | DateFields<M>
-  | BooleanFields<M>
-  | IpFields<M>;
+  KeywordFields<M> | NumericFields<M> | DateFields<M> | BooleanFields<M> | IpFields<M>;
 
 type RangeableFields<M extends Record<string, FieldTypeString>> =
-  | NumericFields<M>
-  | DateFields<M>
-  | KeywordFields<M>
-  | IpFields<M>;
+  NumericFields<M> | DateFields<M> | KeywordFields<M> | IpFields<M>;
 
 type FuzzyableFields<M extends Record<string, FieldTypeString>> = TextFields<M> | KeywordFields<M>;
 

@@ -116,7 +116,7 @@ npx vitest run -t "passesAllMatchQueryOptions"
 ### Integration tests
 
 ```bash
-docker compose up -d        # ES 9.3.0 on localhost:9200
+docker compose up -d        # ES 9.4.2 on localhost:9200
 npm run test:integration
 ```
 

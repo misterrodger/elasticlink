@@ -4,6 +4,27 @@ All notable changes to elasticlink will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
+## [1.0.0]
+
+The stable v1.0 release. This section accumulates the work leading up to it; entries below
+`[1.0.0-beta.2]` describe the prior beta phases and remain the migration reference.
+
+### Added
+
+- **Elasticsearch 9.4 option passthroughs** — no API changes; these options flow through the
+  existing "borrow the options" passthrough types:
+  - `knn(...)`'s `query_vector_builder` now accepts the `lookup` builder
+    (`LookupQueryVectorBuilder`) and the `embedding` builder (`Embedding`) added in ES 9.4.
+  - `denseVector({ index_options })` now accepts `flat_index_threshold`.
+
+### Changed
+
+- **Minimum tested Elasticsearch is now 9.4.2** — the `@elastic/elasticsearch` peer/dev dependency
+  and the integration-test service image are bumped from 9.3.x to 9.4.2. The borrowed DSL,
+  aggregation, and mapping container types are unchanged between the two versions.
+- **Dev-toolchain refresh** — eslint 10.5, eslint-plugin-functional 10, jscpd 5, tsdown 0.22,
+  vitest 4.1.9, and related type/lint packages.
+
 ## [1.0.0-beta.2] - 2026-04-23
 
 Additive release on top of `1.0.0-beta.1` — no breaking changes. Adds a CommonJS build alongside the existing ESM build and a small ergonomics helper for vanilla-JS consumers. ESM users are unaffected; `require('elasticlink')` now works without interop shims.
